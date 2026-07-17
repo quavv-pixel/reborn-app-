@@ -24,6 +24,7 @@ function serializeListing(row) {
     category: row.category,
     condition: row.condition,
     imageUrl: row.image_url,
+    location: row.location,
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -64,12 +65,27 @@ router.get('/', attachUserIfPresent, (req, res) => {
     clauses.push('(listings.title LIKE @q OR listings.description LIKE @q)');
     params.q = `%${String(q).trim()}%`;
   }
+  if (req.query.location) {
+    clauses.push('listings.location LIKE @location');
+    params.location = `%${String(req.query.location).trim()}%`;
+  }
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const rows = db
     .prepare(`${LISTING_SELECT} ${where} ORDER BY listings.created_at DESC LIMIT 200`)
     .all(params);
   res.json({ listings: rows.map(serializeListing) });
+});
+
+router.get('/category-counts', (_req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT category, COUNT(*) AS count FROM listings WHERE status = 'active' GROUP BY category`
+    )
+    .all();
+  const counts = Object.fromEntries(CATEGORIES.map((c) => [c, 0]));
+  for (const row of rows) counts[row.category] = row.count;
+  res.json({ counts });
 });
 
 router.get('/mine', requireAuth, (req, res) => {
@@ -86,7 +102,7 @@ router.get('/:id', attachUserIfPresent, (req, res) => {
 });
 
 router.post('/', requireAuth, (req, res) => {
-  const { title, description, priceCents, category, condition, imageUrl } = req.body || {};
+  const { title, description, priceCents, category, condition, imageUrl, location } = req.body || {};
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'title is required' });
   }
@@ -98,8 +114,8 @@ router.post('/', requireAuth, (req, res) => {
 
   const info = db
     .prepare(
-      `INSERT INTO listings (seller_id, title, description, price_cents, category, condition, image_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO listings (seller_id, title, description, price_cents, category, condition, image_url, location)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       req.userId,
@@ -108,7 +124,8 @@ router.post('/', requireAuth, (req, res) => {
       Math.round(priceCents),
       cat,
       cond,
-      imageUrl || null
+      imageUrl || null,
+      location ? String(location).trim() : null
     );
 
   const row = db.prepare(`${LISTING_SELECT} WHERE listings.id = ?`).get(info.lastInsertRowid);
@@ -122,7 +139,7 @@ router.patch('/:id', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'You do not own this listing' });
   }
 
-  const { title, description, priceCents, category, condition, imageUrl, status } = req.body || {};
+  const { title, description, priceCents, category, condition, imageUrl, location, status } = req.body || {};
   const next = {
     title: title !== undefined ? String(title).trim() : existing.title,
     description: description !== undefined ? String(description).trim() : existing.description,
@@ -133,13 +150,14 @@ router.patch('/:id', requireAuth, (req, res) => {
     category: CATEGORIES.includes(category) ? category : existing.category,
     condition: CONDITIONS.includes(condition) ? condition : existing.condition,
     image_url: imageUrl !== undefined ? imageUrl : existing.image_url,
+    location: location !== undefined ? (location ? String(location).trim() : null) : existing.location,
     status: ['active', 'sold', 'removed'].includes(status) ? status : existing.status,
   };
 
   db.prepare(
     `UPDATE listings SET title = @title, description = @description, price_cents = @price_cents,
-     category = @category, condition = @condition, image_url = @image_url, status = @status,
-     updated_at = datetime('now') WHERE id = @id`
+     category = @category, condition = @condition, image_url = @image_url, location = @location,
+     status = @status, updated_at = datetime('now') WHERE id = @id`
   ).run({ ...next, id: existing.id });
 
   const row = db.prepare(`${LISTING_SELECT} WHERE listings.id = ?`).get(existing.id);

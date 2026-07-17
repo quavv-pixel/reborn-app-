@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import listingsRoutes from './routes/listings.js';
 import conversationsRoutes from './routes/conversations.js';
 import ordersRoutes from './routes/orders.js';
+import offersRoutes from './routes/offers.js';
 import { stripeWebhookHandler } from './routes/webhook.js';
 import { attachSocket } from './socket.js';
 
@@ -30,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/listings', listingsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/offers', offersRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

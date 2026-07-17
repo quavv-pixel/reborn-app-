@@ -9,6 +9,7 @@ function serializeConversation(row, viewerId) {
   const otherName = row.buyer_id === viewerId ? row.seller_name : row.buyer_name;
   return {
     id: row.id,
+    role: row.buyer_id === viewerId ? 'buyer' : 'seller',
     listing: row.listing_id
       ? { id: row.listing_id, title: row.listing_title, imageUrl: row.listing_image }
       : null,
@@ -85,6 +86,20 @@ router.post('/', requireAuth, (req, res) => {
   res.status(existing ? 200 : 201).json({ conversation: serializeConversation(row, req.userId) });
 });
 
+function serializeMessage(m) {
+  return {
+    id: m.id,
+    conversationId: m.conversation_id,
+    senderId: m.sender_id,
+    body: m.body,
+    kind: m.kind,
+    offerId: m.offer_id,
+    offerStatus: m.offer_status ?? null,
+    offerAmountCents: m.offer_amount_cents ?? null,
+    createdAt: m.created_at,
+  };
+}
+
 function assertParticipant(conversationId, userId) {
   const convo = db.prepare('SELECT * FROM conversations WHERE id = ?').get(conversationId);
   if (!convo) return { error: 404 };
@@ -97,17 +112,13 @@ router.get('/:id/messages', requireAuth, (req, res) => {
   if (error) return res.status(error).json({ error: error === 404 ? 'Not found' : 'Forbidden' });
 
   const rows = db
-    .prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY id ASC')
+    .prepare(
+      `SELECT messages.*, offers.status AS offer_status, offers.amount_cents AS offer_amount_cents
+       FROM messages LEFT JOIN offers ON offers.id = messages.offer_id
+       WHERE messages.conversation_id = ? ORDER BY messages.id ASC`
+    )
     .all(req.params.id);
-  res.json({
-    messages: rows.map((m) => ({
-      id: m.id,
-      conversationId: m.conversation_id,
-      senderId: m.sender_id,
-      body: m.body,
-      createdAt: m.created_at,
-    })),
-  });
+  res.json({ messages: rows.map(serializeMessage) });
 });
 
 router.post('/:id/messages', requireAuth, (req, res) => {
@@ -123,13 +134,7 @@ router.post('/:id/messages', requireAuth, (req, res) => {
     .prepare('INSERT INTO messages (conversation_id, sender_id, body) VALUES (?, ?, ?)')
     .run(convo.id, req.userId, String(body).trim());
   const message = db.prepare('SELECT * FROM messages WHERE id = ?').get(info.lastInsertRowid);
-  const payload = {
-    id: message.id,
-    conversationId: message.conversation_id,
-    senderId: message.sender_id,
-    body: message.body,
-    createdAt: message.created_at,
-  };
+  const payload = serializeMessage(message);
 
   req.app.get('io')?.to(`conversation:${convo.id}`).emit('new_message', payload);
   res.status(201).json({ message: payload });

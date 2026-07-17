@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Signup() {
+  const nameId = useId();
+  const emailId = useId();
+  const passwordId = useId();
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState('');
@@ -31,8 +34,11 @@ export default function Signup() {
       <h1 className="text-2xl font-bold mb-6">Create your account</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Display name</label>
+          <label htmlFor={nameId} className="block text-sm font-medium mb-1">
+            Display name
+          </label>
           <input
+            id={nameId}
             required
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -40,8 +46,11 @@ export default function Signup() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
+          <label htmlFor={emailId} className="block text-sm font-medium mb-1">
+            Email
+          </label>
           <input
+            id={emailId}
             type="email"
             required
             value={email}
@@ -50,8 +59,11 @@ export default function Signup() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Password</label>
+          <label htmlFor={passwordId} className="block text-sm font-medium mb-1">
+            Password
+          </label>
           <input
+            id={passwordId}
             type="password"
             required
             minLength={8}

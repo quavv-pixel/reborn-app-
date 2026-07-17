@@ -12,12 +12,19 @@ resellers, and message sellers/suppliers in real time.
 ## Features
 
 - Email/password sign up and log in (bcrypt-hashed passwords, JWT sessions).
-- Browse/search/filter listings by keyword, category, and condition.
-- Create, edit, and remove your own listings.
-- Message sellers about a listing; messages deliver in real time over
-  WebSockets (Socket.IO).
-- "Buy now" launches a Stripe Checkout session; a webhook marks the order paid
-  and the listing sold once Stripe confirms payment.
+- Browse listings via a category sidebar (Facebook Marketplace-style) with
+  live per-category counts, plus keyword/category/condition search.
+- Bold, price-forward listing cards and detail pages (StockX-style), with
+  condition and location chips.
+- Create, edit, and remove your own listings, including a location field.
+- "Buy now" **and** "Make offer" on every listing (OfferUp-style). Offers
+  appear as inline cards in the chat thread the seller can Accept/Decline in
+  real time; once accepted, the buyer gets a "Pay $X" button for that price.
+- Message sellers about a listing; messages and offer updates deliver in real
+  time over WebSockets (Socket.IO).
+- "Buy now" (or an accepted offer) launches a Stripe Checkout session; a
+  webhook marks the order paid and the listing sold once Stripe confirms
+  payment.
 - Dashboard for your listings, purchases, and sales.
 
 ## Project layout

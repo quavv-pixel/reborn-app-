@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
+  const emailId = useId();
+  const passwordId = useId();
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,8 +32,11 @@ export default function Login() {
       <h1 className="text-2xl font-bold mb-6">Log in</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
+          <label htmlFor={emailId} className="block text-sm font-medium mb-1">
+            Email
+          </label>
           <input
+            id={emailId}
             type="email"
             required
             value={email}
@@ -40,8 +45,11 @@ export default function Login() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Password</label>
+          <label htmlFor={passwordId} className="block text-sm font-medium mb-1">
+            Password
+          </label>
           <input
+            id={passwordId}
             type="password"
             required
             value={password}

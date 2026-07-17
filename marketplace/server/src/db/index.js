@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS listings (
   category TEXT NOT NULL DEFAULT 'other',
   condition TEXT NOT NULL DEFAULT 'used',
   image_url TEXT,
+  location TEXT,
   status TEXT NOT NULL DEFAULT 'active', -- active | sold | removed
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -52,11 +53,28 @@ CREATE TABLE IF NOT EXISTS conversations (
 CREATE INDEX IF NOT EXISTS idx_conversations_buyer ON conversations(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_seller ON conversations(seller_id);
 
+CREATE TABLE IF NOT EXISTS offers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  buyer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | accepted | declined
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_offers_listing ON offers(listing_id);
+CREATE INDEX IF NOT EXISTS idx_offers_buyer ON offers(buyer_id);
+
 CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'text', -- text | offer
+  offer_id INTEGER REFERENCES offers(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -67,6 +85,7 @@ CREATE TABLE IF NOT EXISTS orders (
   listing_id INTEGER NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
   buyer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  offer_id INTEGER REFERENCES offers(id) ON DELETE SET NULL,
   amount_cents INTEGER NOT NULL,
   stripe_session_id TEXT UNIQUE,
   status TEXT NOT NULL DEFAULT 'pending', -- pending | paid | cancelled

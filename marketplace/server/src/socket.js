@@ -49,6 +49,10 @@ export function attachSocket(httpServer, corsOrigin) {
         conversationId: message.conversation_id,
         senderId: message.sender_id,
         body: message.body,
+        kind: message.kind,
+        offerId: message.offer_id,
+        offerStatus: null,
+        offerAmountCents: null,
         createdAt: message.created_at,
       };
       io.to(`conversation:${conversationId}`).emit('new_message', payload);

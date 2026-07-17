@@ -18,8 +18,29 @@ router.post('/checkout', requireAuth, async (req, res) => {
     });
   }
 
-  const { listingId } = req.body || {};
-  const listing = db.prepare('SELECT * FROM listings WHERE id = ?').get(listingId);
+  const { listingId, offerId } = req.body || {};
+
+  let listing;
+  let amountCents;
+  let acceptedOfferId = null;
+
+  if (offerId) {
+    const offer = db.prepare('SELECT * FROM offers WHERE id = ?').get(offerId);
+    if (!offer) return res.status(404).json({ error: 'Offer not found' });
+    if (offer.buyer_id !== req.userId) {
+      return res.status(403).json({ error: 'This offer does not belong to you' });
+    }
+    if (offer.status !== 'accepted') {
+      return res.status(400).json({ error: 'This offer has not been accepted yet' });
+    }
+    listing = db.prepare('SELECT * FROM listings WHERE id = ?').get(offer.listing_id);
+    amountCents = offer.amount_cents;
+    acceptedOfferId = offer.id;
+  } else {
+    listing = db.prepare('SELECT * FROM listings WHERE id = ?').get(listingId);
+    amountCents = listing?.price_cents;
+  }
+
   if (!listing) return res.status(404).json({ error: 'Listing not found' });
   if (listing.status !== 'active') {
     return res.status(400).json({ error: 'This listing is no longer available' });
@@ -36,7 +57,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
       {
         price_data: {
           currency: 'usd',
-          unit_amount: listing.price_cents,
+          unit_amount: amountCents,
           product_data: {
             name: listing.title,
             description: listing.description?.slice(0, 500) || undefined,
@@ -51,13 +72,14 @@ router.post('/checkout', requireAuth, async (req, res) => {
       listingId: String(listing.id),
       buyerId: String(req.userId),
       sellerId: String(listing.seller_id),
+      offerId: acceptedOfferId ? String(acceptedOfferId) : '',
     },
   });
 
   db.prepare(
-    `INSERT INTO orders (listing_id, buyer_id, seller_id, amount_cents, stripe_session_id, status)
-     VALUES (?, ?, ?, ?, ?, 'pending')`
-  ).run(listing.id, req.userId, listing.seller_id, listing.price_cents, session.id);
+    `INSERT INTO orders (listing_id, buyer_id, seller_id, offer_id, amount_cents, stripe_session_id, status)
+     VALUES (?, ?, ?, ?, ?, ?, 'pending')`
+  ).run(listing.id, req.userId, listing.seller_id, acceptedOfferId, amountCents, session.id);
 
   res.json({ url: session.url });
 });

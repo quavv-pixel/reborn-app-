@@ -64,13 +64,13 @@ const DEFAULT_SCHEDULE = [
 ];
 
 const DEFAULT_SPLIT = [
-  { day: 'Mon', type: 'Pull' },
-  { day: 'Tue', type: 'Rest' },
-  { day: 'Wed', type: 'Push' },
-  { day: 'Thu', type: 'Legs' },
+  { day: 'Mon', type: 'Push' },
+  { day: 'Tue', type: 'Pull' },
+  { day: 'Wed', type: 'Legs' },
+  { day: 'Thu', type: 'Full body' },
   { day: 'Fri', type: 'Rest' },
   { day: 'Sat', type: 'Rest' },
-  { day: 'Sun', type: 'Full body' },
+  { day: 'Sun', type: 'Rest' },
 ];
 
 const DEFAULT_WEEKLY_PLAN = [];
@@ -282,20 +282,49 @@ const FOOD_CALORIES = [
 // Exercise options per split-day type, so at the gym you pick from a list
 // instead of typing. Matched case-insensitively against gym.split[today].type;
 // unrecognized day types (custom labels) fall back to a combined list.
+// Sourced from the 4-Day Push/Pull/Legs + Full Body plan (with cardio).
 const EXERCISE_LIBRARY = {
-  push: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Chest Fly', 'Lateral Raise', 'Tricep Pushdown', 'Dips', 'Close-Grip Bench Press'],
-  pull: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Lat Pulldown', 'Seated Cable Row', 'Face Pull', 'Bicep Curl', 'Hammer Curl'],
-  legs: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Walking Lunges', 'Calf Raise', 'Hip Thrust'],
-  'full body': ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-ups'],
+  push: ['Bench Press', 'Incline Dumbbell Press', 'Overhead Press', 'Lateral Raise', 'Tricep Pushdown', 'Overhead Tricep Extension'],
+  pull: ['Pull-ups', 'Lat Pulldown', 'Barbell Row', 'Cable Row', 'Face Pull', 'Hammer Curl', 'EZ Bar Curl'],
+  legs: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Calf Raise'],
+  'full body': ['Deadlift', 'Incline Dumbbell Bench Press', 'Pull-ups', 'Bulgarian Split Squat', 'DB Shoulder Press', 'Lateral Raise', 'Hanging Leg Raise', 'Plank'],
   rest: [],
 };
 const ALL_EXERCISES = [...new Set(Object.values(EXERCISE_LIBRARY).flat())];
+
+// Target sets x reps per exercise, keyed by split-day type — same exercise
+// can carry a different target on different days (e.g. Pull-ups: 4x8-10 on
+// Pull day, 3x8-10 on Full Body day).
+const WORKOUT_TARGETS = {
+  push: { 'Bench Press': '4x6-8', 'Incline Dumbbell Press': '3x8-10', 'Overhead Press': '3x8-10', 'Lateral Raise': '3x12-15', 'Tricep Pushdown': '3x10-12', 'Overhead Tricep Extension': '2x12-15' },
+  pull: { 'Pull-ups': '4x8-10', 'Lat Pulldown': '4x8-10', 'Barbell Row': '4x6-8', 'Cable Row': '3x10-12', 'Face Pull': '3x12-15', 'Hammer Curl': '3x10-12', 'EZ Bar Curl': '2x12-15' },
+  legs: { 'Squat': '4x6-8', 'Romanian Deadlift': '3x8-10', 'Leg Press': '3x10-12', 'Leg Curl': '3x10-12', 'Leg Extension': '3x12-15', 'Calf Raise': '4x12-15' },
+  'full body': { 'Deadlift': '3x5', 'Incline Dumbbell Bench Press': '3x8-10', 'Pull-ups': '3x8-10', 'Bulgarian Split Squat': '3x10', 'DB Shoulder Press': '3x10', 'Lateral Raise': '2x15', 'Hanging Leg Raise': '3x12-15', 'Plank': '3x45-60 sec' },
+};
+
+// Post-lift cardio recommendation per split-day type.
+const CARDIO_BY_TYPE = {
+  push: '20-30 min incline walk or cycling after lifting.',
+  pull: '15-20 min rowing or brisk walk.',
+  legs: '15-20 min easy cycling or incline walk.',
+  'full body': '20-30 min moderate jog, elliptical, or stair climber.',
+};
 
 function getExercisesForType(type) {
   const key = (type || '').trim().toLowerCase();
   if (EXERCISE_LIBRARY[key]) return EXERCISE_LIBRARY[key];
   // Custom/unrecognized day label — offer everything rather than nothing.
   return ALL_EXERCISES;
+}
+
+function getTargetFor(type, name) {
+  const key = (type || '').trim().toLowerCase();
+  return (WORKOUT_TARGETS[key] && WORKOUT_TARGETS[key][name]) || '';
+}
+
+function getCardioFor(type) {
+  const key = (type || '').trim().toLowerCase();
+  return CARDIO_BY_TYPE[key] || '';
 }
 
 // Returns up to 6 ranked suggestions for whatever's typed so far — e.g.
@@ -1386,21 +1415,31 @@ export default function LifeTracker() {
               {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').length === 0 ? (
                 <p className="text-sm" style={dimText}>Rest day — nothing scheduled. Pick "Add lift" below manually if you're training anyway.</p>
               ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => (
-                    <button
-                      key={name}
-                      onClick={() => handleExerciseChange(name)}
-                      className="text-xs px-2 py-1"
-                      style={{
-                        fontFamily: MONO,
-                        border: `1px solid ${gExercise === name ? 'var(--accent)' : 'var(--border)'}`,
-                        background: gExercise === name ? 'var(--accent)' : 'var(--field)',
-                        color: gExercise === name ? 'var(--bg)' : 'var(--text)',
-                      }}
-                    >{name}</button>
-                  ))}
-                </div>
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => {
+                      const target = getTargetFor(gym.split[todayIdx] ? gym.split[todayIdx].type : '', name);
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => handleExerciseChange(name)}
+                          className="text-xs px-2 py-1"
+                          style={{
+                            fontFamily: MONO,
+                            border: `1px solid ${gExercise === name ? 'var(--accent)' : 'var(--border)'}`,
+                            background: gExercise === name ? 'var(--accent)' : 'var(--field)',
+                            color: gExercise === name ? 'var(--bg)' : 'var(--text)',
+                          }}
+                        >{name}{target && <span style={{ opacity: 0.7 }}> {target}</span>}</button>
+                      );
+                    })}
+                  </div>
+                  {getCardioFor(gym.split[todayIdx] ? gym.split[todayIdx].type : '') && (
+                    <p className="text-xs mt-3" style={dimText}>
+                      Cardio: {getCardioFor(gym.split[todayIdx] ? gym.split[todayIdx].type : '')}
+                    </p>
+                  )}
+                </>
               )}
             </Panel>
 
@@ -1425,9 +1464,12 @@ export default function LifeTracker() {
                   <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Exercise</label>
                   <select className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={gExercise} onChange={e => handleExerciseChange(e.target.value)}>
                     <option value="" disabled>Select an exercise…</option>
-                    {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
+                    {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => {
+                      const target = getTargetFor(gym.split[todayIdx] ? gym.split[todayIdx].type : '', name);
+                      return (
+                        <option key={name} value={name}>{name}{target ? ` — ${target}` : ''}</option>
+                      );
+                    })}
                     {ALL_EXERCISES.filter(name => !getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').includes(name)).length > 0 && (
                       <optgroup label="Other days">
                         {ALL_EXERCISES.filter(name => !getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').includes(name)).map(name => (

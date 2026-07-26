@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, Dumbbell, ListChecks, UtensilsCrossed, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff } from 'lucide-react';
+import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace";
 const SANS = "'Inter', ui-sans-serif, sans-serif";
 const DISPLAY = "'Cormorant Garamond', Georgia, serif"; // luxury wordmark/numbers
+
+// iOS-style shapes: soft rounded corners + a bit more breathing room than the
+// original sharp-edged layout, applied globally regardless of which color
+// theme is active. RADIUS is for card-level containers (Panel, Meter, the
+// grouped nav list); RADIUS_SM matches the global input/select/button rule
+// below so small chips, fields, and list rows all read as one consistent shape.
+const RADIUS = 14;
+const RADIUS_SM = 10;
 
 /* =========================================================================
    THEMES — applied as CSS custom properties on the root element.
@@ -26,6 +35,61 @@ const THEMES = {
     label: 'Midnight',
     bg: '#0A0F1A', panel: '#111827', field: '#18202F', border: '#232D40',
     text: '#E6EAF2', dim: '#7C8698', accent: '#8FA8D0', accent2: '#C9A96A', danger: '#C96A6A',
+  },
+  webslinger: {
+    label: 'Web-Slinger',
+    bg: '#0A0808', panel: '#150F10', field: '#1F1517', border: '#33191D',
+    text: '#F3E9E6', dim: '#9C7A7E', accent: '#E8232F', accent2: '#FF4FA3', danger: '#FF7A45',
+  },
+  chillzone: {
+    label: 'Chill Zone',
+    bg: '#100C1E', panel: '#1B1730', field: '#241F3D', border: '#322B52',
+    text: '#EDE9F7', dim: '#8D85AC', accent: '#C084FC', accent2: '#FFB86B', danger: '#FF6B81',
+  },
+  arcade: {
+    label: 'Arcade',
+    bg: '#0D0B1A', panel: '#17142B', field: '#201C3B', border: '#2E2850',
+    text: '#ECE9F9', dim: '#8480A8', accent: '#FF2E92', accent2: '#33D9E8', danger: '#FF5A36',
+  },
+  terminal: {
+    label: 'Terminal',
+    bg: '#050806', panel: '#0B120D', field: '#101A12', border: '#1C2E1F',
+    text: '#D6F5DC', dim: '#5E8F68', accent: '#39FF6A', accent2: '#4DD8E8', danger: '#FF5C5C',
+  },
+  sakura: {
+    label: 'Sakura',
+    bg: '#FDF3F6', panel: '#FFFFFF', field: '#FBE8ED', border: '#F3D3DE',
+    text: '#3B2530', dim: '#A98A95', accent: '#B03A5B', accent2: '#5C7A62', danger: '#C1543D',
+  },
+  ember: {
+    label: 'Ember',
+    bg: '#140D08', panel: '#1E140C', field: '#281B10', border: '#3A2716',
+    text: '#F5E6D3', dim: '#A6876B', accent: '#E8792A', accent2: '#F0B429', danger: '#D94F4F',
+  },
+  ios: {
+    label: 'iOS',
+    bg: '#F2F2F7', panel: '#FFFFFF', field: '#E9E9EE', border: '#D1D1D6',
+    text: '#000000', dim: '#8E8E93', accent: '#007AFF', accent2: '#34C759', danger: '#FF3B30',
+  },
+  twitch: {
+    label: 'Twitch',
+    bg: '#18181B', panel: '#1F1F23', field: '#26262C', border: '#35353D',
+    text: '#EFEFF1', dim: '#ADADB8', accent: '#9147FF', accent2: '#FF3D9A', danger: '#FF4747',
+  },
+  aura: {
+    label: 'Aura',
+    bg: '#1A1230', panel: '#241A3D', field: '#2E2150', border: '#40325E',
+    text: '#ECE7F7', dim: '#9A8CBB', accent: '#8B6CFF', accent2: '#C77DFF', danger: '#FF6B6B',
+  },
+  streak: {
+    label: 'Streak',
+    bg: '#0A0A0A', panel: '#151515', field: '#1D1D1D', border: '#2A2A2A',
+    text: '#F2F2F2', dim: '#8A8A8A', accent: '#C6FF3D', accent2: '#FFD54A', danger: '#FF4D4D',
+  },
+  nova: {
+    label: 'Nova',
+    bg: '#060B14', panel: '#0D1524', field: '#131E33', border: '#1C2C46',
+    text: '#E8EEF7', dim: '#7C8CA6', accent: '#3B9EFF', accent2: '#FF8A3D', danger: '#FF5C5C',
   },
 };
 
@@ -136,6 +200,14 @@ const MEAL_BOOK = [
   { name: 'French toast (2 slices)', calories: 360, type: 'breakfast' },
   { name: 'Egg white omelet with veggies', calories: 220, type: 'breakfast' },
   { name: 'Peanut butter toast', calories: 290, type: 'breakfast' },
+  { name: 'Belgian waffles (2)', calories: 420, type: 'breakfast' },
+  { name: 'Breakfast tacos (2)', calories: 380, type: 'breakfast' },
+  { name: 'Bagel with cream cheese', calories: 350, type: 'breakfast' },
+  { name: 'Overnight oats', calories: 320, type: 'breakfast' },
+  { name: 'Shakshuka', calories: 340, type: 'breakfast' },
+  { name: 'Breakfast quesadilla', calories: 450, type: 'breakfast' },
+  { name: 'Yogurt parfait', calories: 280, type: 'breakfast' },
+  { name: 'Sausage and egg muffin', calories: 400, type: 'breakfast' },
   // lunch
   { name: 'Chicken and rice bowl', calories: 550, type: 'lunch' },
   { name: 'Turkey sandwich', calories: 420, type: 'lunch' },
@@ -149,6 +221,13 @@ const MEAL_BOOK = [
   { name: 'Quesadilla (chicken)', calories: 560, type: 'lunch' },
   { name: 'Poke bowl', calories: 500, type: 'lunch' },
   { name: 'Leftover meal prep plate', calories: 550, type: 'lunch' },
+  { name: 'Falafel wrap', calories: 480, type: 'lunch' },
+  { name: 'BLT sandwich', calories: 420, type: 'lunch' },
+  { name: 'Chicken Caesar wrap', calories: 500, type: 'lunch' },
+  { name: 'Beef and broccoli', calories: 550, type: 'lunch' },
+  { name: 'Cobb salad', calories: 500, type: 'lunch' },
+  { name: 'Grilled cheese and tomato soup', calories: 500, type: 'lunch' },
+  { name: 'Bibimbap', calories: 600, type: 'lunch' },
   // dinner
   { name: 'Steak with baked potato', calories: 700, type: 'dinner' },
   { name: 'Salmon with rice and broccoli', calories: 580, type: 'dinner' },
@@ -162,6 +241,14 @@ const MEAL_BOOK = [
   { name: 'Pork chops with rice', calories: 620, type: 'dinner' },
   { name: 'Chili with cornbread', calories: 560, type: 'dinner' },
   { name: 'Sheet pan chicken & veggies', calories: 500, type: 'dinner' },
+  { name: 'Chicken parmesan', calories: 700, type: 'dinner' },
+  { name: 'Fish and chips', calories: 750, type: 'dinner' },
+  { name: 'Beef stir fry with noodles', calories: 620, type: 'dinner' },
+  { name: 'Lamb chops with couscous', calories: 650, type: 'dinner' },
+  { name: 'BBQ ribs with coleslaw', calories: 800, type: 'dinner' },
+  { name: 'Vegetable curry with rice', calories: 550, type: 'dinner' },
+  { name: 'Meatloaf with mashed potatoes', calories: 650, type: 'dinner' },
+  { name: 'Shrimp scampi', calories: 600, type: 'dinner' },
   // snack
   { name: 'Protein shake', calories: 150, type: 'snack' },
   { name: 'Protein bar', calories: 200, type: 'snack' },
@@ -175,6 +262,13 @@ const MEAL_BOOK = [
   { name: 'Banana', calories: 105, type: 'snack' },
   { name: 'Hard-boiled eggs (2)', calories: 140, type: 'snack' },
   { name: 'Chips and guac', calories: 300, type: 'snack' },
+  { name: 'Cottage cheese cup', calories: 120, type: 'snack' },
+  { name: 'Popcorn (air-popped)', calories: 100, type: 'snack' },
+  { name: 'Dark chocolate square', calories: 90, type: 'snack' },
+  { name: 'Hummus with veggies', calories: 150, type: 'snack' },
+  { name: 'Fruit cup', calories: 90, type: 'snack' },
+  { name: 'Mixed nuts', calories: 170, type: 'snack' },
+  { name: 'Pretzels (small bag)', calories: 110, type: 'snack' },
 ];
 
 // Calorie estimates for common foods and dish variants, per a stated single
@@ -277,16 +371,30 @@ const FOOD_CALORIES = [
   ['coffee', 5, 'black'],
   ['latte', 200, '16oz, whole milk'],
   ['beer', 150, '12oz, regular'],
+  ['waffles', 420, '2, w/ syrup'],
+  ['falafel', 330, '4 pieces, fried'],
+  ['falafel wrap', 480, 'w/ tahini sauce'],
+  ['chicken parmesan', 700, 'w/ pasta side'],
+  ['fish and chips', 750, 'pub style'],
+  ['lamb chops', 400, '3oz, grilled'],
+  ['shrimp scampi', 600, 'w/ pasta'],
+  ['meatloaf', 350, '1 slice'],
+  ['curry', 450, '1 cup, w/o rice'],
+  ['bibimbap', 600, '1 bowl'],
+  ['cottage cheese', 120, '1 cup, low-fat'],
+  ['popcorn', 100, '3 cups, air-popped'],
+  ['hummus', 70, '2 tbsp, no dippers'],
+  ['dark chocolate', 90, '1 square, ~1oz'],
 ];
 
 // Exercise options per split-day type, so at the gym you pick from a list
 // instead of typing. Matched case-insensitively against gym.split[today].type;
 // unrecognized day types (custom labels) fall back to a combined list.
 const EXERCISE_LIBRARY = {
-  push: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Chest Fly', 'Lateral Raise', 'Tricep Pushdown', 'Dips', 'Close-Grip Bench Press'],
-  pull: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Lat Pulldown', 'Seated Cable Row', 'Face Pull', 'Bicep Curl', 'Hammer Curl'],
-  legs: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Walking Lunges', 'Calf Raise', 'Hip Thrust'],
-  'full body': ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-ups'],
+  push: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Chest Fly', 'Lateral Raise', 'Tricep Pushdown', 'Dips', 'Close-Grip Bench Press', 'Arnold Press', 'Cable Crossover', 'Skull Crushers', 'Push-ups', 'Pec Deck', 'Landmine Press'],
+  pull: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Lat Pulldown', 'Seated Cable Row', 'Face Pull', 'Bicep Curl', 'Hammer Curl', 'Chin-ups', 'T-Bar Row', 'Shrugs', 'Reverse Fly', 'Preacher Curl', 'Cable Curl'],
+  legs: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Walking Lunges', 'Calf Raise', 'Hip Thrust', 'Front Squat', 'Bulgarian Split Squat', 'Hack Squat', 'Goblet Squat', 'Glute Bridge', 'Standing Calf Raise'],
+  'full body': ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-ups', 'Kettlebell Swing', "Farmer's Carry", 'Clean and Press', 'Burpees', 'Thrusters', 'Turkish Get-up'],
   rest: [],
 };
 const ALL_EXERCISES = [...new Set(Object.values(EXERCISE_LIBRARY).flat())];
@@ -352,6 +460,38 @@ function defaultTargetDate() {
 function fmtDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// A perfectly seamless sine-wave path: for any integer `cycles`, the value
+// and slope at x=0 and x=width match exactly, so two copies placed side by
+// side and scrolled by exactly one width loop with no visible seam.
+function wavePath(width, height, amplitude, cycles, points = 72) {
+  const midY = height / 2;
+  let d = '';
+  for (let i = 0; i <= points; i++) {
+    const x = (i / points) * width;
+    const y = midY + amplitude * Math.sin((2 * Math.PI * cycles * x) / width);
+    d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+  return d.trim();
+}
+// Same wave frequency as a single 300-wide/3-cycle tile, generated directly
+// at double width so two seamless periods sit side by side — the element
+// scrolls by exactly one 300-wide tile (50% of its own 600-wide box) to loop.
+const HERO_WAVE_PATH = wavePath(600, 40, 12, 6);
+
+/** Cold (blue) at progress 0 to hot (red) at progress 1, as an HSL string. */
+function heatColor(progress) {
+  const hue = 220 - Math.max(0, Math.min(1, progress)) * 220;
+  return `hsl(${hue.toFixed(0)}, 85%, 58%)`;
 }
 
 function fmtMoney(n) {
@@ -498,44 +638,71 @@ function useDebouncedStorage(delay = 500) {
 const inputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
 const dimText = { color: 'var(--dim)' };
 
+// Dashboard-style "glass" card: the panel color shows through at reduced
+// opacity over the page's ambient glow (see the root background) with a
+// blur behind it, plus a soft glow in the accent color instead of a flat
+// border. tint lets a card use --field instead of --panel for its base.
+function glassCard(radius, tint = '--panel') {
+  return {
+    background: `color-mix(in srgb, var(${tint}) 88%, transparent)`,
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid var(--border)',
+    borderRadius: radius,
+    boxShadow: '0 4px 24px color-mix(in srgb, var(--accent) 10%, transparent)',
+  };
+}
+
 function Panel({ title, children, right }) {
   return (
-    <div className="mb-2" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
-      <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div className="mb-3" style={{ ...glassCard(RADIUS), overflow: 'hidden' }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{title}</span>
         {right}
       </div>
-      <div className="p-2.5">{children}</div>
+      <div className="p-3">{children}</div>
     </div>
   );
 }
 
+// Circular progress ring, matching the stat-tile look across the dashboard
+// references (Aura's training %, the blue dashboard's Productivity/System
+// Status rings) instead of a flat linear bar.
 function Meter({ label, value, max, displayValue, displayMax, accentVar, barVar }) {
   const safeMax = max > 0 ? max : 1;
   const pct = Math.min(100, Math.max(0, (value / safeMax) * 100));
+  const size = 42, stroke = 4, r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return (
-    <div className="p-2.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
-      <div className="text-xs uppercase tracking-widest mb-1.5 truncate" style={{ fontFamily: MONO, ...dimText }}>{label}</div>
-      <div className="flex items-baseline gap-1 mb-1.5">
-        <span className="text-lg font-medium" style={{ fontFamily: MONO, color: `var(${accentVar})` }}>{displayValue !== undefined ? displayValue : value}</span>
-        <span className="text-xs" style={{ fontFamily: MONO, ...dimText }}>/ {displayMax !== undefined ? displayMax : max}</span>
-      </div>
-      <div className="relative h-1.5 overflow-hidden" style={{ background: 'var(--bg)' }}>
-        <div className="absolute inset-y-0 left-0" style={{ width: `${pct}%`, background: `var(${barVar})` }} />
+    <div className="p-2.5 flex items-center gap-2" style={glassCard(RADIUS_SM, '--field')}>
+      <svg width={size} height={size} className="flex-shrink-0" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`var(${barVar})`} strokeWidth={stroke}
+          strokeDasharray={`${(pct / 100) * c} ${c}`} strokeLinecap="round" />
+      </svg>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase tracking-wide mb-1 truncate" style={{ fontFamily: MONO, ...dimText }}>{label}</div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-base font-medium" style={{ fontFamily: MONO, color: `var(${accentVar})` }}>{displayValue !== undefined ? displayValue : value}</span>
+          <span className="text-[10px] truncate" style={{ fontFamily: MONO, ...dimText }}>/ {displayMax !== undefined ? displayMax : max}</span>
+        </div>
       </div>
     </div>
   );
 }
 
-function NavCard({ icon: Icon, title, subtitle, onClick }) {
+// A sequence of NavCards is meant to read as one iOS-style grouped list —
+// each row stays flush against its neighbors (no radius, no outer border of
+// its own; that lives on the wrapping container below) and gets a divider
+// on top of every row but the first.
+function NavCard({ icon: Icon, title, subtitle, onClick, divider }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between px-2.5 py-2 mb-1.5 text-left"
-      style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}
+      className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+      style={{ borderRadius: 0, borderTop: divider ? '1px solid var(--border)' : 'none' }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--accent)' }}>
+        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--accent)', borderRadius: 8 }}>
           <Icon size={14} />
         </div>
         <div className="min-w-0">
@@ -558,7 +725,7 @@ function BtnPrimary({ children, onClick, style }) {
   );
 }
 
-function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifsEnabled, onToggleNotifs }) {
+function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifsEnabled, onToggleNotifs, realPushArmed }) {
   const navItems = [
     { id: 'home', label: 'Home', Icon: Home },
     { id: 'gym', label: 'Gym', Icon: Dumbbell },
@@ -576,15 +743,15 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
           </button>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onToggleNotifs} title={notifsEnabled ? 'Reminders on — tap to pause' : 'Turn on schedule reminders'}
+          <button onClick={onToggleNotifs} title={notifsEnabled ? (realPushArmed ? 'Real push armed — fires even with the app closed. Tap to pause' : 'Reminders on (this tab only) — tap to pause') : 'Turn on schedule reminders'}
             className="p-1.5"
-            style={{ border: `1px solid ${notifsEnabled ? 'var(--accent)' : 'var(--border)'}`, color: notifsEnabled ? 'var(--accent)' : 'var(--dim)', borderRadius: 4 }}>
+            style={{ border: `1px solid ${notifsEnabled ? 'var(--accent)' : 'var(--border)'}`, color: notifsEnabled ? 'var(--accent)' : 'var(--dim)' }}>
             {notifsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
           </button>
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto" style={{ maxWidth: '46vw' }}>
             {Object.entries(THEMES).map(([key, t]) => (
               <button key={key} onClick={() => setTheme(key)} title={t.label}
-                className="text-[10px] uppercase px-2 py-1"
+                className="text-[10px] uppercase px-2 py-1 flex-shrink-0"
                 style={{
                   fontFamily: MONO,
                   border: `1px solid ${theme === key ? 'var(--accent)' : 'var(--border)'}`,
@@ -622,18 +789,21 @@ function BottomNav({ tab, setTab }) {
     { id: 'budget', label: 'Budget', Icon: Wallet },
   ];
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 backdrop-blur max-w-md mx-auto"
-      style={{ background: 'color-mix(in srgb, var(--bg) 95%, transparent)', borderTop: '1px solid var(--border)' }}>
+    <div className="md:hidden fixed bottom-3 left-3 right-3 max-w-md mx-auto p-1.5" style={glassCard(999)}>
       <div className="grid grid-cols-5">
         {items.map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className="flex flex-col items-center gap-0.5 py-1.5"
-            style={{ borderTop: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}`, color: tab === id ? 'var(--accent)' : 'var(--dim)' }}
+            className="flex flex-col items-center gap-0.5 py-2"
+            style={{
+              borderRadius: 999,
+              background: tab === id ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
+              color: tab === id ? 'var(--accent)' : 'var(--dim)',
+            }}
           >
             <Icon size={16} />
-            <span className="text-xs" style={{ fontFamily: MONO }}>{label}</span>
+            <span className="text-[10px]" style={{ fontFamily: MONO }}>{label}</span>
           </button>
         ))}
       </div>
@@ -720,14 +890,49 @@ export default function LifeTracker() {
   const [gDate, setGDate] = useState(todayStr());
 
   // ---- schedule reminders (browser notifications) ------------------------
-  // Real notifications, with a real limitation: they fire only while the app
-  // is open in a tab (foreground or background). Firing when the app is fully
-  // closed requires a deployed PWA with a service worker or a native app —
-  // not possible from inside an artifact.
+  // Foreground notifications always work via the plain Notification API
+  // below, but that only fires while this tab is open. If a self-hosted
+  // backend (server/) is reachable at this origin — meaning the app was
+  // opened via its printed http://host:port/?token=... link — real push
+  // takes over instead: a service worker + Web Push that the OS can deliver
+  // even with the app fully closed. See push.js and the self-hosted-pwa-
+  // toolkit skill for how that's wired.
   const [notifsEnabled, setNotifsEnabled] = useState(
     typeof Notification !== 'undefined' && Notification.permission === 'granted'
   );
+  const [pushCapable, setPushCapable] = useState(false); // a backend token was found and answered
+  const [realPushArmed, setRealPushArmed] = useState(false);
   const firedRef = useRef({}); // { "blockId:date:HH:MM": true } so each block fires once per day
+  const splitStripRef = useRef(null); // the Gym tab's horizontal day-selector strip
+  useEffect(() => {
+    if (tab !== 'gym' || !splitStripRef.current) return;
+    const todayIdx = (new Date(todayStr() + 'T00:00:00').getDay() + 6) % 7;
+    const el = splitStripRef.current.children[todayIdx];
+    if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [tab]);
+
+  useEffect(() => {
+    bootstrapToken();
+    backendAvailable().then(setPushCapable);
+  }, []);
+
+  useEffect(() => {
+    if (!notifsEnabled || !pushCapable) { setRealPushArmed(false); return; }
+    let cancelled = false;
+    armRealPush().then((ok) => { if (!cancelled) setRealPushArmed(ok); });
+    return () => { cancelled = true; };
+  }, [notifsEnabled, pushCapable]);
+
+  useEffect(() => {
+    if (!realPushArmed) return;
+    const rows = (routine.schedule || [])
+      .map((s) => {
+        const p = parseTimeLabel(s.time);
+        return p ? { id: s.id, time: `${String(p.h).padStart(2, '0')}:${String(p.min).padStart(2, '0')}`, label: s.label } : null;
+      })
+      .filter(Boolean);
+    syncSchedule(rows);
+  }, [realPushArmed, routine.schedule]);
 
   async function toggleNotifications() {
     if (typeof Notification === 'undefined') return;
@@ -740,7 +945,8 @@ export default function LifeTracker() {
   }
 
   useEffect(() => {
-    if (!notifsEnabled || !profile) return;
+    // Real push already covers this when armed — firing both would double up.
+    if (!notifsEnabled || !profile || realPushArmed) return;
     const interval = setInterval(() => {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
@@ -762,7 +968,7 @@ export default function LifeTracker() {
       });
     }, 20000); // check every 20s; fires within the target minute
     return () => clearInterval(interval);
-  }, [notifsEnabled, profile, routine.schedule]);
+  }, [notifsEnabled, profile, routine.schedule, realPushArmed]);
 
   useEffect(() => {
     if (loading || gExercise) return;
@@ -1065,7 +1271,10 @@ export default function LifeTracker() {
     const pwInputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ ...pickerVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');`}</style>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
+          input, select, button { border-radius: ${RADIUS_SM}px; }
+        `}</style>
         <div className="w-full max-w-sm">
           <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: 5, color: "var(--accent)", marginBottom: 4 }}>REBORN</div>
 
@@ -1216,6 +1425,18 @@ export default function LifeTracker() {
 
   const isAllEmpty = gym.workouts.length === 0 && meals.entries.length === 0 && budget.transactions.length === 0 && Object.keys(routine.logs).length === 0;
 
+  // How full today's four Home stat tiles are on average (0-1) — drives the
+  // hero wave's color (cold→hot) and speed (slower→faster) below. Deliberately
+  // reuses numbers already on screen rather than tracking a separate streak.
+  const heroProgress = [
+    Math.min(1, totalCaloriesToday / (meals.calorieGoal || 1)),
+    Math.min(1, (Number(goal.saved) || 0) / (Number(goal.target) || 1)),
+    Math.min(1, habitsToday.length / (routine.habits.length || 1)),
+    Math.min(1, workoutsThisWeek / 7),
+  ].reduce((a, b) => a + b, 0) / 4;
+  const heroWaveColor = heatColor(heroProgress);
+  const heroWaveDuration = 8 - heroProgress * 6; // 8s idle → 2s at full progress
+
   const quote = getDailyQuote(today);
   const mealSuggestions = estimateCalorieOptions(mName);
   const filteredMealBook = MEAL_BOOK.filter(m => {
@@ -1225,20 +1446,61 @@ export default function LifeTracker() {
   });
 
   return (
-    <div className="min-h-screen" style={{ ...rootVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
+    <div className="min-h-screen" style={{
+      ...rootVars,
+      // Ambient glow behind the glass cards — two soft accent-colored blobs
+      // fading into the flat page color, so the translucent panels above
+      // actually have something to show through.
+      background: 'radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%), '
+        + 'radial-gradient(circle at 100% 15%, color-mix(in srgb, var(--accent2) 12%, transparent), transparent 50%), var(--bg)',
+      backgroundAttachment: 'fixed',
+      color: 'var(--text)', fontFamily: SANS,
+    }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
         input, select { color: var(--text); }
         input::placeholder { color: var(--dim); opacity: 0.7; }
+        input, select, button { border-radius: ${RADIUS_SM}px; }
+        /* Hero wave: the SVG is a 2-tile-wide box (600 units for two 300-wide
+           periods); scrolling it by exactly 50% of its own width loops with
+           no visible seam. Actual speed is set per-render via the inline
+           animation-duration below, driven by today's progress. */
+        @keyframes heroWaveScroll { to { transform: translateX(-50%); } }
+        @media (prefers-reduced-motion: reduce) { .hero-wave { animation: none !important; } }
       `}</style>
-      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} />
+      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
 
         {tab === 'home' && (
           <div>
-            <div className="mb-3">
-              <div className="text-lg font-medium">Today's readout</div>
-              <div className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(today)}</div>
+            <div className="mb-3 p-4 relative overflow-hidden" style={{
+              ...glassCard(RADIUS),
+              background: 'radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%), color-mix(in srgb, var(--panel) 88%, transparent)',
+            }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{greeting()}</span>
+                <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(today)}</span>
+              </div>
+              <div className="text-2xl font-medium mb-1">{profile}</div>
+              <p className="text-sm mb-3" style={dimText}>{isAllEmpty ? "Let's get started." : "You're building momentum."}</p>
+              <div className="w-full h-10 overflow-hidden">
+                <svg
+                  viewBox="0 0 600 40"
+                  preserveAspectRatio="none"
+                  className="hero-wave h-full"
+                  style={{ width: '200%', animation: `heroWaveScroll ${heroWaveDuration}s linear infinite` }}
+                >
+                  <path
+                    d={HERO_WAVE_PATH}
+                    fill="none"
+                    stroke={heroWaveColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    opacity="0.9"
+                    style={{ filter: `drop-shadow(0 0 5px ${heroWaveColor})`, transition: 'stroke 1.5s ease' }}
+                  />
+                </svg>
+              </div>
             </div>
 
             <Panel title="Daily transmission">
@@ -1281,30 +1543,35 @@ export default function LifeTracker() {
             <div className="md:grid md:grid-cols-2 md:gap-2">
               <div>
                 <div className="mb-2 text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>Jump to</div>
-                <NavCard
-                  icon={Dumbbell}
-                  title="Gym"
-                  subtitle={`${workoutsThisWeek}/7 days trained this week · today: ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'}`}
-                  onClick={() => setTab('gym')}
-                />
-                <NavCard
-                  icon={ListChecks}
-                  title="Routine"
-                  subtitle={`${habitsToday.length}/${routine.habits.length} habits done today`}
-                  onClick={() => setTab('routine')}
-                />
-                <NavCard
-                  icon={UtensilsCrossed}
-                  title="Meals"
-                  subtitle={`${Math.round(totalCaloriesToday)} / ${meals.calorieGoal} cal today`}
-                  onClick={() => setTab('meals')}
-                />
-                <NavCard
-                  icon={Wallet}
-                  title="Budget"
-                  subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
-                  onClick={() => setTab('budget')}
-                />
+                <div className="mb-3" style={{ ...glassCard(RADIUS), overflow: 'hidden' }}>
+                  <NavCard
+                    icon={Dumbbell}
+                    title="Gym"
+                    subtitle={`${workoutsThisWeek}/7 days trained this week · today: ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'}`}
+                    onClick={() => setTab('gym')}
+                  />
+                  <NavCard
+                    icon={ListChecks}
+                    title="Routine"
+                    subtitle={`${habitsToday.length}/${routine.habits.length} habits done today`}
+                    onClick={() => setTab('routine')}
+                    divider
+                  />
+                  <NavCard
+                    icon={UtensilsCrossed}
+                    title="Meals"
+                    subtitle={`${Math.round(totalCaloriesToday)} / ${meals.calorieGoal} cal today`}
+                    onClick={() => setTab('meals')}
+                    divider
+                  />
+                  <NavCard
+                    icon={Wallet}
+                    title="Budget"
+                    subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
+                    onClick={() => setTab('budget')}
+                    divider
+                  />
+                </div>
               </div>
               <div>
                 {isAllEmpty && (
@@ -1321,16 +1588,26 @@ export default function LifeTracker() {
           <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
           <div>
             <Panel title="Weekly split">
-              <div className="space-y-1">
+              {/* Horizontal day-selector strip — today gets an accent ring
+                  and dot, matching the Mon-Sun day cards in the gaming
+                  profile reference. Each card still holds the same editable
+                  type input the old list rows had. */}
+              <div ref={splitStripRef} className="flex gap-2 overflow-x-auto pb-1">
                 {gym.split.map((s, i) => (
                   <div
                     key={s.day}
-                    className="flex items-center justify-between px-2 py-1.5"
-                    style={{ border: `1px solid ${i === todayIdx ? 'var(--accent)' : 'var(--border)'}`, background: i === todayIdx ? 'var(--field)' : 'var(--panel)' }}
+                    className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2.5"
+                    style={{
+                      width: 76,
+                      border: `1px solid ${i === todayIdx ? 'var(--accent)' : 'var(--border)'}`,
+                      background: i === todayIdx ? 'var(--field)' : 'var(--panel)',
+                      borderRadius: RADIUS_SM,
+                    }}
                   >
-                    <span className="text-sm w-10" style={{ fontFamily: MONO, color: i === todayIdx ? 'var(--accent)' : 'var(--dim)' }}>{s.day}</span>
+                    <span className="text-xs uppercase tracking-wide" style={{ fontFamily: MONO, color: i === todayIdx ? 'var(--accent)' : 'var(--dim)' }}>{s.day}</span>
+                    <span className="w-1.5 h-1.5" style={{ borderRadius: '50%', background: i === todayIdx ? 'var(--accent)' : 'var(--border)' }} />
                     <input
-                      className="flex-1 bg-transparent text-sm px-2 py-1 focus:outline-none"
+                      className="w-full bg-transparent text-xs text-center focus:outline-none"
                       style={{ color: 'var(--text)' }}
                       value={s.type}
                       onChange={e => updateSplitDay(i, e.target.value)}
@@ -1363,7 +1640,7 @@ export default function LifeTracker() {
                       <div className="text-xs uppercase tracking-widest mb-1" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(date)}</div>
                       <div className="space-y-1">
                         {list.map(w => (
-                          <div key={w.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                          <div key={w.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                             <div className="text-sm">
                               {w.muscle && <span className="text-[10px] mr-1 px-1.5 py-0.5" style={{ fontFamily: MONO, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{w.muscle}</span>}
                               {w.exercise} <span style={dimText}>— {w.sets || '–'}×{w.reps || '–'} @ {w.weight || '–'}lb</span>
@@ -1474,7 +1751,7 @@ export default function LifeTracker() {
             >
               <div className="space-y-1 mb-2 max-h-96 overflow-y-auto">
                 {routine.schedule.map(s => (
-                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                     <input
                       className="w-20 bg-transparent text-xs focus:outline-none flex-shrink-0"
                       style={{ fontFamily: MONO, color: 'var(--accent)' }}
@@ -1536,7 +1813,7 @@ export default function LifeTracker() {
                             const done = habitsToday.includes(h.id);
                             const streak = streakFor(h.id, routine.logs);
                             return (
-                              <div key={h.id} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                              <div key={h.id} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                                 <button onClick={() => toggleHabit(h.id, today)} className="flex items-center gap-2 flex-1 text-left">
                                   <span className="w-4 h-4 flex-shrink-0" style={{ background: done ? cat.color : 'transparent', border: `1px solid ${done ? cat.color : 'var(--border)'}` }} />
                                   <span className="text-sm" style={{ color: done ? 'var(--dim)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>{h.name}</span>
@@ -1602,7 +1879,7 @@ export default function LifeTracker() {
                           const on = (routine.logs[d] || []).includes(h.id);
                           return (
                             <td key={d} className="text-center py-1">
-                              <span className="inline-block w-3 h-3" style={{ background: on ? 'var(--accent2)' : 'var(--field)', border: on ? 'none' : '1px solid var(--border)' }} />
+                              <span className="inline-block w-3 h-3" style={{ background: on ? 'var(--accent2)' : 'var(--field)', border: on ? 'none' : '1px solid var(--border)', borderRadius: 3 }} />
                             </td>
                           );
                         })}
@@ -1650,7 +1927,7 @@ export default function LifeTracker() {
                   <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Meal</label>
                   <input className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mName} onChange={e => setMName(e.target.value)} placeholder="Chicken and rice" autoComplete="off" />
                   {mealSuggestions.length > 0 && (
-                    <div className="mt-1" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                    <div className="mt-1" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                       {mealSuggestions.map(s => (
                         <button key={s.name}
                           onClick={() => { setMName(s.name.replace(/\b\w/g, c => c.toUpperCase())); setMCalories(String(s.calories)); }}
@@ -1691,7 +1968,7 @@ export default function LifeTracker() {
               ) : (
                 <div className="space-y-1">
                   {todaysMeals.map(m => (
-                    <div key={m.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                    <div key={m.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                       <div className="text-sm">
                         {m.name} <span className="capitalize" style={dimText}>({m.type})</span>
                       </div>
@@ -1741,7 +2018,7 @@ export default function LifeTracker() {
                       key={m.name}
                       onClick={() => { setMName(m.name); setMCalories(String(m.calories)); setMType(m.type); }}
                       className="w-full flex items-center justify-between px-2 py-1.5 text-left"
-                      style={{ background: 'var(--field)', border: '1px solid var(--border)' }}
+                      style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}
                     >
                       <span className="text-sm">{m.name} <span className="text-xs capitalize" style={dimText}>({m.type})</span></span>
                       <span className="text-sm flex-shrink-0" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{m.calories} cal</span>
@@ -1784,11 +2061,11 @@ export default function LifeTracker() {
               displayMax={weeksLeft}
               accentVar="--accent" barVar="--accent"
             />
-            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
               <div className="text-xs uppercase tracking-widest mb-2 truncate" style={{ fontFamily: MONO, ...dimText }}>Per week needed</div>
               <div className="text-xl font-medium" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{fmtMoney(weeklyNeeded)}</div>
             </div>
-            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
               <div className="text-xs uppercase tracking-widest mb-2 truncate" style={{ fontFamily: MONO, ...dimText }}>Status</div>
               <div className="text-xl font-medium" style={{ fontFamily: MONO, color: budgetPctDone >= 100 ? 'var(--accent2)' : budgetOnTrack === null ? 'var(--dim)' : budgetOnTrack ? 'var(--accent2)' : 'var(--danger)' }}>
                 {budgetPctDone >= 100 ? 'Done' : budgetOnTrack === null ? '—' : budgetOnTrack ? 'On track' : 'Behind'}
@@ -1835,7 +2112,7 @@ export default function LifeTracker() {
                   const wk = Math.ceil(remaining / Number(goal.weeklySavingsAmount));
                   const projected = new Date(Date.now() + wk * 7 * 86400000);
                   return (
-                    <div className="p-3 mt-2" style={{ background: 'var(--field)', border: '1px solid var(--accent2)' }}>
+                    <div className="p-3 mt-2" style={{ background: 'var(--field)', border: '1px solid var(--accent2)', borderRadius: RADIUS_SM }}>
                       <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: 'var(--accent2)', lineHeight: 1 }}>
                         {wk === 0 ? 'Goal met' : `${wk} ${wk === 1 ? 'week' : 'weeks'}`}
                       </div>
@@ -1882,7 +2159,7 @@ export default function LifeTracker() {
                   const start = new Date((goal.debtStartDate || today) + 'T00:00:00');
                   const payoffDate = new Date(start.getTime() + weeksNeeded * 7 * 86400000);
                   return (
-                    <div className="p-3 mt-1" style={{ background: 'var(--field)', border: '1px solid var(--accent)' }}>
+                    <div className="p-3 mt-1" style={{ background: 'var(--field)', border: '1px solid var(--accent)', borderRadius: RADIUS_SM }}>
                       <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{weeksNeeded} {weeksNeeded === 1 ? 'week' : 'weeks'}</div>
                       <div className="text-xs mt-1" style={dimText}>
                         at {fmtMoney(goal.debtWeeklyPayment)}/wk starting {fmtDate(goal.debtStartDate || today)} → debt-free by <span style={{ color: 'var(--text)' }}>{fmtDate(payoffDate.toISOString().slice(0, 10))}</span>
@@ -1977,7 +2254,7 @@ export default function LifeTracker() {
             <Panel title="Milestones">
               <div className="space-y-2">
                 {(goal.debtAmount > 0 || goal.debtCleared) && (
-                  <div className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${goal.debtCleared ? 'var(--accent2)' : 'var(--border)'}` }}>
+                  <div className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${goal.debtCleared ? 'var(--accent2)' : 'var(--border)'}`, borderRadius: RADIUS_SM }}>
                     <span className="text-sm">💳 Debt cleared</span>
                     <span className="text-xs" style={{ fontFamily: MONO, color: goal.debtCleared ? 'var(--accent2)' : 'var(--dim)' }}>{goal.debtCleared ? 'DONE' : 'pending'}</span>
                   </div>
@@ -1986,7 +2263,7 @@ export default function LifeTracker() {
                   const target = Math.round((Number(goal.target) || 0) * frac);
                   const reached = (Number(goal.saved) || 0) >= target;
                   return (
-                    <div key={frac} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${reached ? 'var(--accent)' : 'var(--border)'}` }}>
+                    <div key={frac} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${reached ? 'var(--accent)' : 'var(--border)'}`, borderRadius: RADIUS_SM }}>
                       <span className="text-sm">{frac === 1 ? '🎯' : '🌱'} {Math.round(frac * 100)}% of {goal.name}</span>
                       <span className="text-xs" style={{ fontFamily: MONO, color: reached ? 'var(--accent)' : 'var(--dim)' }}>{reached ? fmtMoney(target) + ' ✓' : fmtMoney(target)}</span>
                     </div>
@@ -2002,7 +2279,7 @@ export default function LifeTracker() {
                   const isEditing = editingBillId === b.id;
                   if (isEditing) {
                     return (
-                      <div key={b.id} className="flex items-center gap-2 px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--accent)' }}>
+                      <div key={b.id} className="flex items-center gap-2 px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--accent)', borderRadius: RADIUS_SM }}>
                         <input
                           className="flex-1 text-sm px-2 py-1 focus:outline-none"
                           style={inputStyle}
@@ -2025,7 +2302,7 @@ export default function LifeTracker() {
                     );
                   }
                   return (
-                    <div key={b.id} onDoubleClick={() => startEditBill(b)} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                    <div key={b.id} onDoubleClick={() => startEditBill(b)} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                       <button onClick={() => toggleBillPaid(b.id, thisMonth)} onDoubleClick={e => { e.stopPropagation(); startEditBill(b); }} className="flex items-center gap-2 flex-1 text-left">
                         <span className="w-4 h-4 flex-shrink-0" style={{ background: paid ? 'var(--accent2)' : 'transparent', border: `1px solid ${paid ? 'var(--accent2)' : 'var(--border)'}` }} />
                         <span className="text-sm" style={{ color: paid ? 'var(--dim)' : 'var(--text)', textDecoration: paid ? 'line-through' : 'none' }}>{b.name}</span>

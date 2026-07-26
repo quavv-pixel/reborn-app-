@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, Dumbbell, ListChecks, UtensilsCrossed, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff } from 'lucide-react';
+import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace";
 const SANS = "'Inter', ui-sans-serif, sans-serif";
@@ -41,6 +42,21 @@ const THEMES = {
     label: 'Arcade',
     bg: '#0D0B1A', panel: '#17142B', field: '#201C3B', border: '#2E2850',
     text: '#ECE9F9', dim: '#8480A8', accent: '#FF2E92', accent2: '#33D9E8', danger: '#FF5A36',
+  },
+  terminal: {
+    label: 'Terminal',
+    bg: '#050806', panel: '#0B120D', field: '#101A12', border: '#1C2E1F',
+    text: '#D6F5DC', dim: '#5E8F68', accent: '#39FF6A', accent2: '#4DD8E8', danger: '#FF5C5C',
+  },
+  sakura: {
+    label: 'Sakura',
+    bg: '#FDF3F6', panel: '#FFFFFF', field: '#FBE8ED', border: '#F3D3DE',
+    text: '#3B2530', dim: '#A98A95', accent: '#B03A5B', accent2: '#5C7A62', danger: '#C1543D',
+  },
+  ember: {
+    label: 'Ember',
+    bg: '#140D08', panel: '#1E140C', field: '#281B10', border: '#3A2716',
+    text: '#F5E6D3', dim: '#A6876B', accent: '#E8792A', accent2: '#F0B429', danger: '#D94F4F',
   },
 };
 
@@ -573,7 +589,7 @@ function BtnPrimary({ children, onClick, style }) {
   );
 }
 
-function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifsEnabled, onToggleNotifs }) {
+function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifsEnabled, onToggleNotifs, realPushArmed }) {
   const navItems = [
     { id: 'home', label: 'Home', Icon: Home },
     { id: 'gym', label: 'Gym', Icon: Dumbbell },
@@ -591,7 +607,7 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
           </button>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onToggleNotifs} title={notifsEnabled ? 'Reminders on — tap to pause' : 'Turn on schedule reminders'}
+          <button onClick={onToggleNotifs} title={notifsEnabled ? (realPushArmed ? 'Real push armed — fires even with the app closed. Tap to pause' : 'Reminders on (this tab only) — tap to pause') : 'Turn on schedule reminders'}
             className="p-1.5"
             style={{ border: `1px solid ${notifsEnabled ? 'var(--accent)' : 'var(--border)'}`, color: notifsEnabled ? 'var(--accent)' : 'var(--dim)', borderRadius: 4 }}>
             {notifsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
@@ -735,14 +751,42 @@ export default function LifeTracker() {
   const [gDate, setGDate] = useState(todayStr());
 
   // ---- schedule reminders (browser notifications) ------------------------
-  // Real notifications, with a real limitation: they fire only while the app
-  // is open in a tab (foreground or background). Firing when the app is fully
-  // closed requires a deployed PWA with a service worker or a native app —
-  // not possible from inside an artifact.
+  // Foreground notifications always work via the plain Notification API
+  // below, but that only fires while this tab is open. If a self-hosted
+  // backend (server/) is reachable at this origin — meaning the app was
+  // opened via its printed http://host:port/?token=... link — real push
+  // takes over instead: a service worker + Web Push that the OS can deliver
+  // even with the app fully closed. See push.js and the self-hosted-pwa-
+  // toolkit skill for how that's wired.
   const [notifsEnabled, setNotifsEnabled] = useState(
     typeof Notification !== 'undefined' && Notification.permission === 'granted'
   );
+  const [pushCapable, setPushCapable] = useState(false); // a backend token was found and answered
+  const [realPushArmed, setRealPushArmed] = useState(false);
   const firedRef = useRef({}); // { "blockId:date:HH:MM": true } so each block fires once per day
+
+  useEffect(() => {
+    bootstrapToken();
+    backendAvailable().then(setPushCapable);
+  }, []);
+
+  useEffect(() => {
+    if (!notifsEnabled || !pushCapable) { setRealPushArmed(false); return; }
+    let cancelled = false;
+    armRealPush().then((ok) => { if (!cancelled) setRealPushArmed(ok); });
+    return () => { cancelled = true; };
+  }, [notifsEnabled, pushCapable]);
+
+  useEffect(() => {
+    if (!realPushArmed) return;
+    const rows = (routine.schedule || [])
+      .map((s) => {
+        const p = parseTimeLabel(s.time);
+        return p ? { id: s.id, time: `${String(p.h).padStart(2, '0')}:${String(p.min).padStart(2, '0')}`, label: s.label } : null;
+      })
+      .filter(Boolean);
+    syncSchedule(rows);
+  }, [realPushArmed, routine.schedule]);
 
   async function toggleNotifications() {
     if (typeof Notification === 'undefined') return;
@@ -755,7 +799,8 @@ export default function LifeTracker() {
   }
 
   useEffect(() => {
-    if (!notifsEnabled || !profile) return;
+    // Real push already covers this when armed — firing both would double up.
+    if (!notifsEnabled || !profile || realPushArmed) return;
     const interval = setInterval(() => {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
@@ -777,7 +822,7 @@ export default function LifeTracker() {
       });
     }, 20000); // check every 20s; fires within the target minute
     return () => clearInterval(interval);
-  }, [notifsEnabled, profile, routine.schedule]);
+  }, [notifsEnabled, profile, routine.schedule, realPushArmed]);
 
   useEffect(() => {
     if (loading || gExercise) return;
@@ -1246,7 +1291,7 @@ export default function LifeTracker() {
         input, select { color: var(--text); }
         input::placeholder { color: var(--dim); opacity: 0.7; }
       `}</style>
-      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} />
+      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
 
         {tab === 'home' && (

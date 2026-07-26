@@ -12,6 +12,9 @@ and your computer are never involved in keeping it "on."
   cross-device sync yet (see "Later" below).
 - Everything else — themes, profiles, gym/routine/meals/budget — is exactly
   what you had.
+- **Real push notifications**: optional, self-hosted, and off by default —
+  see "Real push notifications" below. The static Vercel deploy above is
+  unaffected either way.
 
 ## Deploy it (about 20–30 minutes, all free)
 
@@ -55,3 +58,82 @@ Because `LifeTracker.jsx` only ever calls `window.storage.get/set/...`,
 none of the app code has to change — only what's inside that one file.
 That's also what would let the profile switcher become a real
 password-protected login instead of a name-only convenience.
+
+## Real push notifications (a different, self-hosted deploy)
+
+The bell icon in the header always works one way: foreground notifications
+via the browser's plain `Notification` API, which only fire while this tab
+is open. That's true whether you're running this locally or on Vercel above
+— nothing about it changed.
+
+`server/` adds a second, optional path to real background push — reminders
+that arrive even with the app fully closed, the way a native app's
+notifications do. This **cannot run on Vercel's static/serverless
+deploy** above: it needs one persistent Node process holding a 30-second
+scheduler loop and writing local files, which serverless functions don't
+provide. Think of it as a separate, self-hosted sibling of the static site —
+same UI, same code, run differently. Regimen-app
+(github.com/VIP5O9/Regimen-app) is the reference this was built from; if
+you're comfortable running that, this works the same way.
+
+### Quick start
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+The server prints a sign-in URL with an access token in it:
+
+```
+http://localhost:3131/?token=xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Open that once — the token saves itself into the browser and drops out of
+the address bar; every visit after that is just `http://localhost:3131`.
+Then tap the bell. If a backend is reachable, it registers a service worker
+and arms real push instead of the foreground fallback; the header tooltip
+tells you which one is active.
+
+### Configuration
+
+Copy `.env.example` to `.env` and uncomment what you need — everything is
+optional, but push stays disabled until `REBORN_CONTACT` is set:
+
+| Variable | Default | What it does |
+|----------|---------|---------------|
+| `REBORN_CONTACT` | *unset* | VAPID subject for Web Push. **Push is off until you set this.** Must be a real `mailto:` or `https:` URL you control — Apple 403s on anything else. |
+| `REBORN_TOKEN` | auto | API access token. Unset means a random one is generated into `data/token.json` and printed at startup. |
+| `PORT` | `3131` | HTTP port. |
+| `REBORN_HOST` | `0.0.0.0` | Bind address. Set `127.0.0.1` for loopback only. |
+| `REBORN_DATA_DIR` | `./data` | Where state, tokens, and keys live. |
+
+### Getting it onto your phone
+
+Two things are non-negotiable, same as any Web Push setup:
+
+1. **HTTPS.** Service workers and Web Push refuse to run over plain `http`
+   (`localhost` is the one exception, and only on the machine itself).
+2. **`REBORN_CONTACT` must be set**, or push stays disabled.
+
+Getting HTTPS to your phone is your choice — Tailscale, Cloudflare Tunnel,
+ngrok, or a reverse proxy with a real certificate. Once you have an HTTPS
+URL: open `https://<your-host>/?token=<your token>`, add it to your home
+screen, open it from there (push only works from the installed app), and
+tap the bell.
+
+### Security
+
+The API is never open — every `/api/*` route requires the bearer token,
+reads included, since the schedule and subscription list are a log of your
+day. `/api/subscribe` validates the endpoint URL before storing it (blocking
+localhost, private ranges, and cloud metadata addresses), so the server
+can't be turned into an SSRF relay. Token comparison is constant-time.
+
+Run the security tests with `npm test`.
+
+### What stays private
+
+Never committed, all gitignored: `data/token.json`, `data/vapid.json`,
+`data/subs.json`, `data/schedule.json`, `data/state.json`, and `.env`.

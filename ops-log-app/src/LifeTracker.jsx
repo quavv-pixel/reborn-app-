@@ -58,6 +58,11 @@ const THEMES = {
     bg: '#140D08', panel: '#1E140C', field: '#281B10', border: '#3A2716',
     text: '#F5E6D3', dim: '#A6876B', accent: '#E8792A', accent2: '#F0B429', danger: '#D94F4F',
   },
+  ios: {
+    label: 'iOS',
+    bg: '#F2F2F7', panel: '#FFFFFF', field: '#E9E9EE', border: '#D1D1D6',
+    text: '#000000', dim: '#8E8E93', accent: '#007AFF', accent2: '#34C759', danger: '#FF3B30',
+  },
 };
 
 const CATEGORIES = [

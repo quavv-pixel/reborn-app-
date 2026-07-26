@@ -200,6 +200,14 @@ const MEAL_BOOK = [
   { name: 'French toast (2 slices)', calories: 360, type: 'breakfast' },
   { name: 'Egg white omelet with veggies', calories: 220, type: 'breakfast' },
   { name: 'Peanut butter toast', calories: 290, type: 'breakfast' },
+  { name: 'Belgian waffles (2)', calories: 420, type: 'breakfast' },
+  { name: 'Breakfast tacos (2)', calories: 380, type: 'breakfast' },
+  { name: 'Bagel with cream cheese', calories: 350, type: 'breakfast' },
+  { name: 'Overnight oats', calories: 320, type: 'breakfast' },
+  { name: 'Shakshuka', calories: 340, type: 'breakfast' },
+  { name: 'Breakfast quesadilla', calories: 450, type: 'breakfast' },
+  { name: 'Yogurt parfait', calories: 280, type: 'breakfast' },
+  { name: 'Sausage and egg muffin', calories: 400, type: 'breakfast' },
   // lunch
   { name: 'Chicken and rice bowl', calories: 550, type: 'lunch' },
   { name: 'Turkey sandwich', calories: 420, type: 'lunch' },
@@ -213,6 +221,13 @@ const MEAL_BOOK = [
   { name: 'Quesadilla (chicken)', calories: 560, type: 'lunch' },
   { name: 'Poke bowl', calories: 500, type: 'lunch' },
   { name: 'Leftover meal prep plate', calories: 550, type: 'lunch' },
+  { name: 'Falafel wrap', calories: 480, type: 'lunch' },
+  { name: 'BLT sandwich', calories: 420, type: 'lunch' },
+  { name: 'Chicken Caesar wrap', calories: 500, type: 'lunch' },
+  { name: 'Beef and broccoli', calories: 550, type: 'lunch' },
+  { name: 'Cobb salad', calories: 500, type: 'lunch' },
+  { name: 'Grilled cheese and tomato soup', calories: 500, type: 'lunch' },
+  { name: 'Bibimbap', calories: 600, type: 'lunch' },
   // dinner
   { name: 'Steak with baked potato', calories: 700, type: 'dinner' },
   { name: 'Salmon with rice and broccoli', calories: 580, type: 'dinner' },
@@ -226,6 +241,14 @@ const MEAL_BOOK = [
   { name: 'Pork chops with rice', calories: 620, type: 'dinner' },
   { name: 'Chili with cornbread', calories: 560, type: 'dinner' },
   { name: 'Sheet pan chicken & veggies', calories: 500, type: 'dinner' },
+  { name: 'Chicken parmesan', calories: 700, type: 'dinner' },
+  { name: 'Fish and chips', calories: 750, type: 'dinner' },
+  { name: 'Beef stir fry with noodles', calories: 620, type: 'dinner' },
+  { name: 'Lamb chops with couscous', calories: 650, type: 'dinner' },
+  { name: 'BBQ ribs with coleslaw', calories: 800, type: 'dinner' },
+  { name: 'Vegetable curry with rice', calories: 550, type: 'dinner' },
+  { name: 'Meatloaf with mashed potatoes', calories: 650, type: 'dinner' },
+  { name: 'Shrimp scampi', calories: 600, type: 'dinner' },
   // snack
   { name: 'Protein shake', calories: 150, type: 'snack' },
   { name: 'Protein bar', calories: 200, type: 'snack' },
@@ -239,6 +262,13 @@ const MEAL_BOOK = [
   { name: 'Banana', calories: 105, type: 'snack' },
   { name: 'Hard-boiled eggs (2)', calories: 140, type: 'snack' },
   { name: 'Chips and guac', calories: 300, type: 'snack' },
+  { name: 'Cottage cheese cup', calories: 120, type: 'snack' },
+  { name: 'Popcorn (air-popped)', calories: 100, type: 'snack' },
+  { name: 'Dark chocolate square', calories: 90, type: 'snack' },
+  { name: 'Hummus with veggies', calories: 150, type: 'snack' },
+  { name: 'Fruit cup', calories: 90, type: 'snack' },
+  { name: 'Mixed nuts', calories: 170, type: 'snack' },
+  { name: 'Pretzels (small bag)', calories: 110, type: 'snack' },
 ];
 
 // Calorie estimates for common foods and dish variants, per a stated single
@@ -341,16 +371,30 @@ const FOOD_CALORIES = [
   ['coffee', 5, 'black'],
   ['latte', 200, '16oz, whole milk'],
   ['beer', 150, '12oz, regular'],
+  ['waffles', 420, '2, w/ syrup'],
+  ['falafel', 330, '4 pieces, fried'],
+  ['falafel wrap', 480, 'w/ tahini sauce'],
+  ['chicken parmesan', 700, 'w/ pasta side'],
+  ['fish and chips', 750, 'pub style'],
+  ['lamb chops', 400, '3oz, grilled'],
+  ['shrimp scampi', 600, 'w/ pasta'],
+  ['meatloaf', 350, '1 slice'],
+  ['curry', 450, '1 cup, w/o rice'],
+  ['bibimbap', 600, '1 bowl'],
+  ['cottage cheese', 120, '1 cup, low-fat'],
+  ['popcorn', 100, '3 cups, air-popped'],
+  ['hummus', 70, '2 tbsp, no dippers'],
+  ['dark chocolate', 90, '1 square, ~1oz'],
 ];
 
 // Exercise options per split-day type, so at the gym you pick from a list
 // instead of typing. Matched case-insensitively against gym.split[today].type;
 // unrecognized day types (custom labels) fall back to a combined list.
 const EXERCISE_LIBRARY = {
-  push: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Chest Fly', 'Lateral Raise', 'Tricep Pushdown', 'Dips', 'Close-Grip Bench Press'],
-  pull: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Lat Pulldown', 'Seated Cable Row', 'Face Pull', 'Bicep Curl', 'Hammer Curl'],
-  legs: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Walking Lunges', 'Calf Raise', 'Hip Thrust'],
-  'full body': ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-ups'],
+  push: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Chest Fly', 'Lateral Raise', 'Tricep Pushdown', 'Dips', 'Close-Grip Bench Press', 'Arnold Press', 'Cable Crossover', 'Skull Crushers', 'Push-ups', 'Pec Deck', 'Landmine Press'],
+  pull: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Lat Pulldown', 'Seated Cable Row', 'Face Pull', 'Bicep Curl', 'Hammer Curl', 'Chin-ups', 'T-Bar Row', 'Shrugs', 'Reverse Fly', 'Preacher Curl', 'Cable Curl'],
+  legs: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Leg Extension', 'Walking Lunges', 'Calf Raise', 'Hip Thrust', 'Front Squat', 'Bulgarian Split Squat', 'Hack Squat', 'Goblet Squat', 'Glute Bridge', 'Standing Calf Raise'],
+  'full body': ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-ups', 'Kettlebell Swing', "Farmer's Carry", 'Clean and Press', 'Burpees', 'Thrusters', 'Turkish Get-up'],
   rest: [],
 };
 const ALL_EXERCISES = [...new Set(Object.values(EXERCISE_LIBRARY).flat())];

@@ -71,6 +71,26 @@ const THEMES = {
     bg: '#F2F2F7', panel: '#FFFFFF', field: '#E9E9EE', border: '#D1D1D6',
     text: '#000000', dim: '#8E8E93', accent: '#007AFF', accent2: '#34C759', danger: '#FF3B30',
   },
+  twitch: {
+    label: 'Twitch',
+    bg: '#18181B', panel: '#1F1F23', field: '#26262C', border: '#35353D',
+    text: '#EFEFF1', dim: '#ADADB8', accent: '#9147FF', accent2: '#FF3D9A', danger: '#FF4747',
+  },
+  aura: {
+    label: 'Aura',
+    bg: '#1A1230', panel: '#241A3D', field: '#2E2150', border: '#40325E',
+    text: '#ECE7F7', dim: '#9A8CBB', accent: '#8B6CFF', accent2: '#C77DFF', danger: '#FF6B6B',
+  },
+  streak: {
+    label: 'Streak',
+    bg: '#0A0A0A', panel: '#151515', field: '#1D1D1D', border: '#2A2A2A',
+    text: '#F2F2F2', dim: '#8A8A8A', accent: '#C6FF3D', accent2: '#FFD54A', danger: '#FF4D4D',
+  },
+  nova: {
+    label: 'Nova',
+    bg: '#060B14', panel: '#0D1524', field: '#131E33', border: '#1C2C46',
+    text: '#E8EEF7', dim: '#7C8CA6', accent: '#3B9EFF', accent2: '#FF8A3D', danger: '#FF5C5C',
+  },
 };
 
 const CATEGORIES = [
@@ -542,9 +562,24 @@ function useDebouncedStorage(delay = 500) {
 const inputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
 const dimText = { color: 'var(--dim)' };
 
+// Dashboard-style "glass" card: the panel color shows through at reduced
+// opacity over the page's ambient glow (see the root background) with a
+// blur behind it, plus a soft glow in the accent color instead of a flat
+// border. tint lets a card use --field instead of --panel for its base.
+function glassCard(radius, tint = '--panel') {
+  return {
+    background: `color-mix(in srgb, var(${tint}) 88%, transparent)`,
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid var(--border)',
+    borderRadius: radius,
+    boxShadow: '0 4px 24px color-mix(in srgb, var(--accent) 10%, transparent)',
+  };
+}
+
 function Panel({ title, children, right }) {
   return (
-    <div className="mb-3" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: RADIUS, overflow: 'hidden' }}>
+    <div className="mb-3" style={{ ...glassCard(RADIUS), overflow: 'hidden' }}>
       <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{title}</span>
         {right}
@@ -554,18 +589,26 @@ function Panel({ title, children, right }) {
   );
 }
 
+// Circular progress ring, matching the stat-tile look across the dashboard
+// references (Aura's training %, the blue dashboard's Productivity/System
+// Status rings) instead of a flat linear bar.
 function Meter({ label, value, max, displayValue, displayMax, accentVar, barVar }) {
   const safeMax = max > 0 ? max : 1;
   const pct = Math.min(100, Math.max(0, (value / safeMax) * 100));
+  const size = 42, stroke = 4, r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return (
-    <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
-      <div className="text-xs uppercase tracking-widest mb-1.5 truncate" style={{ fontFamily: MONO, ...dimText }}>{label}</div>
-      <div className="flex items-baseline gap-1 mb-1.5">
-        <span className="text-lg font-medium" style={{ fontFamily: MONO, color: `var(${accentVar})` }}>{displayValue !== undefined ? displayValue : value}</span>
-        <span className="text-xs" style={{ fontFamily: MONO, ...dimText }}>/ {displayMax !== undefined ? displayMax : max}</span>
-      </div>
-      <div className="relative h-1.5 overflow-hidden" style={{ background: 'var(--bg)', borderRadius: 999 }}>
-        <div className="absolute inset-y-0 left-0" style={{ width: `${pct}%`, background: `var(${barVar})` }} />
+    <div className="p-2.5 flex items-center gap-2" style={glassCard(RADIUS_SM, '--field')}>
+      <svg width={size} height={size} className="flex-shrink-0" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={`var(${barVar})`} strokeWidth={stroke}
+          strokeDasharray={`${(pct / 100) * c} ${c}`} strokeLinecap="round" />
+      </svg>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase tracking-wide mb-1 truncate" style={{ fontFamily: MONO, ...dimText }}>{label}</div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-base font-medium" style={{ fontFamily: MONO, color: `var(${accentVar})` }}>{displayValue !== undefined ? displayValue : value}</span>
+          <span className="text-[10px] truncate" style={{ fontFamily: MONO, ...dimText }}>/ {displayMax !== undefined ? displayMax : max}</span>
+        </div>
       </div>
     </div>
   );
@@ -1305,7 +1348,16 @@ export default function LifeTracker() {
   });
 
   return (
-    <div className="min-h-screen" style={{ ...rootVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
+    <div className="min-h-screen" style={{
+      ...rootVars,
+      // Ambient glow behind the glass cards — two soft accent-colored blobs
+      // fading into the flat page color, so the translucent panels above
+      // actually have something to show through.
+      background: 'radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%), '
+        + 'radial-gradient(circle at 100% 15%, color-mix(in srgb, var(--accent2) 12%, transparent), transparent 50%), var(--bg)',
+      backgroundAttachment: 'fixed',
+      color: 'var(--text)', fontFamily: SANS,
+    }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
         input, select { color: var(--text); }
@@ -1362,7 +1414,7 @@ export default function LifeTracker() {
             <div className="md:grid md:grid-cols-2 md:gap-2">
               <div>
                 <div className="mb-2 text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>Jump to</div>
-                <div className="mb-3" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: RADIUS, overflow: 'hidden' }}>
+                <div className="mb-3" style={{ ...glassCard(RADIUS), overflow: 'hidden' }}>
                   <NavCard
                     icon={Dumbbell}
                     title="Gym"

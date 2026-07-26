@@ -418,6 +418,18 @@ function fmtDate(dateStr) {
   return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return 'Good night';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// Decorative wave path for the home hero card — not data-bound, just the
+// same abstract sparkline look the reference dashboards use under a greeting.
+const HERO_SPARKLINE = 'M0,35 Q25,10 50,30 T100,25 T150,38 T200,15 T250,32 T300,20';
+
 function fmtMoney(n) {
   const v = Math.round(Number(n) || 0);
   return `$${v.toLocaleString('en-US')}`;
@@ -713,18 +725,21 @@ function BottomNav({ tab, setTab }) {
     { id: 'budget', label: 'Budget', Icon: Wallet },
   ];
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 backdrop-blur max-w-md mx-auto"
-      style={{ background: 'color-mix(in srgb, var(--bg) 95%, transparent)', borderTop: '1px solid var(--border)' }}>
+    <div className="md:hidden fixed bottom-3 left-3 right-3 max-w-md mx-auto p-1.5" style={glassCard(999)}>
       <div className="grid grid-cols-5">
         {items.map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className="flex flex-col items-center gap-0.5 py-1.5"
-            style={{ borderTop: `2px solid ${tab === id ? 'var(--accent)' : 'transparent'}`, color: tab === id ? 'var(--accent)' : 'var(--dim)' }}
+            className="flex flex-col items-center gap-0.5 py-2"
+            style={{
+              borderRadius: 999,
+              background: tab === id ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
+              color: tab === id ? 'var(--accent)' : 'var(--dim)',
+            }}
           >
             <Icon size={16} />
-            <span className="text-xs" style={{ fontFamily: MONO }}>{label}</span>
+            <span className="text-[10px]" style={{ fontFamily: MONO }}>{label}</span>
           </button>
         ))}
       </div>
@@ -824,6 +839,13 @@ export default function LifeTracker() {
   const [pushCapable, setPushCapable] = useState(false); // a backend token was found and answered
   const [realPushArmed, setRealPushArmed] = useState(false);
   const firedRef = useRef({}); // { "blockId:date:HH:MM": true } so each block fires once per day
+  const splitStripRef = useRef(null); // the Gym tab's horizontal day-selector strip
+  useEffect(() => {
+    if (tab !== 'gym' || !splitStripRef.current) return;
+    const todayIdx = (new Date(todayStr() + 'T00:00:00').getDay() + 6) % 7;
+    const el = splitStripRef.current.children[todayIdx];
+    if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [tab]);
 
   useEffect(() => {
     bootstrapToken();
@@ -1369,9 +1391,19 @@ export default function LifeTracker() {
 
         {tab === 'home' && (
           <div>
-            <div className="mb-3">
-              <div className="text-lg font-medium">Today's readout</div>
-              <div className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(today)}</div>
+            <div className="mb-3 p-4 relative overflow-hidden" style={{
+              ...glassCard(RADIUS),
+              background: 'radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%), color-mix(in srgb, var(--panel) 88%, transparent)',
+            }}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{greeting()}</span>
+                <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(today)}</span>
+              </div>
+              <div className="text-2xl font-medium mb-1">{profile}</div>
+              <p className="text-sm mb-3" style={dimText}>{isAllEmpty ? "Let's get started." : "You're building momentum."}</p>
+              <svg viewBox="0 0 300 50" className="w-full h-10" preserveAspectRatio="none">
+                <path d={HERO_SPARKLINE} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" opacity="0.85" />
+              </svg>
             </div>
 
             <Panel title="Daily transmission">
@@ -1459,16 +1491,26 @@ export default function LifeTracker() {
           <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
           <div>
             <Panel title="Weekly split">
-              <div className="space-y-1">
+              {/* Horizontal day-selector strip — today gets an accent ring
+                  and dot, matching the Mon-Sun day cards in the gaming
+                  profile reference. Each card still holds the same editable
+                  type input the old list rows had. */}
+              <div ref={splitStripRef} className="flex gap-2 overflow-x-auto pb-1">
                 {gym.split.map((s, i) => (
                   <div
                     key={s.day}
-                    className="flex items-center justify-between px-2 py-1.5"
-                    style={{ border: `1px solid ${i === todayIdx ? 'var(--accent)' : 'var(--border)'}`, background: i === todayIdx ? 'var(--field)' : 'var(--panel)', borderRadius: RADIUS_SM }}
+                    className="flex-shrink-0 flex flex-col items-center gap-1.5 p-2.5"
+                    style={{
+                      width: 76,
+                      border: `1px solid ${i === todayIdx ? 'var(--accent)' : 'var(--border)'}`,
+                      background: i === todayIdx ? 'var(--field)' : 'var(--panel)',
+                      borderRadius: RADIUS_SM,
+                    }}
                   >
-                    <span className="text-sm w-10" style={{ fontFamily: MONO, color: i === todayIdx ? 'var(--accent)' : 'var(--dim)' }}>{s.day}</span>
+                    <span className="text-xs uppercase tracking-wide" style={{ fontFamily: MONO, color: i === todayIdx ? 'var(--accent)' : 'var(--dim)' }}>{s.day}</span>
+                    <span className="w-1.5 h-1.5" style={{ borderRadius: '50%', background: i === todayIdx ? 'var(--accent)' : 'var(--border)' }} />
                     <input
-                      className="flex-1 bg-transparent text-sm px-2 py-1 focus:outline-none"
+                      className="w-full bg-transparent text-xs text-center focus:outline-none"
                       style={{ color: 'var(--text)' }}
                       value={s.type}
                       onChange={e => updateSplitDay(i, e.target.value)}

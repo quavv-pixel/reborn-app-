@@ -6,6 +6,14 @@ const MONO = "'JetBrains Mono', ui-monospace, monospace";
 const SANS = "'Inter', ui-sans-serif, sans-serif";
 const DISPLAY = "'Cormorant Garamond', Georgia, serif"; // luxury wordmark/numbers
 
+// iOS-style shapes: soft rounded corners + a bit more breathing room than the
+// original sharp-edged layout, applied globally regardless of which color
+// theme is active. RADIUS is for card-level containers (Panel, Meter, the
+// grouped nav list); RADIUS_SM matches the global input/select/button rule
+// below so small chips, fields, and list rows all read as one consistent shape.
+const RADIUS = 14;
+const RADIUS_SM = 10;
+
 /* =========================================================================
    THEMES — applied as CSS custom properties on the root element.
    Every component below reads var(--bg)/var(--panel)/etc instead of
@@ -536,12 +544,12 @@ const dimText = { color: 'var(--dim)' };
 
 function Panel({ title, children, right }) {
   return (
-    <div className="mb-2" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
-      <div className="flex items-center justify-between px-2.5 py-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+    <div className="mb-3" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: RADIUS, overflow: 'hidden' }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
         <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{title}</span>
         {right}
       </div>
-      <div className="p-2.5">{children}</div>
+      <div className="p-3">{children}</div>
     </div>
   );
 }
@@ -550,28 +558,32 @@ function Meter({ label, value, max, displayValue, displayMax, accentVar, barVar 
   const safeMax = max > 0 ? max : 1;
   const pct = Math.min(100, Math.max(0, (value / safeMax) * 100));
   return (
-    <div className="p-2.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+    <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
       <div className="text-xs uppercase tracking-widest mb-1.5 truncate" style={{ fontFamily: MONO, ...dimText }}>{label}</div>
       <div className="flex items-baseline gap-1 mb-1.5">
         <span className="text-lg font-medium" style={{ fontFamily: MONO, color: `var(${accentVar})` }}>{displayValue !== undefined ? displayValue : value}</span>
         <span className="text-xs" style={{ fontFamily: MONO, ...dimText }}>/ {displayMax !== undefined ? displayMax : max}</span>
       </div>
-      <div className="relative h-1.5 overflow-hidden" style={{ background: 'var(--bg)' }}>
+      <div className="relative h-1.5 overflow-hidden" style={{ background: 'var(--bg)', borderRadius: 999 }}>
         <div className="absolute inset-y-0 left-0" style={{ width: `${pct}%`, background: `var(${barVar})` }} />
       </div>
     </div>
   );
 }
 
-function NavCard({ icon: Icon, title, subtitle, onClick }) {
+// A sequence of NavCards is meant to read as one iOS-style grouped list —
+// each row stays flush against its neighbors (no radius, no outer border of
+// its own; that lives on the wrapping container below) and gets a divider
+// on top of every row but the first.
+function NavCard({ icon: Icon, title, subtitle, onClick, divider }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between px-2.5 py-2 mb-1.5 text-left"
-      style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}
+      className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+      style={{ borderRadius: 0, borderTop: divider ? '1px solid var(--border)' : 'none' }}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--accent)' }}>
+        <div className="w-7 h-7 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--accent)', borderRadius: 8 }}>
           <Icon size={14} />
         </div>
         <div className="min-w-0">
@@ -614,7 +626,7 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
         <div className="flex items-center gap-3">
           <button onClick={onToggleNotifs} title={notifsEnabled ? (realPushArmed ? 'Real push armed — fires even with the app closed. Tap to pause' : 'Reminders on (this tab only) — tap to pause') : 'Turn on schedule reminders'}
             className="p-1.5"
-            style={{ border: `1px solid ${notifsEnabled ? 'var(--accent)' : 'var(--border)'}`, color: notifsEnabled ? 'var(--accent)' : 'var(--dim)', borderRadius: 4 }}>
+            style={{ border: `1px solid ${notifsEnabled ? 'var(--accent)' : 'var(--border)'}`, color: notifsEnabled ? 'var(--accent)' : 'var(--dim)' }}>
             {notifsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
           </button>
           <div className="flex gap-1 overflow-x-auto" style={{ maxWidth: '46vw' }}>
@@ -1130,7 +1142,10 @@ export default function LifeTracker() {
     const pwInputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ ...pickerVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');`}</style>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
+          input, select, button { border-radius: ${RADIUS_SM}px; }
+        `}</style>
         <div className="w-full max-w-sm">
           <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: 5, color: "var(--accent)", marginBottom: 4 }}>REBORN</div>
 
@@ -1295,6 +1310,7 @@ export default function LifeTracker() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
         input, select { color: var(--text); }
         input::placeholder { color: var(--dim); opacity: 0.7; }
+        input, select, button { border-radius: ${RADIUS_SM}px; }
       `}</style>
       <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
@@ -1346,30 +1362,35 @@ export default function LifeTracker() {
             <div className="md:grid md:grid-cols-2 md:gap-2">
               <div>
                 <div className="mb-2 text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>Jump to</div>
-                <NavCard
-                  icon={Dumbbell}
-                  title="Gym"
-                  subtitle={`${workoutsThisWeek}/7 days trained this week · today: ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'}`}
-                  onClick={() => setTab('gym')}
-                />
-                <NavCard
-                  icon={ListChecks}
-                  title="Routine"
-                  subtitle={`${habitsToday.length}/${routine.habits.length} habits done today`}
-                  onClick={() => setTab('routine')}
-                />
-                <NavCard
-                  icon={UtensilsCrossed}
-                  title="Meals"
-                  subtitle={`${Math.round(totalCaloriesToday)} / ${meals.calorieGoal} cal today`}
-                  onClick={() => setTab('meals')}
-                />
-                <NavCard
-                  icon={Wallet}
-                  title="Budget"
-                  subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
-                  onClick={() => setTab('budget')}
-                />
+                <div className="mb-3" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: RADIUS, overflow: 'hidden' }}>
+                  <NavCard
+                    icon={Dumbbell}
+                    title="Gym"
+                    subtitle={`${workoutsThisWeek}/7 days trained this week · today: ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'}`}
+                    onClick={() => setTab('gym')}
+                  />
+                  <NavCard
+                    icon={ListChecks}
+                    title="Routine"
+                    subtitle={`${habitsToday.length}/${routine.habits.length} habits done today`}
+                    onClick={() => setTab('routine')}
+                    divider
+                  />
+                  <NavCard
+                    icon={UtensilsCrossed}
+                    title="Meals"
+                    subtitle={`${Math.round(totalCaloriesToday)} / ${meals.calorieGoal} cal today`}
+                    onClick={() => setTab('meals')}
+                    divider
+                  />
+                  <NavCard
+                    icon={Wallet}
+                    title="Budget"
+                    subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
+                    onClick={() => setTab('budget')}
+                    divider
+                  />
+                </div>
               </div>
               <div>
                 {isAllEmpty && (
@@ -1391,7 +1412,7 @@ export default function LifeTracker() {
                   <div
                     key={s.day}
                     className="flex items-center justify-between px-2 py-1.5"
-                    style={{ border: `1px solid ${i === todayIdx ? 'var(--accent)' : 'var(--border)'}`, background: i === todayIdx ? 'var(--field)' : 'var(--panel)' }}
+                    style={{ border: `1px solid ${i === todayIdx ? 'var(--accent)' : 'var(--border)'}`, background: i === todayIdx ? 'var(--field)' : 'var(--panel)', borderRadius: RADIUS_SM }}
                   >
                     <span className="text-sm w-10" style={{ fontFamily: MONO, color: i === todayIdx ? 'var(--accent)' : 'var(--dim)' }}>{s.day}</span>
                     <input
@@ -1428,7 +1449,7 @@ export default function LifeTracker() {
                       <div className="text-xs uppercase tracking-widest mb-1" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(date)}</div>
                       <div className="space-y-1">
                         {list.map(w => (
-                          <div key={w.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                          <div key={w.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                             <div className="text-sm">
                               {w.muscle && <span className="text-[10px] mr-1 px-1.5 py-0.5" style={{ fontFamily: MONO, border: '1px solid var(--accent)', color: 'var(--accent)' }}>{w.muscle}</span>}
                               {w.exercise} <span style={dimText}>— {w.sets || '–'}×{w.reps || '–'} @ {w.weight || '–'}lb</span>
@@ -1539,7 +1560,7 @@ export default function LifeTracker() {
             >
               <div className="space-y-1 mb-2 max-h-96 overflow-y-auto">
                 {routine.schedule.map(s => (
-                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                     <input
                       className="w-20 bg-transparent text-xs focus:outline-none flex-shrink-0"
                       style={{ fontFamily: MONO, color: 'var(--accent)' }}
@@ -1601,7 +1622,7 @@ export default function LifeTracker() {
                             const done = habitsToday.includes(h.id);
                             const streak = streakFor(h.id, routine.logs);
                             return (
-                              <div key={h.id} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                              <div key={h.id} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                                 <button onClick={() => toggleHabit(h.id, today)} className="flex items-center gap-2 flex-1 text-left">
                                   <span className="w-4 h-4 flex-shrink-0" style={{ background: done ? cat.color : 'transparent', border: `1px solid ${done ? cat.color : 'var(--border)'}` }} />
                                   <span className="text-sm" style={{ color: done ? 'var(--dim)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>{h.name}</span>
@@ -1667,7 +1688,7 @@ export default function LifeTracker() {
                           const on = (routine.logs[d] || []).includes(h.id);
                           return (
                             <td key={d} className="text-center py-1">
-                              <span className="inline-block w-3 h-3" style={{ background: on ? 'var(--accent2)' : 'var(--field)', border: on ? 'none' : '1px solid var(--border)' }} />
+                              <span className="inline-block w-3 h-3" style={{ background: on ? 'var(--accent2)' : 'var(--field)', border: on ? 'none' : '1px solid var(--border)', borderRadius: 3 }} />
                             </td>
                           );
                         })}
@@ -1715,7 +1736,7 @@ export default function LifeTracker() {
                   <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Meal</label>
                   <input className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mName} onChange={e => setMName(e.target.value)} placeholder="Chicken and rice" autoComplete="off" />
                   {mealSuggestions.length > 0 && (
-                    <div className="mt-1" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                    <div className="mt-1" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                       {mealSuggestions.map(s => (
                         <button key={s.name}
                           onClick={() => { setMName(s.name.replace(/\b\w/g, c => c.toUpperCase())); setMCalories(String(s.calories)); }}
@@ -1756,7 +1777,7 @@ export default function LifeTracker() {
               ) : (
                 <div className="space-y-1">
                   {todaysMeals.map(m => (
-                    <div key={m.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                    <div key={m.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                       <div className="text-sm">
                         {m.name} <span className="capitalize" style={dimText}>({m.type})</span>
                       </div>
@@ -1806,7 +1827,7 @@ export default function LifeTracker() {
                       key={m.name}
                       onClick={() => { setMName(m.name); setMCalories(String(m.calories)); setMType(m.type); }}
                       className="w-full flex items-center justify-between px-2 py-1.5 text-left"
-                      style={{ background: 'var(--field)', border: '1px solid var(--border)' }}
+                      style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}
                     >
                       <span className="text-sm">{m.name} <span className="text-xs capitalize" style={dimText}>({m.type})</span></span>
                       <span className="text-sm flex-shrink-0" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{m.calories} cal</span>
@@ -1849,11 +1870,11 @@ export default function LifeTracker() {
               displayMax={weeksLeft}
               accentVar="--accent" barVar="--accent"
             />
-            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
               <div className="text-xs uppercase tracking-widest mb-2 truncate" style={{ fontFamily: MONO, ...dimText }}>Per week needed</div>
               <div className="text-xl font-medium" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{fmtMoney(weeklyNeeded)}</div>
             </div>
-            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+            <div className="p-3" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
               <div className="text-xs uppercase tracking-widest mb-2 truncate" style={{ fontFamily: MONO, ...dimText }}>Status</div>
               <div className="text-xl font-medium" style={{ fontFamily: MONO, color: budgetPctDone >= 100 ? 'var(--accent2)' : budgetOnTrack === null ? 'var(--dim)' : budgetOnTrack ? 'var(--accent2)' : 'var(--danger)' }}>
                 {budgetPctDone >= 100 ? 'Done' : budgetOnTrack === null ? '—' : budgetOnTrack ? 'On track' : 'Behind'}
@@ -1900,7 +1921,7 @@ export default function LifeTracker() {
                   const wk = Math.ceil(remaining / Number(goal.weeklySavingsAmount));
                   const projected = new Date(Date.now() + wk * 7 * 86400000);
                   return (
-                    <div className="p-3 mt-2" style={{ background: 'var(--field)', border: '1px solid var(--accent2)' }}>
+                    <div className="p-3 mt-2" style={{ background: 'var(--field)', border: '1px solid var(--accent2)', borderRadius: RADIUS_SM }}>
                       <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: 'var(--accent2)', lineHeight: 1 }}>
                         {wk === 0 ? 'Goal met' : `${wk} ${wk === 1 ? 'week' : 'weeks'}`}
                       </div>
@@ -1947,7 +1968,7 @@ export default function LifeTracker() {
                   const start = new Date((goal.debtStartDate || today) + 'T00:00:00');
                   const payoffDate = new Date(start.getTime() + weeksNeeded * 7 * 86400000);
                   return (
-                    <div className="p-3 mt-1" style={{ background: 'var(--field)', border: '1px solid var(--accent)' }}>
+                    <div className="p-3 mt-1" style={{ background: 'var(--field)', border: '1px solid var(--accent)', borderRadius: RADIUS_SM }}>
                       <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{weeksNeeded} {weeksNeeded === 1 ? 'week' : 'weeks'}</div>
                       <div className="text-xs mt-1" style={dimText}>
                         at {fmtMoney(goal.debtWeeklyPayment)}/wk starting {fmtDate(goal.debtStartDate || today)} → debt-free by <span style={{ color: 'var(--text)' }}>{fmtDate(payoffDate.toISOString().slice(0, 10))}</span>
@@ -2042,7 +2063,7 @@ export default function LifeTracker() {
             <Panel title="Milestones">
               <div className="space-y-2">
                 {(goal.debtAmount > 0 || goal.debtCleared) && (
-                  <div className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${goal.debtCleared ? 'var(--accent2)' : 'var(--border)'}` }}>
+                  <div className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${goal.debtCleared ? 'var(--accent2)' : 'var(--border)'}`, borderRadius: RADIUS_SM }}>
                     <span className="text-sm">💳 Debt cleared</span>
                     <span className="text-xs" style={{ fontFamily: MONO, color: goal.debtCleared ? 'var(--accent2)' : 'var(--dim)' }}>{goal.debtCleared ? 'DONE' : 'pending'}</span>
                   </div>
@@ -2051,7 +2072,7 @@ export default function LifeTracker() {
                   const target = Math.round((Number(goal.target) || 0) * frac);
                   const reached = (Number(goal.saved) || 0) >= target;
                   return (
-                    <div key={frac} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${reached ? 'var(--accent)' : 'var(--border)'}` }}>
+                    <div key={frac} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: `1px solid ${reached ? 'var(--accent)' : 'var(--border)'}`, borderRadius: RADIUS_SM }}>
                       <span className="text-sm">{frac === 1 ? '🎯' : '🌱'} {Math.round(frac * 100)}% of {goal.name}</span>
                       <span className="text-xs" style={{ fontFamily: MONO, color: reached ? 'var(--accent)' : 'var(--dim)' }}>{reached ? fmtMoney(target) + ' ✓' : fmtMoney(target)}</span>
                     </div>
@@ -2067,7 +2088,7 @@ export default function LifeTracker() {
                   const isEditing = editingBillId === b.id;
                   if (isEditing) {
                     return (
-                      <div key={b.id} className="flex items-center gap-2 px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--accent)' }}>
+                      <div key={b.id} className="flex items-center gap-2 px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--accent)', borderRadius: RADIUS_SM }}>
                         <input
                           className="flex-1 text-sm px-2 py-1 focus:outline-none"
                           style={inputStyle}
@@ -2090,7 +2111,7 @@ export default function LifeTracker() {
                     );
                   }
                   return (
-                    <div key={b.id} onDoubleClick={() => startEditBill(b)} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)' }}>
+                    <div key={b.id} onDoubleClick={() => startEditBill(b)} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
                       <button onClick={() => toggleBillPaid(b.id, thisMonth)} onDoubleClick={e => { e.stopPropagation(); startEditBill(b); }} className="flex items-center gap-2 flex-1 text-left">
                         <span className="w-4 h-4 flex-shrink-0" style={{ background: paid ? 'var(--accent2)' : 'transparent', border: `1px solid ${paid ? 'var(--accent2)' : 'var(--border)'}` }} />
                         <span className="text-sm" style={{ color: paid ? 'var(--dim)' : 'var(--text)', textDecoration: paid ? 'line-through' : 'none' }}>{b.name}</span>

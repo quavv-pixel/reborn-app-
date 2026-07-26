@@ -746,7 +746,7 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
     { id: 'budget', label: 'Budget', Icon: Wallet },
   ];
   return (
-    <div className="sticky top-0 z-10 backdrop-blur px-4 py-2" style={{ background: 'color-mix(in srgb, var(--bg) 95%, transparent)', borderBottom: '1px solid var(--border)' }}>
+    <div className="sticky top-0 z-10 backdrop-blur px-4 pb-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))', background: 'color-mix(in srgb, var(--bg) 95%, transparent)', borderBottom: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-1.5 md:mb-2">
         <div className="flex items-center gap-2">
           <span style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 600, letterSpacing: 4, color: "var(--accent)" }}>REBORN</span>
@@ -867,6 +867,17 @@ export default function LifeTracker() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  // Keep the area OUTSIDE the app (iOS status bar, browser toolbar tint,
+  // overscroll edges) matched to the active theme — otherwise iOS paints it
+  // with the page's default background and it reads as a white strip on top.
+  useEffect(() => {
+    const active = profile ? (THEMES[theme] || THEMES.noir) : (THEMES[pickerTheme] || THEMES.noir);
+    document.documentElement.style.background = active.bg;
+    document.body.style.background = active.bg;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', active.bg);
+  }, [profile, theme, pickerTheme]);
 
   function openUnlock(name) {
     setPickerTarget(name);

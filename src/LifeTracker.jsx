@@ -910,6 +910,51 @@ export default function LifeTracker() {
     setProfile(trimmed);
   }
 
+  // Both rename and delete are gated on the profile's own password — knowing
+  // a name on the list must never be enough to take over or destroy it.
+  async function passwordMatches(entry, password) {
+    const hash = await hashPassword(password, entry.salt);
+    return hash !== null && hash === entry.passHash;
+  }
+  async function confirmRenameProfile() {
+    const entry = profileList.find(p => p.name === pickerTarget);
+    if (!entry) return;
+    const trimmed = newProfileName.trim();
+    if (!trimmed) { setPickerError('Enter a new name.'); return; }
+    if (trimmed !== entry.name && profileList.some(p => p.name === trimmed)) { setPickerError('That name is taken.'); return; }
+    if (!(await passwordMatches(entry, pickerPassword))) { setPickerError('Wrong password.'); return; }
+    if (trimmed !== entry.name) {
+      // Move every stored key from the old namespace to the new one, raw, so
+      // the data survives the rename byte-for-byte.
+      const oldPrefix = `p:${entry.name}:`;
+      const { keys } = await window.storage.list(oldPrefix);
+      for (const k of keys) {
+        const item = await window.storage.get(k);
+        if (item && item.value !== undefined && item.value !== null) {
+          await window.storage.set(`p:${trimmed}:${k.slice(oldPrefix.length)}`, item.value);
+        }
+        await window.storage.delete(k);
+      }
+      const next = profileList.map(p => (p.name === entry.name ? { ...p, name: trimmed } : p));
+      setProfileList(next);
+      saveProfileList(next);
+    }
+    setPickerMode('list');
+    setPickerError('');
+  }
+  async function confirmDeleteProfile() {
+    const entry = profileList.find(p => p.name === pickerTarget);
+    if (!entry) return;
+    if (!(await passwordMatches(entry, pickerPassword))) { setPickerError('Wrong password.'); return; }
+    const { keys } = await window.storage.list(`p:${entry.name}:`);
+    for (const k of keys) await window.storage.delete(k);
+    const next = profileList.filter(p => p.name !== entry.name);
+    setProfileList(next);
+    saveProfileList(next);
+    setPickerMode('list');
+    setPickerError('');
+  }
+
   const [gym, setGymState] = useState({ workouts: [], split: DEFAULT_SPLIT });
   const [routine, setRoutineState] = useState({ habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE });
   const [meals, setMealsState] = useState({ entries: [], calorieGoal: 2400 });
@@ -1310,7 +1355,7 @@ export default function LifeTracker() {
     const pickerVars = {
       '--bg': pth.bg, '--panel': pth.panel, '--field': pth.field,
       '--border': pth.border, '--text': pth.text, '--dim': pth.dim,
-      '--accent': pth.accent, '--accent2': pth.accent2,
+      '--accent': pth.accent, '--accent2': pth.accent2, '--danger': pth.danger,
     };
     const pwInputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
     return (
@@ -1413,6 +1458,51 @@ export default function LifeTracker() {
               <div className="flex gap-2">
                 <BtnPrimary onClick={confirmUnlock}>Unlock</BtnPrimary>
                 <button onClick={() => setPickerMode('list')} className="text-sm px-3 py-2" style={dimText}>Back</button>
+              </div>
+              <div className="flex gap-4 mt-5">
+                <button onClick={() => { setNewProfileName(pickerTarget); setPickerPassword(''); setPickerError(''); setPickerMode('rename'); }}
+                  className="text-xs" style={dimText}>Rename profile</button>
+                <button onClick={() => { setPickerPassword(''); setPickerError(''); setPickerMode('delete'); }}
+                  className="text-xs" style={{ color: 'var(--danger, #f87171)' }}>Delete profile</button>
+              </div>
+            </>
+          )}
+
+          {pickerMode === 'rename' && (
+            <>
+              <div className="text-2xl font-medium mb-1">Rename {pickerTarget}</div>
+              <p className="text-xs mb-4" style={dimText}>Everything stays exactly as it is — only the name changes. Your password stays the same too.</p>
+              <div className="space-y-2 mb-2">
+                <input className="w-full text-sm px-3 py-2 focus:outline-none" style={pwInputStyle}
+                  value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="New name" autoFocus />
+                <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none" style={pwInputStyle}
+                  value={pickerPassword} onChange={e => setPickerPassword(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmRenameProfile(); }}
+                  placeholder="Password" />
+              </div>
+              {pickerError && <p className="text-xs mb-2" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
+              <div className="flex gap-2">
+                <BtnPrimary onClick={confirmRenameProfile}>Rename</BtnPrimary>
+                <button onClick={() => { setPickerError(''); setPickerMode('unlock'); }} className="text-sm px-3 py-2" style={dimText}>Back</button>
+              </div>
+            </>
+          )}
+
+          {pickerMode === 'delete' && (
+            <>
+              <div className="text-2xl font-medium mb-1">Delete {pickerTarget}?</div>
+              <p className="text-xs mb-4" style={{ color: 'var(--danger, #f87171)' }}>
+                This permanently erases everything in this profile on this device — workouts, habits, meals, budget, all of it. There is no undo.
+              </p>
+              <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none mb-2" style={pwInputStyle}
+                value={pickerPassword} onChange={e => setPickerPassword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmDeleteProfile(); }}
+                placeholder="Password" autoFocus />
+              {pickerError && <p className="text-xs mb-2" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
+              <div className="flex gap-2">
+                <button onClick={confirmDeleteProfile} className="text-sm font-medium px-3 py-2"
+                  style={{ background: 'var(--danger, #f87171)', color: 'var(--bg)' }}>Delete forever</button>
+                <button onClick={() => { setPickerError(''); setPickerMode('unlock'); }} className="text-sm px-3 py-2" style={dimText}>Back</button>
               </div>
             </>
           )}

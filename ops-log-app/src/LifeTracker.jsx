@@ -426,9 +426,29 @@ function greeting() {
   return 'Good evening';
 }
 
-// Decorative wave path for the home hero card — not data-bound, just the
-// same abstract sparkline look the reference dashboards use under a greeting.
-const HERO_SPARKLINE = 'M0,35 Q25,10 50,30 T100,25 T150,38 T200,15 T250,32 T300,20';
+// A perfectly seamless sine-wave path: for any integer `cycles`, the value
+// and slope at x=0 and x=width match exactly, so two copies placed side by
+// side and scrolled by exactly one width loop with no visible seam.
+function wavePath(width, height, amplitude, cycles, points = 72) {
+  const midY = height / 2;
+  let d = '';
+  for (let i = 0; i <= points; i++) {
+    const x = (i / points) * width;
+    const y = midY + amplitude * Math.sin((2 * Math.PI * cycles * x) / width);
+    d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+  return d.trim();
+}
+// Same wave frequency as a single 300-wide/3-cycle tile, generated directly
+// at double width so two seamless periods sit side by side — the element
+// scrolls by exactly one 300-wide tile (50% of its own 600-wide box) to loop.
+const HERO_WAVE_PATH = wavePath(600, 40, 12, 6);
+
+/** Cold (blue) at progress 0 to hot (red) at progress 1, as an HSL string. */
+function heatColor(progress) {
+  const hue = 220 - Math.max(0, Math.min(1, progress)) * 220;
+  return `hsl(${hue.toFixed(0)}, 85%, 58%)`;
+}
 
 function fmtMoney(n) {
   const v = Math.round(Number(n) || 0);
@@ -1361,6 +1381,18 @@ export default function LifeTracker() {
 
   const isAllEmpty = gym.workouts.length === 0 && meals.entries.length === 0 && budget.transactions.length === 0 && Object.keys(routine.logs).length === 0;
 
+  // How full today's four Home stat tiles are on average (0-1) — drives the
+  // hero wave's color (cold→hot) and speed (slower→faster) below. Deliberately
+  // reuses numbers already on screen rather than tracking a separate streak.
+  const heroProgress = [
+    Math.min(1, totalCaloriesToday / (meals.calorieGoal || 1)),
+    Math.min(1, (Number(goal.saved) || 0) / (Number(goal.target) || 1)),
+    Math.min(1, habitsToday.length / (routine.habits.length || 1)),
+    Math.min(1, workoutsThisWeek / 7),
+  ].reduce((a, b) => a + b, 0) / 4;
+  const heroWaveColor = heatColor(heroProgress);
+  const heroWaveDuration = 8 - heroProgress * 6; // 8s idle → 2s at full progress
+
   const quote = getDailyQuote(today);
   const mealSuggestions = estimateCalorieOptions(mName);
   const filteredMealBook = MEAL_BOOK.filter(m => {
@@ -1385,6 +1417,12 @@ export default function LifeTracker() {
         input, select { color: var(--text); }
         input::placeholder { color: var(--dim); opacity: 0.7; }
         input, select, button { border-radius: ${RADIUS_SM}px; }
+        /* Hero wave: the SVG is a 2-tile-wide box (600 units for two 300-wide
+           periods); scrolling it by exactly 50% of its own width loops with
+           no visible seam. Actual speed is set per-render via the inline
+           animation-duration below, driven by today's progress. */
+        @keyframes heroWaveScroll { to { transform: translateX(-50%); } }
+        @media (prefers-reduced-motion: reduce) { .hero-wave { animation: none !important; } }
       `}</style>
       <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
@@ -1401,9 +1439,24 @@ export default function LifeTracker() {
               </div>
               <div className="text-2xl font-medium mb-1">{profile}</div>
               <p className="text-sm mb-3" style={dimText}>{isAllEmpty ? "Let's get started." : "You're building momentum."}</p>
-              <svg viewBox="0 0 300 50" className="w-full h-10" preserveAspectRatio="none">
-                <path d={HERO_SPARKLINE} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" opacity="0.85" />
-              </svg>
+              <div className="w-full h-10 overflow-hidden">
+                <svg
+                  viewBox="0 0 600 40"
+                  preserveAspectRatio="none"
+                  className="hero-wave h-full"
+                  style={{ width: '200%', animation: `heroWaveScroll ${heroWaveDuration}s linear infinite` }}
+                >
+                  <path
+                    d={HERO_WAVE_PATH}
+                    fill="none"
+                    stroke={heroWaveColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    opacity="0.9"
+                    style={{ filter: `drop-shadow(0 0 5px ${heroWaveColor})`, transition: 'stroke 1.5s ease' }}
+                  />
+                </svg>
+              </div>
             </div>
 
             <Panel title="Daily transmission">

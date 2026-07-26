@@ -638,6 +638,35 @@ const dimText = { color: 'var(--dim)' };
 // opacity over the page's ambient glow (see the root background) with a
 // blur behind it, plus a soft glow in the accent color instead of a flat
 // border. tint lets a card use --field instead of --panel for its base.
+// Stippled dot-cloud texture (radial density fading at the edges), echoing
+// the particle-visualization look from the reference dashboard screens.
+// Deterministic (seeded PRNG) so it doesn't reshuffle on every re-render.
+function DotCloud({ width = 320, height = 150, cols = 24, rows = 11, color = 'var(--accent)' }) {
+  const dots = [];
+  const cx = cols / 2, cy = rows / 2;
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+  let seed = 42;
+  const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const dist = Math.sqrt((x - cx) ** 2 + ((y - cy) * 1.7) ** 2) / maxDist;
+      const density = Math.max(0, 1 - dist * 1.2) + rand() * 0.12;
+      if (density < 0.2) continue;
+      const px = (x / (cols - 1)) * width;
+      const py = (y / (rows - 1)) * height;
+      dots.push(
+        <circle key={`${x}-${y}`} cx={px} cy={py} r={0.6 + density * 1.3} fill={color} opacity={Math.min(0.8, density)} />
+      );
+    }
+  }
+  return (
+    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet"
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+      {dots}
+    </svg>
+  );
+}
+
 function glassCard(radius, tint = '--panel') {
   return {
     background: `color-mix(in srgb, var(${tint}) 88%, transparent)`,
@@ -1293,16 +1322,25 @@ export default function LifeTracker() {
           input, select, button { border-radius: ${RADIUS_SM}px; }
         `}</style>
         <div className="w-full max-w-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: 5, color: "var(--accent)" }}>REBORN</div>
-            <div className="flex gap-1 overflow-x-auto" style={{ maxWidth: '46vw' }}>
+          <div className="relative overflow-hidden mb-5" style={{
+            borderRadius: 28,
+            padding: '26px 20px 18px',
+            background: `radial-gradient(120% 150% at 50% -15%, color-mix(in srgb, var(--accent) 50%, transparent), transparent 62%), color-mix(in srgb, var(--panel) 92%, black 8%)`,
+            border: '1px solid var(--border)',
+            boxShadow: '0 10px 44px color-mix(in srgb, var(--accent) 22%, transparent)',
+          }}>
+            <DotCloud color="color-mix(in srgb, var(--accent) 65%, white)" />
+            <div className="relative text-center mb-5" style={{ fontFamily: DISPLAY, fontSize: 32, fontWeight: 600, letterSpacing: 6, color: 'var(--accent)' }}>
+              REBORN
+            </div>
+            <div className="relative flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
               {Object.entries(THEMES).map(([key, t]) => (
                 <button key={key} onClick={() => setPickerTheme(key)} title={t.label}
-                  className="text-[10px] uppercase px-2 py-1 flex-shrink-0"
+                  className="text-[10px] uppercase px-3 py-1.5 flex-shrink-0 rounded-full"
                   style={{
                     fontFamily: MONO,
                     border: `1px solid ${pickerTheme === key ? 'var(--accent)' : 'var(--border)'}`,
-                    background: pickerTheme === key ? 'var(--accent)' : 'transparent',
+                    background: pickerTheme === key ? 'var(--accent)' : 'color-mix(in srgb, var(--bg) 55%, transparent)',
                     color: pickerTheme === key ? 'var(--bg)' : 'var(--dim)',
                   }}>{t.label}</button>
               ))}
@@ -1320,18 +1358,20 @@ export default function LifeTracker() {
               ) : (
                 <>
                   {profileList.length > 0 && (
-                    <div className="space-y-1 mb-4">
+                    <div className="space-y-2 mb-4">
                       {profileList.map(p => (
                         <button key={p.name} onClick={() => openUnlock(p.name)}
-                          className="w-full text-left px-3 py-2 text-sm"
-                          style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
-                          {p.name}
+                          className="w-full text-left px-4 py-3 text-sm flex items-center justify-between"
+                          style={glassCard(18, '--panel')}>
+                          <span>{p.name}</span>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)' }} />
                         </button>
                       ))}
                     </div>
                   )}
                   <button onClick={() => { setPickerMode('new'); setNewProfileName(''); setPickerPassword(''); setPickerPassword2(''); setPickerError(''); }}
-                    className="w-full text-sm px-3 py-2" style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}>
+                    className="w-full text-sm px-4 py-3 rounded-full"
+                    style={{ border: '1px solid var(--accent)', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)' }}>
                     + New profile
                   </button>
                 </>

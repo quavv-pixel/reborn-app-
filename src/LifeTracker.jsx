@@ -105,26 +105,25 @@ const MOODS = ['😤', '😕', '😐', '🙂', '🔥'];
 const MOOD_LABELS = ['Rough', 'Low', 'Okay', 'Good', 'On Fire'];
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
 
+// Generic starter content only — every brand-new profile (anyone's, on any
+// device) begins with exactly this. Never put anything here that reads as
+// one specific real person's actual routine, bills, or numbers: it ships to
+// every stranger who ever creates a profile on this app, forever.
 const DEFAULT_HABITS = [
-  { id: 'hb1', name: 'Wake up 8am', category: 'sleep' },
-  { id: 'hb2', name: 'No phone before 9am', category: 'personal' },
-  { id: 'hb3', name: 'Gym', category: 'gym' },
-  { id: 'hb4', name: 'Meal prep', category: 'health' },
-  { id: 'hb5', name: 'No overspending', category: 'finance' },
+  { id: 'hb1', name: 'Drink water', category: 'health' },
+  { id: 'hb2', name: 'Move / exercise', category: 'gym' },
+  { id: 'hb3', name: 'Eat a real meal', category: 'health' },
+  { id: 'hb4', name: 'Read or unwind', category: 'personal' },
+  { id: 'hb5', name: 'Check in on spending', category: 'finance' },
 ];
 
 const DEFAULT_SCHEDULE = [
   { id: 's1', time: '8:00 AM', label: 'Wake up' },
-  { id: 's2', time: '9:00 AM', label: 'No phone' },
-  { id: 's3', time: '10:30 AM', label: 'Gym' },
-  { id: 's4', time: '12:00 PM', label: 'Shower' },
-  { id: 's5', time: '12:30 PM', label: 'Eat' },
-  { id: 's6', time: '2:00 PM', label: 'Work on tracker / game' },
-  { id: 's7', time: '3:00 PM', label: 'Get ready for work' },
-  { id: 's8', time: '3:30 PM', label: 'Work starts' },
-  { id: 's9', time: '2:00 AM', label: 'Finish work' },
-  { id: 's10', time: '2:30 AM', label: 'Shower' },
-  { id: 's11', time: '3:00 AM', label: 'Sleep' },
+  { id: 's2', time: '9:00 AM', label: 'Morning routine' },
+  { id: 's3', time: '12:00 PM', label: 'Lunch' },
+  { id: 's4', time: '6:00 PM', label: 'Dinner' },
+  { id: 's5', time: '10:00 PM', label: 'Wind down' },
+  { id: 's6', time: '11:00 PM', label: 'Sleep' },
 ];
 
 const DEFAULT_SPLIT = [
@@ -139,14 +138,11 @@ const DEFAULT_SPLIT = [
 
 const DEFAULT_WEEKLY_PLAN = [];
 
-const DEFAULT_BILLS = [
-  { id: 'b1', name: 'Rent', amount: 1000 },
-  { id: 'b2', name: 'Zip', amount: 700 },
-  { id: 'b3', name: 'Credit card', amount: 441 },
-  { id: 'b4', name: 'Phone', amount: 300 },
-  { id: 'b5', name: 'SoFi', amount: 49 },
-  { id: 'b6', name: 'Cash App', amount: 55 },
-];
+// Empty by default (like DEFAULT_WEEKLY_PLAN above) — bills are exactly the
+// kind of specific real numbers that must never be pre-filled for a
+// stranger's brand-new profile. The "Add bill" form right below the list
+// covers onboarding fine without seeding anything.
+const DEFAULT_BILLS = [];
 
 const QUOTES = [
   { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
@@ -897,7 +893,7 @@ export default function LifeTracker() {
     weeklyPlan: DEFAULT_WEEKLY_PLAN,
     bills: DEFAULT_BILLS,
     billPayments: {},
-    goal: { name: 'Car', target: 3000, saved: 0, targetDate: defaultTargetDate() },
+    goal: { name: 'Savings', target: 1000, saved: 0, targetDate: defaultTargetDate() },
   });
 
   const [gExercise, setGExercise] = useState('');
@@ -1054,7 +1050,7 @@ export default function LifeTracker() {
           weeklyPlan: DEFAULT_WEEKLY_PLAN,
           bills: DEFAULT_BILLS,
           billPayments: {},
-          goal: { name: 'Car', target: 3000, saved: 0, targetDate: defaultTargetDate(), debtAmount: 0, debtCleared: false, weeklySavingsAmount: 0 },
+          goal: { name: 'Savings', target: 1000, saved: 0, targetDate: defaultTargetDate(), debtAmount: 0, debtCleared: false, weeklySavingsAmount: 0 },
         }),
         // A brand-new profile has no saved theme yet — start it on whatever
         // was showing on the "Who's this?" screen rather than always Noir.
@@ -1069,7 +1065,7 @@ export default function LifeTracker() {
       if (b.weeklyIncome === undefined) b.weeklyIncome = 0;
       if (!b.bills) b.bills = DEFAULT_BILLS;
       if (!b.billPayments) b.billPayments = {};
-      if (!b.goal) b.goal = { name: 'Car', target: 3000, saved: 0, targetDate: defaultTargetDate(), debtAmount: 0, debtCleared: false };
+      if (!b.goal) b.goal = { name: 'Savings', target: 1000, saved: 0, targetDate: defaultTargetDate(), debtAmount: 0, debtCleared: false };
       if (b.goal.debtAmount === undefined) b.goal.debtAmount = 0;
       if (b.goal.debtCleared === undefined) b.goal.debtCleared = false;
       if (b.goal.debtWeeklyPayment === undefined) b.goal.debtWeeklyPayment = 0;

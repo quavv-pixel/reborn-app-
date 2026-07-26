@@ -27,6 +27,21 @@ const THEMES = {
     bg: '#0A0F1A', panel: '#111827', field: '#18202F', border: '#232D40',
     text: '#E6EAF2', dim: '#7C8698', accent: '#8FA8D0', accent2: '#C9A96A', danger: '#C96A6A',
   },
+  webslinger: {
+    label: 'Web-Slinger',
+    bg: '#0A0808', panel: '#150F10', field: '#1F1517', border: '#33191D',
+    text: '#F3E9E6', dim: '#9C7A7E', accent: '#E8232F', accent2: '#FF4FA3', danger: '#FF7A45',
+  },
+  chillzone: {
+    label: 'Chill Zone',
+    bg: '#100C1E', panel: '#1B1730', field: '#241F3D', border: '#322B52',
+    text: '#EDE9F7', dim: '#8D85AC', accent: '#C084FC', accent2: '#FFB86B', danger: '#FF6B81',
+  },
+  arcade: {
+    label: 'Arcade',
+    bg: '#0D0B1A', panel: '#17142B', field: '#201C3B', border: '#2E2850',
+    text: '#ECE9F9', dim: '#8480A8', accent: '#FF2E92', accent2: '#33D9E8', danger: '#FF5A36',
+  },
 };
 
 const CATEGORIES = [
@@ -581,10 +596,10 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
             style={{ border: `1px solid ${notifsEnabled ? 'var(--accent)' : 'var(--border)'}`, color: notifsEnabled ? 'var(--accent)' : 'var(--dim)', borderRadius: 4 }}>
             {notifsEnabled ? <Bell size={13} /> : <BellOff size={13} />}
           </button>
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto" style={{ maxWidth: '46vw' }}>
             {Object.entries(THEMES).map(([key, t]) => (
               <button key={key} onClick={() => setTheme(key)} title={t.label}
-                className="text-[10px] uppercase px-2 py-1"
+                className="text-[10px] uppercase px-2 py-1 flex-shrink-0"
                 style={{
                   fontFamily: MONO,
                   border: `1px solid ${theme === key ? 'var(--accent)' : 'var(--border)'}`,

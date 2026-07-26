@@ -105,35 +105,22 @@ const MOODS = ['😤', '😕', '😐', '🙂', '🔥'];
 const MOOD_LABELS = ['Rough', 'Low', 'Okay', 'Good', 'On Fire'];
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
 
-// Generic starter content only — every brand-new profile (anyone's, on any
-// device) begins with exactly this. Never put anything here that reads as
-// one specific real person's actual routine, bills, or numbers: it ships to
-// every stranger who ever creates a profile on this app, forever.
-const DEFAULT_HABITS = [
-  { id: 'hb1', name: 'Drink water', category: 'health' },
-  { id: 'hb2', name: 'Move / exercise', category: 'gym' },
-  { id: 'hb3', name: 'Eat a real meal', category: 'health' },
-  { id: 'hb4', name: 'Read or unwind', category: 'personal' },
-  { id: 'hb5', name: 'Check in on spending', category: 'finance' },
-];
+// Brand-new profiles start completely BLANK — no pre-filled habits,
+// schedule, split, or bills. Anyone who opens the link and creates a
+// profile builds their own from nothing; nothing here may ever read as
+// another person's routine, bills, or numbers.
+const DEFAULT_HABITS = [];
 
-const DEFAULT_SCHEDULE = [
-  { id: 's1', time: '8:00 AM', label: 'Wake up' },
-  { id: 's2', time: '9:00 AM', label: 'Morning routine' },
-  { id: 's3', time: '12:00 PM', label: 'Lunch' },
-  { id: 's4', time: '6:00 PM', label: 'Dinner' },
-  { id: 's5', time: '10:00 PM', label: 'Wind down' },
-  { id: 's6', time: '11:00 PM', label: 'Sleep' },
-];
+const DEFAULT_SCHEDULE = [];
 
 const DEFAULT_SPLIT = [
-  { day: 'Mon', type: 'Pull' },
+  { day: 'Mon', type: 'Rest' },
   { day: 'Tue', type: 'Rest' },
-  { day: 'Wed', type: 'Push' },
-  { day: 'Thu', type: 'Legs' },
+  { day: 'Wed', type: 'Rest' },
+  { day: 'Thu', type: 'Rest' },
   { day: 'Fri', type: 'Rest' },
   { day: 'Sat', type: 'Rest' },
-  { day: 'Sun', type: 'Full body' },
+  { day: 'Sun', type: 'Rest' },
 ];
 
 const DEFAULT_WEEKLY_PLAN = [];
@@ -1316,37 +1303,39 @@ export default function LifeTracker() {
     };
     const pwInputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ ...pickerVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
+      <div className="min-h-screen flex flex-col" style={{ ...pickerVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
           input, select, button { border-radius: ${RADIUS_SM}px; }
         `}</style>
-        <div className="w-full max-w-sm">
-          <div className="relative overflow-hidden mb-5" style={{
-            borderRadius: 28,
-            padding: '26px 20px 18px',
-            background: `radial-gradient(120% 150% at 50% -15%, color-mix(in srgb, var(--accent) 50%, transparent), transparent 62%), color-mix(in srgb, var(--panel) 92%, black 8%)`,
-            border: '1px solid var(--border)',
-            boxShadow: '0 10px 44px color-mix(in srgb, var(--accent) 22%, transparent)',
-          }}>
-            <DotCloud color="color-mix(in srgb, var(--accent) 65%, white)" />
-            <div className="relative text-center mb-5" style={{ fontFamily: DISPLAY, fontSize: 32, fontWeight: 600, letterSpacing: 6, color: 'var(--accent)' }}>
-              REBORN
-            </div>
-            <div className="relative flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
-              {Object.entries(THEMES).map(([key, t]) => (
-                <button key={key} onClick={() => setPickerTheme(key)} title={t.label}
-                  className="text-[10px] uppercase px-3 py-1.5 flex-shrink-0 rounded-full"
-                  style={{
-                    fontFamily: MONO,
-                    border: `1px solid ${pickerTheme === key ? 'var(--accent)' : 'var(--border)'}`,
-                    background: pickerTheme === key ? 'var(--accent)' : 'color-mix(in srgb, var(--bg) 55%, transparent)',
-                    color: pickerTheme === key ? 'var(--bg)' : 'var(--dim)',
-                  }}>{t.label}</button>
-              ))}
-            </div>
-          </div>
 
+        <div className="relative flex flex-col items-center justify-end overflow-hidden px-4 pb-6" style={{
+          minHeight: '38vh',
+          paddingTop: 'max(64px, env(safe-area-inset-top))',
+          background: `radial-gradient(130% 110% at 50% -25%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 68%)`,
+        }}>
+          <DotCloud width={420} height={300} cols={30} rows={17} color="color-mix(in srgb, var(--accent) 65%, white)" />
+          <div className="relative text-center mb-7" style={{
+            fontFamily: DISPLAY, fontSize: 44, fontWeight: 600, letterSpacing: 9, color: 'var(--accent)',
+            textShadow: '0 0 32px color-mix(in srgb, var(--accent) 55%, transparent)',
+          }}>
+            REBORN
+          </div>
+          <div className="relative flex gap-1.5 overflow-x-auto w-full max-w-sm pb-0.5" style={{ scrollbarWidth: 'none' }}>
+            {Object.entries(THEMES).map(([key, t]) => (
+              <button key={key} onClick={() => setPickerTheme(key)} title={t.label}
+                className="text-[10px] uppercase px-3 py-1.5 flex-shrink-0 rounded-full"
+                style={{
+                  fontFamily: MONO,
+                  border: `1px solid ${pickerTheme === key ? 'var(--accent)' : 'var(--border)'}`,
+                  background: pickerTheme === key ? 'var(--accent)' : 'color-mix(in srgb, var(--bg) 55%, transparent)',
+                  color: pickerTheme === key ? 'var(--bg)' : 'var(--dim)',
+                }}>{t.label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 w-full max-w-sm mx-auto px-4 pt-6" style={{ paddingBottom: 'max(40px, env(safe-area-inset-bottom))' }}>
           {pickerMode === 'list' && (
             <>
               <div className="text-2xl font-medium mb-1">Who's this?</div>

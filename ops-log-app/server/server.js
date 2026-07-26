@@ -172,11 +172,20 @@ app.post('/api/subscribe', (req, res) => {
 app.post('/api/schedule', (req, res) => {
   const rows = Array.isArray(req.body && req.body.schedule) ? req.body.schedule : null;
   if (!rows) return res.status(400).json({ ok: false, error: 'body must be { schedule: [...] }' });
-  schedule = rows
+  const next = rows
     .filter(r => r && typeof r.id === 'string' && typeof r.time === 'string' && typeof r.label === 'string')
     .slice(0, 200);
+  // Only clear an id's fired flag if its time actually changed — an edit that
+  // doesn't touch time (relabeling, reordering, adding an unrelated row)
+  // shouldn't risk re-sending something already pushed today. Only a real
+  // time change legitimately earns another shot at firing.
+  const prevById = Object.fromEntries(schedule.map(r => [r.id, r]));
+  for (const row of next) {
+    const prev = prevById[row.id];
+    if (prev && prev.time !== row.time) delete state.fired[row.id];
+  }
+  schedule = next;
   writeJson('schedule.json', schedule);
-  state.fired = {}; // a changed schedule may reuse an id at a new time — let it fire again today
   writeJson('state.json', state);
   res.json({ ok: true, count: schedule.length });
 });

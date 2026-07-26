@@ -64,34 +64,41 @@ function urlB64ToUint8(base64) {
 }
 
 /** Registers the service worker, subscribes to push, and hands the
- *  subscription to the backend. Returns true only if real push is armed. */
+ *  subscription to the backend. Returns true only if real push is armed;
+ *  never throws — any failure (denied permission, network hiccup, no
+ *  service-worker support) just means push stays off, same as no backend. */
 export async function armRealPush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
   if (!getToken()) return false;
 
-  await mirrorTokenToServiceWorker();
-  const reg = await navigator.serviceWorker.register('/sw.js');
-  await navigator.serviceWorker.ready;
+  try {
+    await mirrorTokenToServiceWorker();
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
 
-  const vapidRes = await fetch('/api/vapid', { headers: authHeaders({}) });
-  if (!vapidRes.ok) return false;
-  const { key, pushEnabled } = await vapidRes.json();
-  if (!pushEnabled) return false; // backend has no REBORN_CONTACT set yet
+    const vapidRes = await fetch('/api/vapid', { headers: authHeaders({}) });
+    if (!vapidRes.ok) return false;
+    const { key, pushEnabled } = await vapidRes.json();
+    if (!pushEnabled) return false; // backend has no REBORN_CONTACT set yet
 
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlB64ToUint8(key),
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8(key),
+      });
+    }
+
+    const subRes = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(sub.toJSON()),
     });
+    return subRes.ok;
+  } catch (e) {
+    console.error('armRealPush failed', e.message);
+    return false;
   }
-
-  const subRes = await fetch('/api/subscribe', {
-    method: 'POST',
-    headers: authHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(sub.toJSON()),
-  });
-  return subRes.ok;
 }
 
 /** Push the current schedule ({ id, time: 'HH:MM', label }[]) to the backend

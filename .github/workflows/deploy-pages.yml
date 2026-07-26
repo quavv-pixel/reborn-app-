@@ -27,7 +27,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:pages
+      # enablement: true creates the Pages site itself (source: GitHub
+      # Actions) if it doesn't exist yet — the default (false) only reads
+      # the existing config and 404s on a repo that's never had Pages set up.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist

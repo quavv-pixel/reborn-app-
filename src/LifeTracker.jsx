@@ -829,11 +829,29 @@ export default function LifeTracker() {
   const [pickerPassword2, setPickerPassword2] = useState('');
   const [pickerError, setPickerError] = useState('');
 
+  // Theme for the "Who's this?" screen, before any profile is open. Lives at
+  // the device level (not per-profile, since no profile is picked yet) and
+  // doubles as the starting theme for a brand-new profile — so switching it
+  // here carries straight through once you're logged in, instead of always
+  // resetting to Noir.
+  const [pickerTheme, setPickerThemeState] = useState('noir');
+  function setPickerTheme(key) {
+    setPickerThemeState(key);
+    writeDebounced('device:theme', key);
+  }
+
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const list = await loadProfileList();
-      if (mounted) { setProfileList(list); setProfileListLoading(false); }
+      const [list, deviceTheme] = await Promise.all([
+        loadProfileList(),
+        loadKey('device:theme', 'noir'),
+      ]);
+      if (mounted) {
+        setProfileList(list);
+        setProfileListLoading(false);
+        setPickerThemeState(THEMES[deviceTheme] ? deviceTheme : 'noir');
+      }
     })();
     return () => { mounted = false; };
   }, []);
@@ -1038,7 +1056,9 @@ export default function LifeTracker() {
           billPayments: {},
           goal: { name: 'Car', target: 3000, saved: 0, targetDate: defaultTargetDate(), debtAmount: 0, debtCleared: false, weeklySavingsAmount: 0 },
         }),
-        loadKey(pKey(profile, 'theme'), 'noir'),
+        // A brand-new profile has no saved theme yet — start it on whatever
+        // was showing on the "Who's this?" screen rather than always Noir.
+        loadKey(pKey(profile, 'theme'), pickerTheme),
       ]);
 
       if (!g.split) g.split = DEFAULT_SPLIT;
@@ -1263,10 +1283,11 @@ export default function LifeTracker() {
   };
 
   if (!profile) {
+    const pth = THEMES[pickerTheme] || THEMES.noir;
     const pickerVars = {
-      '--bg': THEMES.noir.bg, '--panel': THEMES.noir.panel, '--field': THEMES.noir.field,
-      '--border': THEMES.noir.border, '--text': THEMES.noir.text, '--dim': THEMES.noir.dim,
-      '--accent': THEMES.noir.accent, '--accent2': THEMES.noir.accent2,
+      '--bg': pth.bg, '--panel': pth.panel, '--field': pth.field,
+      '--border': pth.border, '--text': pth.text, '--dim': pth.dim,
+      '--accent': pth.accent, '--accent2': pth.accent2,
     };
     const pwInputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
     return (
@@ -1276,7 +1297,21 @@ export default function LifeTracker() {
           input, select, button { border-radius: ${RADIUS_SM}px; }
         `}</style>
         <div className="w-full max-w-sm">
-          <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: 5, color: "var(--accent)", marginBottom: 4 }}>REBORN</div>
+          <div className="flex items-center justify-between mb-4">
+            <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, letterSpacing: 5, color: "var(--accent)" }}>REBORN</div>
+            <div className="flex gap-1 overflow-x-auto" style={{ maxWidth: '46vw' }}>
+              {Object.entries(THEMES).map(([key, t]) => (
+                <button key={key} onClick={() => setPickerTheme(key)} title={t.label}
+                  className="text-[10px] uppercase px-2 py-1 flex-shrink-0"
+                  style={{
+                    fontFamily: MONO,
+                    border: `1px solid ${pickerTheme === key ? 'var(--accent)' : 'var(--border)'}`,
+                    background: pickerTheme === key ? 'var(--accent)' : 'transparent',
+                    color: pickerTheme === key ? 'var(--bg)' : 'var(--dim)',
+                  }}>{t.label}</button>
+              ))}
+            </div>
+          </div>
 
           {pickerMode === 'list' && (
             <>

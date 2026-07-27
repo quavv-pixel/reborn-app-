@@ -102,6 +102,70 @@ function challenge() {
   });
 }
 
+// ---- remember-me session cookie -------------------------------------------
+// iOS home-screen apps don't reliably keep Basic Auth between launches, so
+// after ONE successful sign-in we hand the device a signed cookie and trust
+// that from then on. The cookie is HMAC-signed with the rotate secret —
+// nobody can mint one without it — and carries a role: 'm' (master, 365
+// days, opens /code) or 'g' (guest via hourly code, 30 days, app only).
+
+const COOKIE_NAME = 'reborn_session';
+export const MASTER_SESSION_DAYS = 365;
+export const GUEST_SESSION_DAYS = 30;
+
+async function cookieSig(secret, role, expiresAtMs) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(String(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`reborn-cookie:${role}:${expiresAtMs}`));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function makeSessionCookie(secret, role, expiresAtMs) {
+  return `v1.${role}.${expiresAtMs}.${await cookieSig(secret, role, expiresAtMs)}`;
+}
+
+// Returns { role } for a valid, unexpired cookie value; null otherwise.
+// Tampering with any part (role, expiry, signature) fails the HMAC check.
+export async function verifySessionCookie(secret, value, nowMs = Date.now()) {
+  if (typeof value !== 'string') return null;
+  const parts = value.split('.');
+  if (parts.length !== 4 || parts[0] !== 'v1') return null;
+  const [, role, expStr, sig] = parts;
+  if (role !== 'm' && role !== 'g') return null;
+  const expiresAtMs = Number(expStr);
+  if (!Number.isFinite(expiresAtMs) || expiresAtMs <= nowMs) return null;
+  const expected = await cookieSig(secret, role, expiresAtMs);
+  return timingSafeEqual(sig, expected) ? { role } : null;
+}
+
+export function cookieFromHeader(cookieHeader) {
+  if (typeof cookieHeader !== 'string') return null;
+  for (const part of cookieHeader.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    if (part.slice(0, eq).trim() === COOKIE_NAME) return part.slice(eq + 1).trim();
+  }
+  return null;
+}
+
+// After a fresh Basic Auth success: set the cookie and bounce the browser
+// back to the same URL, which then sails through on the cookie alone.
+async function grantSession(secret, role, requestUrl) {
+  const days = role === 'm' ? MASTER_SESSION_DAYS : GUEST_SESSION_DAYS;
+  const maxAge = days * 86400;
+  const value = await makeSessionCookie(secret, role, Date.now() + maxAge * 1000);
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: requestUrl,
+      'set-cookie': `${COOKIE_NAME}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+      'cache-control': 'no-store',
+    },
+  });
+}
+
 // Owner-only page showing the live guest code. Kept dependency-free and
 // rendered right here in the middleware so the static build is untouched.
 export async function codePage(rotateSecret, nowMs) {
@@ -141,19 +205,28 @@ export default async function middleware(request) {
   const pass = env.REBORN_PASS || DEFAULT_PASS;
   const rotateSecret = env.REBORN_ROTATE_SECRET || DEFAULT_ROTATE_SECRET;
   const header = request.headers.get('authorization');
+  const session = await verifySessionCookie(rotateSecret, cookieFromHeader(request.headers.get('cookie')));
 
   let pathname = '/';
   try { pathname = new URL(request.url).pathname; } catch {}
 
-  // /code is the owner's window into the rotating password — master only,
-  // guest codes deliberately do NOT open it.
+  // /code is the owner's window into the rotating password — master only
+  // (master cookie or master Basic Auth), guest sessions deliberately do
+  // NOT open it.
   if (pathname === '/code' || pathname === '/code/') {
-    if (!isMaster(parseBasicAuth(header), user, pass)) return challenge();
-    return codePage(rotateSecret, Date.now());
+    if ((session && session.role === 'm') || isMaster(parseBasicAuth(header), user, pass)) {
+      return codePage(rotateSecret, Date.now());
+    }
+    return challenge();
   }
 
+  // A valid remember-me cookie sails through — this is what stops the
+  // sign-in box from reappearing every time the app is reopened.
+  if (session) return undefined;
+
   if (await isAuthorized(header, { user, pass, rotateSecret })) {
-    return undefined; // authorized — let the request through to the app
+    const role = isMaster(parseBasicAuth(header), user, pass) ? 'm' : 'g';
+    return grantSession(rotateSecret, role, request.url);
   }
   return challenge();
 }

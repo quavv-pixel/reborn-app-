@@ -2,7 +2,10 @@
    the master login, and the hourly rotating guest code.
    No framework: node test/middleware.test.js (also part of `npm test`). */
 import assert from 'assert';
-import { parseBasicAuth, timingSafeEqual, isMaster, hourlyCode, isAuthorized } from '../middleware.js';
+import {
+  parseBasicAuth, timingSafeEqual, isMaster, hourlyCode, isAuthorized,
+  makeSessionCookie, verifySessionCookie, cookieFromHeader,
+} from '../middleware.js';
 
 let passed = 0, failed = 0;
 const test = async (name, fn) => {
@@ -92,6 +95,45 @@ await test('no rotateSecret -> only master works', async () => {
   assert.strictEqual(await isAuthorized(basic('mom', code), noRotate, T), false);
   assert.strictEqual(await isAuthorized(basic('reborn', 'pw123'), noRotate, T), true);
 });
+
+console.log('\nsession cookie (remember-me)');
+await test('valid master cookie verifies with role m', async () => {
+  const v = await makeSessionCookie('sec', 'm', T + 86400000);
+  assert.deepStrictEqual(await verifySessionCookie('sec', v, T), { role: 'm' });
+});
+await test('valid guest cookie verifies with role g', async () => {
+  const v = await makeSessionCookie('sec', 'g', T + 86400000);
+  assert.deepStrictEqual(await verifySessionCookie('sec', v, T), { role: 'g' });
+});
+await test('expired cookie rejected', async () => {
+  const v = await makeSessionCookie('sec', 'm', T - 1);
+  assert.strictEqual(await verifySessionCookie('sec', v, T), null);
+});
+await test('tampered role rejected (g promoted to m)', async () => {
+  const v = await makeSessionCookie('sec', 'g', T + 86400000);
+  assert.strictEqual(await verifySessionCookie('sec', v.replace('.g.', '.m.'), T), null);
+});
+await test('tampered expiry rejected', async () => {
+  const v = await makeSessionCookie('sec', 'm', T + 86400000);
+  const parts = v.split('.');
+  parts[2] = String(T + 999999999999);
+  assert.strictEqual(await verifySessionCookie('sec', parts.join('.'), T), null);
+});
+await test('cookie signed with a different secret rejected', async () => {
+  const v = await makeSessionCookie('other', 'm', T + 86400000);
+  assert.strictEqual(await verifySessionCookie('sec', v, T), null);
+});
+await test('garbage values rejected without throwing', async () => {
+  for (const junk of [null, undefined, '', 'v1', 'v1.m.123', 'v2.m.123.abc', {}, 'v1.x.' + (T + 1) + '.00']) {
+    assert.strictEqual(await verifySessionCookie('sec', junk, T), null);
+  }
+});
+
+console.log('\ncookieFromHeader');
+await test('finds the session cookie among others', () =>
+  assert.strictEqual(cookieFromHeader('a=1; reborn_session=v1.m.2.abc; b=2'), 'v1.m.2.abc'));
+await test('missing cookie -> null', () => assert.strictEqual(cookieFromHeader('a=1; b=2'), null));
+await test('null header -> null', () => assert.strictEqual(cookieFromHeader(null), null));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

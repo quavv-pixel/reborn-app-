@@ -835,8 +835,9 @@ export default function LifeTracker() {
   const [profileList, setProfileList] = useState([]);
   const [profileListLoading, setProfileListLoading] = useState(true);
   const [newProfileName, setNewProfileName] = useState('');
-  const [pickerMode, setPickerMode] = useState('list'); // list | new | unlock
+  const [pickerMode, setPickerMode] = useState('list'); // list | new | unlock | rename | delete | export
   const [pickerTarget, setPickerTarget] = useState(null); // profile name being unlocked
+  const importFileRef = useRef(null);
   const [pickerPassword, setPickerPassword] = useState('');
   const [pickerPassword2, setPickerPassword2] = useState('');
   const [pickerError, setPickerError] = useState('');
@@ -953,6 +954,68 @@ export default function LifeTracker() {
     saveProfileList(next);
     setPickerMode('list');
     setPickerError('');
+  }
+
+  // Backup / transfer. Browser storage is per-website, so a profile created on
+  // one URL doesn't exist on another — and iOS can evict rarely-used sites'
+  // storage entirely. Export writes the profile (including its password hash,
+  // so the same password keeps guarding it) to a file; import re-creates it on
+  // any device or URL. Export is password-gated like rename/delete.
+  async function confirmExportProfile() {
+    const entry = profileList.find(p => p.name === pickerTarget);
+    if (!entry) return;
+    if (!(await passwordMatches(entry, pickerPassword))) { setPickerError('Wrong password.'); return; }
+    const prefix = `p:${entry.name}:`;
+    const { keys } = await window.storage.list(prefix);
+    const data = {};
+    for (const k of keys) {
+      const item = await window.storage.get(k);
+      if (item && item.value !== undefined && item.value !== null) data[k.slice(prefix.length)] = item.value;
+    }
+    const payload = {
+      format: 'reborn-profile-v1',
+      exportedAt: new Date().toISOString(),
+      name: entry.name,
+      passHash: entry.passHash,
+      salt: entry.salt,
+      data,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reborn-${entry.name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    setPickerMode('list');
+    setPickerError('');
+  }
+  async function handleImportFile(file) {
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!parsed || parsed.format !== 'reborn-profile-v1' || typeof parsed.name !== 'string'
+        || typeof parsed.salt !== 'string' || typeof parsed.data !== 'object' || parsed.data === null) {
+        setPickerError('That file is not a REBORN profile backup.');
+        return;
+      }
+      const name = parsed.name.trim();
+      if (!name) { setPickerError('The backup has no profile name.'); return; }
+      if (profileList.some(p => p.name === name)) {
+        setPickerError(`A profile named "${name}" already exists here — rename or delete it first, then import again.`);
+        return;
+      }
+      for (const [k, v] of Object.entries(parsed.data)) {
+        if (typeof v === 'string') await window.storage.set(`p:${name}:${k}`, v);
+      }
+      const next = [...profileList, { name, passHash: typeof parsed.passHash === 'string' ? parsed.passHash : null, salt: parsed.salt }];
+      setProfileList(next);
+      saveProfileList(next);
+      setPickerError('');
+    } catch (e) {
+      setPickerError('Could not read that file.');
+    }
   }
 
   const [gym, setGymState] = useState({ workouts: [], split: DEFAULT_SPLIT });
@@ -1419,6 +1482,13 @@ export default function LifeTracker() {
                     style={{ border: '1px solid var(--accent)', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)' }}>
                     + New profile
                   </button>
+                  <button onClick={() => { setPickerError(''); importFileRef.current && importFileRef.current.click(); }}
+                    className="w-full text-xs mt-3" style={dimText}>
+                    Import a profile from a backup file
+                  </button>
+                  <input ref={importFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files && e.target.files[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
+                  {pickerError && <p className="text-xs mt-2 text-center" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
                 </>
               )}
             </>
@@ -1459,11 +1529,31 @@ export default function LifeTracker() {
                 <BtnPrimary onClick={confirmUnlock}>Unlock</BtnPrimary>
                 <button onClick={() => setPickerMode('list')} className="text-sm px-3 py-2" style={dimText}>Back</button>
               </div>
-              <div className="flex gap-4 mt-5">
+              <div className="flex gap-4 mt-5 flex-wrap">
                 <button onClick={() => { setNewProfileName(pickerTarget); setPickerPassword(''); setPickerError(''); setPickerMode('rename'); }}
                   className="text-xs" style={dimText}>Rename profile</button>
+                <button onClick={() => { setPickerPassword(''); setPickerError(''); setPickerMode('export'); }}
+                  className="text-xs" style={dimText}>Export backup</button>
                 <button onClick={() => { setPickerPassword(''); setPickerError(''); setPickerMode('delete'); }}
                   className="text-xs" style={{ color: 'var(--danger, #f87171)' }}>Delete profile</button>
+              </div>
+            </>
+          )}
+
+          {pickerMode === 'export' && (
+            <>
+              <div className="text-2xl font-medium mb-1">Export {pickerTarget}</div>
+              <p className="text-xs mb-4" style={dimText}>
+                Downloads a backup file with everything in this profile. Open the app on another device or another link, tap "Import a profile from a backup file", and pick this file — your same password still protects it there.
+              </p>
+              <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none mb-2" style={pwInputStyle}
+                value={pickerPassword} onChange={e => setPickerPassword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmExportProfile(); }}
+                placeholder="Password" autoFocus />
+              {pickerError && <p className="text-xs mb-2" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
+              <div className="flex gap-2">
+                <BtnPrimary onClick={confirmExportProfile}>Download backup</BtnPrimary>
+                <button onClick={() => { setPickerError(''); setPickerMode('unlock'); }} className="text-sm px-3 py-2" style={dimText}>Back</button>
               </div>
             </>
           )}

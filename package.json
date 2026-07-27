@@ -9,7 +9,7 @@
     "build:pages": "VITE_BASE=/reborn-app-/ vite build",
     "preview": "vite preview",
     "start": "node server/server.js",
-    "test": "node test/security.test.js"
+    "test": "node test/security.test.js && node test/middleware.test.js"
   },
   "dependencies": {
     "express": "^4.19.2",

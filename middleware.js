@@ -174,6 +174,7 @@ export async function codePage(rotateSecret, nowMs) {
   const minsLeft = Math.max(1, 60 - Math.floor((nowMs % HOUR_MS) / 60000));
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="60">
 <meta name="theme-color" content="#0B0B0D"><title>REBORN — guest code</title>
 <style>
   html,body{margin:0;background:#0B0B0D;color:#EAE6DF;font-family:ui-monospace,Menlo,monospace;

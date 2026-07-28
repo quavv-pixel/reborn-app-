@@ -131,6 +131,69 @@ const DEFAULT_WEEKLY_PLAN = [];
 // covers onboarding fine without seeding anything.
 const DEFAULT_BILLS = [];
 
+// One pool per mood (matches MOODS order: Rough, Low, Okay, Good, On Fire).
+// The line shown is picked from the day's date, so the same mood gets a
+// different message tomorrow.
+const CHEER_MESSAGES = [
+  [ // 😤 Rough
+    "Rough days don't last. People who keep showing up do.",
+    "It's okay to have a bad day — you still opened the app. That counts.",
+    "Storms pass. You've survived 100% of your worst days so far.",
+    "Today is heavy. Carry it slowly — no need to run.",
+    "Even at your lowest, you're still moving. That's strength.",
+    "Bad day, not a bad life. Tomorrow gets a fresh page.",
+    "Breathe. One small win today is enough.",
+    "The comeback is always stronger than the setback.",
+  ],
+  [ // 😕 Low
+    "Low battery is fine — recharge, don't quit.",
+    "Small steps still move you forward. Take one.",
+    "You don't need a perfect day, just a decent next hour.",
+    "Feeling low and still logging it? That's self-awareness. Respect.",
+    "Be as kind to yourself as you'd be to a friend today.",
+    "Slow progress is still progress. Keep it gentle.",
+    "One good meal, one short walk — watch the day turn.",
+    "You've pushed through worse. This one's manageable.",
+  ],
+  [ // 😐 Okay
+    "Okay is a fine place to start. Now stack one small win.",
+    "Neutral day = blank canvas. Paint one good thing on it.",
+    "Steady counts. Not every day needs fireworks.",
+    "An okay day done right becomes a good one by dinner.",
+    "Consistency on the 'meh' days is what builds streaks.",
+    "You showed up. That's the hardest part — build from there.",
+    "Nudge the day: one habit checked, and it tips your way.",
+    "Average days are where champions are quietly made.",
+  ],
+  [ // 🙂 Good
+    "Good day energy — spend it on something future-you will thank you for.",
+    "You're in rhythm. Protect it: one more habit checked.",
+    "Feeling good looks great on you. Keep the streak alive.",
+    "Ride the wave — good days are for building momentum.",
+    "This is what consistency feels like. Remember it.",
+    "Good mood + small effort = great day. You're halfway there.",
+    "Days like this are proof the routine is working.",
+    "Solid. Now finish strong — tomorrow's you is watching.",
+  ],
+  [ // 🔥 On Fire
+    "ON FIRE! Days like this are why you grind. Go get it all.",
+    "Unstoppable energy — point it at your biggest goal today.",
+    "This is peak you. Log it, remember it, repeat it.",
+    "Whatever you're doing — bottle it. It's working.",
+    "Full send. Today's the day the streak fears you.",
+    "You didn't find motivation. You built it. Burn bright.",
+    "Big energy days build big results. Don't waste a minute.",
+    "That fire? Earned. Now light up every box on the list.",
+  ],
+];
+
+function cheerFor(moodIdx, dateStr) {
+  const pool = CHEER_MESSAGES[moodIdx] || CHEER_MESSAGES[2];
+  let h = 0;
+  for (const ch of String(dateStr)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return pool[h % pool.length];
+}
+
 const QUOTES = [
   { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
   { text: "The pain of discipline weighs ounces; the pain of regret weighs tons.", author: "Jim Rohn" },
@@ -1031,6 +1094,11 @@ export default function LifeTracker() {
     goal: { name: 'Savings', target: 1000, saved: 0, targetDate: defaultTargetDate() },
   });
 
+  // Cheer-up toast shown for 5s after logging today's vibe.
+  const [cheer, setCheer] = useState(null);
+  const cheerTimer = useRef(null);
+  useEffect(() => () => { if (cheerTimer.current) clearTimeout(cheerTimer.current); }, []);
+
   const [gExercise, setGExercise] = useState('');
   const [gMuscle, setGMuscle] = useState('');
   const [gSets, setGSets] = useState('3');
@@ -1289,21 +1357,42 @@ export default function LifeTracker() {
   }
   function setMood(date, moodIdx) {
     updateRoutine({ ...routine, moodLog: { ...routine.moodLog, [date]: moodIdx } });
+    setCheer(cheerFor(moodIdx, date));
+    if (cheerTimer.current) clearTimeout(cheerTimer.current);
+    cheerTimer.current = setTimeout(() => setCheer(null), 5000);
   }
   function handleAddHabit() {
     if (!newHabitName.trim()) return;
     addHabit(newHabitName.trim(), newHabitCategory);
     setNewHabitName('');
   }
+  // Keeps Today's checklist in step with the Daily schedule: every schedule
+  // block with a label gets a matching habit (id 'hb-s-<blockId>') that is
+  // renamed with the block and removed with it. Hand-added habits are never
+  // touched.
+  function syncHabitsToSchedule(habits, schedule) {
+    const byBlock = new Map(
+      schedule.filter(s => s.label && s.label.trim()).map(s => ['hb-s-' + s.id, s.label.trim()])
+    );
+    const kept = habits
+      .filter(h => !String(h.id).startsWith('hb-s-') || byBlock.has(h.id))
+      .map(h => (byBlock.has(h.id) && h.name !== byBlock.get(h.id) ? { ...h, name: byBlock.get(h.id) } : h));
+    const present = new Set(kept.map(h => h.id));
+    for (const [id, name] of byBlock) {
+      if (!present.has(id)) kept.push({ id, name, category: 'personal' });
+    }
+    return kept;
+  }
   function updateScheduleRow(id, field, value) {
     const schedule = routine.schedule.map(s => (s.id === id ? { ...s, [field]: value } : s));
-    updateRoutine({ ...routine, schedule });
+    updateRoutine({ ...routine, schedule, habits: syncHabitsToSchedule(routine.habits, schedule) });
   }
   function addScheduleRow() {
     updateRoutine({ ...routine, schedule: [...routine.schedule, { id: uid(), time: '', label: '' }] });
   }
   function deleteScheduleRow(id) {
-    updateRoutine({ ...routine, schedule: routine.schedule.filter(s => s.id !== id) });
+    const schedule = routine.schedule.filter(s => s.id !== id);
+    updateRoutine({ ...routine, schedule, habits: syncHabitsToSchedule(routine.habits, schedule) });
   }
 
   function addMeal(m) {
@@ -1718,7 +1807,22 @@ export default function LifeTracker() {
            animation-duration below, driven by today's progress. */
         @keyframes heroWaveScroll { to { transform: translateX(-50%); } }
         @media (prefers-reduced-motion: reduce) { .hero-wave { animation: none !important; } }
+        /* Cheer toast: quick fade/slide in, hold, fade out — total 5s, matching
+           the setTimeout that removes it from the DOM. */
+        @keyframes cheerPop {
+          0% { opacity: 0; transform: translateY(-10px); }
+          6% { opacity: 1; transform: translateY(0); }
+          88% { opacity: 1; }
+          100% { opacity: 0; }
+        }
       `}</style>
+      {cheer && (
+        <div className="fixed inset-x-0 z-50 flex justify-center px-6" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 64px)', pointerEvents: 'none' }}>
+          <div className="px-5 py-3 text-sm text-center" style={{ ...glassCard(18), color: 'var(--text)', maxWidth: 340, animation: 'cheerPop 5s ease forwards' }}>
+            {cheer}
+          </div>
+        </div>
+      )}
       <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
 

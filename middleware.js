@@ -140,14 +140,83 @@ export async function verifySessionCookie(secret, value, nowMs = Date.now()) {
   return timingSafeEqual(sig, expected) ? { role } : null;
 }
 
-export function cookieFromHeader(cookieHeader) {
+export function cookieFromHeader(cookieHeader, name = COOKIE_NAME) {
   if (typeof cookieHeader !== 'string') return null;
   for (const part of cookieHeader.split(';')) {
     const eq = part.indexOf('=');
     if (eq < 0) continue;
-    if (part.slice(0, eq).trim() === COOKIE_NAME) return part.slice(eq + 1).trim();
+    if (part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim();
   }
   return null;
+}
+
+// ---- brute-force lockout ---------------------------------------------------
+// 5 wrong password attempts -> locked out for 15 minutes. Tracked in a
+// signed cookie (the edge has no shared memory): count + first-failure time,
+// HMAC'd so it can't be edited. Only requests that actually SENT wrong
+// credentials count — just seeing the sign-in box is not an attempt.
+
+const FAILS_COOKIE = 'reborn_fails';
+export const LOCKOUT_LIMIT = 5;
+export const LOCKOUT_WINDOW_MS = 15 * 60000;
+
+async function failSig(secret, count, firstMs) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(String(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(`reborn-fails:${count}:${firstMs}`));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function makeFailCookie(secret, count, firstMs) {
+  return `v1.${count}.${firstMs}.${await failSig(secret, count, firstMs)}`;
+}
+
+// Returns { count, firstMs } while the 15-minute window is still open;
+// null for anything invalid, tampered, or expired (expired = clean slate).
+export async function verifyFailCookie(secret, value, nowMs = Date.now()) {
+  if (typeof value !== 'string') return null;
+  const parts = value.split('.');
+  if (parts.length !== 4 || parts[0] !== 'v1') return null;
+  const count = Number(parts[1]);
+  const firstMs = Number(parts[2]);
+  if (!Number.isInteger(count) || count < 1 || !Number.isFinite(firstMs)) return null;
+  if (nowMs - firstMs >= LOCKOUT_WINDOW_MS) return null;
+  const expected = await failSig(secret, count, firstMs);
+  return timingSafeEqual(parts[3], expected) ? { count, firstMs } : null;
+}
+
+// Static files carry no personal data (all app data lives on the device),
+// so they skip the gate entirely — this is the perf fix: no auth round-trip
+// on every JS/CSS/image request, only on the page itself.
+export function isStaticAsset(pathname) {
+  if (pathname.startsWith('/assets/')) return true;
+  return /\.(js|mjs|css|map|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)
+    || pathname === '/manifest.json' || pathname === '/sw.js';
+}
+
+function lockedResponse(fails, nowMs) {
+  const minsLeft = Math.max(1, Math.ceil((fails.firstMs + LOCKOUT_WINDOW_MS - nowMs) / 60000));
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0B0B0D"><title>REBORN — locked</title>
+<style>html,body{margin:0;background:#0B0B0D;color:#EAE6DF;font-family:ui-monospace,Menlo,monospace;
+min-height:100vh;display:grid;place-items:center;text-align:center}
+.dim{color:#8A857C;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+.big{font-size:22px;color:#f87171;margin:10px 0}</style></head><body><div>
+<div class="dim">Too many wrong attempts</div>
+<div class="big">Locked for ${minsLeft} more minute${minsLeft === 1 ? '' : 's'}</div>
+<div class="dim">Close this tab and try again later</div>
+</div></body></html>`;
+  return new Response(html, {
+    status: 429,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'retry-after': String(minsLeft * 60),
+      'cache-control': 'no-store',
+    },
+  });
 }
 
 // After a fresh Basic Auth success: set the cookie and bounce the browser
@@ -156,7 +225,7 @@ async function grantSession(secret, role, requestUrl) {
   const days = role === 'm' ? MASTER_SESSION_DAYS : GUEST_SESSION_DAYS;
   const maxAge = days * 86400;
   const value = await makeSessionCookie(secret, role, Date.now() + maxAge * 1000);
-  return new Response(null, {
+  const res = new Response(null, {
     status: 302,
     headers: {
       location: requestUrl,
@@ -164,6 +233,9 @@ async function grantSession(secret, role, requestUrl) {
       'cache-control': 'no-store',
     },
   });
+  // Successful sign-in wipes any brute-force strikes for this device.
+  res.headers.append('set-cookie', `${FAILS_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`);
+  return res;
 }
 
 // Owner-only page showing the live guest code. Kept dependency-free and
@@ -205,29 +277,58 @@ export default async function middleware(request) {
   const user = env.REBORN_USER || DEFAULT_USER;
   const pass = env.REBORN_PASS || DEFAULT_PASS;
   const rotateSecret = env.REBORN_ROTATE_SECRET || DEFAULT_ROTATE_SECRET;
-  const header = request.headers.get('authorization');
-  const session = await verifySessionCookie(rotateSecret, cookieFromHeader(request.headers.get('cookie')));
+  const nowMs = Date.now();
 
   let pathname = '/';
   try { pathname = new URL(request.url).pathname; } catch {}
+
+  // API routes authenticate themselves (Telegram secret token, cron key) —
+  // the door must not swallow their webhooks. Static assets skip the gate
+  // for speed; they contain no personal data.
+  if (pathname.startsWith('/api/')) return undefined;
+  if (isStaticAsset(pathname)) return undefined;
+
+  const header = request.headers.get('authorization');
+  const cookieHeader = request.headers.get('cookie');
+  const session = await verifySessionCookie(rotateSecret, cookieFromHeader(cookieHeader));
+
+  // Devices with a valid remember-me cookie are never bothered — no
+  // sign-in box, no lockout checks.
+  if (session && !(pathname === '/code' || pathname === '/code/')) return undefined;
+
+  // Brute-force lockout: 5 wrong attempts inside 15 minutes -> locked page.
+  const fails = await verifyFailCookie(rotateSecret, cookieFromHeader(cookieHeader, 'reborn_fails'), nowMs);
+  if (fails && fails.count >= LOCKOUT_LIMIT) return lockedResponse(fails, nowMs);
 
   // /code is the owner's window into the rotating password — master only
   // (master cookie or master Basic Auth), guest sessions deliberately do
   // NOT open it.
   if (pathname === '/code' || pathname === '/code/') {
     if ((session && session.role === 'm') || isMaster(parseBasicAuth(header), user, pass)) {
-      return codePage(rotateSecret, Date.now());
+      return codePage(rotateSecret, nowMs);
     }
+    if (parseBasicAuth(header)) return await recordFail(rotateSecret, fails, nowMs);
     return challenge();
   }
-
-  // A valid remember-me cookie sails through — this is what stops the
-  // sign-in box from reappearing every time the app is reopened.
-  if (session) return undefined;
 
   if (await isAuthorized(header, { user, pass, rotateSecret })) {
     const role = isMaster(parseBasicAuth(header), user, pass) ? 'm' : 'g';
     return grantSession(rotateSecret, role, request.url);
   }
+
+  // Wrong credentials were actually sent — count the strike. A bare visit
+  // with no Authorization header just gets the sign-in box.
+  if (parseBasicAuth(header)) return await recordFail(rotateSecret, fails, nowMs);
   return challenge();
+}
+
+// 401 that also bumps the signed fail counter.
+async function recordFail(secret, fails, nowMs) {
+  const count = fails ? fails.count + 1 : 1;
+  const firstMs = fails ? fails.firstMs : nowMs;
+  const value = await makeFailCookie(secret, count, firstMs);
+  const res = challenge();
+  res.headers.append('set-cookie',
+    `${FAILS_COOKIE}=${value}; Max-Age=${Math.ceil(LOCKOUT_WINDOW_MS / 1000)}; Path=/; HttpOnly; Secure; SameSite=Lax`);
+  return res;
 }

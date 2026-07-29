@@ -8,6 +8,11 @@
     <meta name="apple-mobile-web-app-title" content="REBORN" />
     <meta name="theme-color" content="#0a0a0a" />
     <link rel="manifest" href="%BASE_URL%manifest.json" />
+    <!-- Fonts load here (non-render-blocking, display=swap) instead of via
+         @import inside the app's JS, which stalled first paint. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap" />
     <title>REBORN</title>
     <style>
       /* The page must never show white behind the iOS status bar or on
@@ -18,5 +23,8 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Vercel Web Analytics + Speed Insights (no-ops when self-hosted) -->
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
   </body>
 </html>

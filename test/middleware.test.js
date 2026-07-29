@@ -5,6 +5,7 @@ import assert from 'assert';
 import {
   parseBasicAuth, timingSafeEqual, isMaster, hourlyCode, isAuthorized,
   makeSessionCookie, verifySessionCookie, cookieFromHeader,
+  makeFailCookie, verifyFailCookie, isStaticAsset, LOCKOUT_LIMIT, LOCKOUT_WINDOW_MS,
 } from '../middleware.js';
 
 let passed = 0, failed = 0;
@@ -134,6 +135,46 @@ await test('finds the session cookie among others', () =>
   assert.strictEqual(cookieFromHeader('a=1; reborn_session=v1.m.2.abc; b=2'), 'v1.m.2.abc'));
 await test('missing cookie -> null', () => assert.strictEqual(cookieFromHeader('a=1; b=2'), null));
 await test('null header -> null', () => assert.strictEqual(cookieFromHeader(null), null));
+
+console.log('\nbrute-force lockout cookie');
+await test('valid fail cookie round-trips', async () => {
+  const v = await makeFailCookie('sec', 3, T);
+  assert.deepStrictEqual(await verifyFailCookie('sec', v, T + 60000), { count: 3, firstMs: T });
+});
+await test('expired window -> null (clean slate)', async () => {
+  const v = await makeFailCookie('sec', 5, T);
+  assert.strictEqual(await verifyFailCookie('sec', v, T + LOCKOUT_WINDOW_MS), null);
+});
+await test('tampered count rejected', async () => {
+  const v = await makeFailCookie('sec', 2, T);
+  const parts = v.split('.'); parts[1] = '1';
+  assert.strictEqual(await verifyFailCookie('sec', parts.join('.'), T), null);
+});
+await test('wrong secret rejected', async () => {
+  const v = await makeFailCookie('other', 5, T);
+  assert.strictEqual(await verifyFailCookie('sec', v, T), null);
+});
+await test('garbage rejected without throwing', async () => {
+  for (const junk of [null, '', 'v1.x.y.z', 'v1.0.' + T + '.aa', {}]) {
+    assert.strictEqual(await verifyFailCookie('sec', junk, T), null);
+  }
+});
+await test('lockout limit is 5 strikes / 15 min window', () => {
+  assert.strictEqual(LOCKOUT_LIMIT, 5);
+  assert.strictEqual(LOCKOUT_WINDOW_MS, 15 * 60000);
+});
+
+console.log('\nisStaticAsset (perf bypass)');
+await test('vite assets and file extensions bypass', () => {
+  for (const p of ['/assets/index-abc.js', '/assets/index.css', '/icon-192.png', '/sw.js', '/manifest.json', '/font.woff2']) {
+    assert.strictEqual(isStaticAsset(p), true, p);
+  }
+});
+await test('pages do NOT bypass', () => {
+  for (const p of ['/', '/code', '/anything']) {
+    assert.strictEqual(isStaticAsset(p), false, p);
+  }
+});
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

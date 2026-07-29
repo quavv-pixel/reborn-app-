@@ -1026,14 +1026,21 @@ export default function LifeTracker() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const [list, deviceTheme] = await Promise.all([
+      const [list, deviceTheme, lastProfile] = await Promise.all([
         loadProfileList(),
         loadKey('device:theme', 'noir'),
+        loadKey('device:last-profile', ''),
       ]);
       if (mounted) {
         setProfileList(list);
         setProfileListLoading(false);
         setPickerThemeState(THEMES[deviceTheme] ? deviceTheme : 'noir');
+        // Stay signed in: reopen the profile that was open last time on THIS
+        // device, instead of asking for the password on every app launch.
+        // Tapping "Switch profile" clears this and brings the gate back.
+        if (lastProfile && list.some(p => p.name === lastProfile)) {
+          setProfile(lastProfile);
+        }
       }
     })();
     return () => { mounted = false; };
@@ -1062,6 +1069,7 @@ export default function LifeTracker() {
     const hash = await hashPassword(pickerPassword, entry.salt);
     if (hash === entry.passHash) {
       setProfile(entry.name);
+      window.storage.set('device:last-profile', JSON.stringify(entry.name)).catch(() => {});
     } else {
       setPickerError('Wrong password.');
     }
@@ -1079,6 +1087,7 @@ export default function LifeTracker() {
     setProfileList(next);
     saveProfileList(next);
     setProfile(trimmed);
+    window.storage.set('device:last-profile', JSON.stringify(trimmed)).catch(() => {});
   }
 
   // Both rename and delete are gated on the profile's own password — knowing
@@ -1122,6 +1131,7 @@ export default function LifeTracker() {
     const next = profileList.filter(p => p.name !== entry.name);
     setProfileList(next);
     saveProfileList(next);
+    window.storage.delete('device:last-profile').catch(() => {});
     setPickerMode('list');
     setPickerError('');
   }
@@ -1554,8 +1564,10 @@ export default function LifeTracker() {
     const incomeTx = { id: uid(), date, type: 'income', amount: budget.weeklyIncome, category: 'Paycheck' };
     const expenseTxs = budget.weeklyPlan.map(p => ({ id: uid(), date, type: 'expense', amount: p.amount, category: p.category }));
     const goalNameLower = (budget.goal.name || '').toLowerCase();
+    // goalNameLower must be non-empty before the includes() check — an empty
+    // string matches every category and would count ALL plan lines as savings.
     const savingsThisWeek = budget.weeklyPlan
-      .filter(p => p.category.toLowerCase().includes('saving') || p.category.toLowerCase().includes(goalNameLower))
+      .filter(p => p.category.toLowerCase().includes('saving') || (goalNameLower && p.category.toLowerCase().includes(goalNameLower)))
       .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
 
     // Debt-first: if there's an outstanding debt amount, this week's savings
@@ -1620,7 +1632,6 @@ export default function LifeTracker() {
     return (
       <div className="min-h-screen flex flex-col" style={{ ...pickerVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
         <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
           input, select, button { border-radius: ${RADIUS_SM}px; }
         `}</style>
 
@@ -1904,7 +1915,6 @@ export default function LifeTracker() {
       color: 'var(--text)', fontFamily: SANS,
     }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:wght@500;600;700&display=swap');
         input, select { color: var(--text); }
         input::placeholder { color: var(--dim); opacity: 0.7; }
         input, select, button { border-radius: ${RADIUS_SM}px; }
@@ -1930,7 +1940,7 @@ export default function LifeTracker() {
           </div>
         </div>
       )}
-      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
+      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); window.storage.delete('device:last-profile').catch(() => {}); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
 
         {tab === 'home' && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Dumbbell, ListChecks, UtensilsCrossed, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff } from 'lucide-react';
+import { Home, Dumbbell, ListChecks, UtensilsCrossed, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin } from 'lucide-react';
 import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace";
@@ -102,6 +102,16 @@ const CATEGORIES = [
   { id: 'sleep', label: 'Sleep', icon: '🌙', color: '#6366f1' },
 ];
 const MOODS = ['😤', '😕', '😐', '🙂', '🔥'];
+const NOTE_TAGS = [
+  { id: 'General', color: '#8A857C' },
+  { id: 'Money', color: '#3b82f6' },
+  { id: 'Routine', color: '#a855f7' },
+  { id: 'Gym', color: '#ef4444' },
+  { id: 'Idea', color: '#f59e0b' },
+];
+function noteTagColor(tag) {
+  return (NOTE_TAGS.find(t => t.id === tag) || NOTE_TAGS[0]).color;
+}
 const MOOD_LABELS = ['Rough', 'Low', 'Okay', 'Good', 'On Fire'];
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
 
@@ -914,6 +924,7 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
     { id: 'routine', label: 'Routine', Icon: ListChecks },
     { id: 'meals', label: 'Meals', Icon: UtensilsCrossed },
     { id: 'budget', label: 'Budget', Icon: Wallet },
+    { id: 'notes', label: 'Notes', Icon: StickyNote },
   ];
   return (
     <div className="sticky top-0 z-10 backdrop-blur px-4 pb-2" style={{ paddingTop: 'calc(0.5rem + env(safe-area-inset-top, 0px))', background: 'color-mix(in srgb, var(--bg) 95%, transparent)', borderBottom: '1px solid var(--border)' }}>
@@ -969,10 +980,11 @@ function BottomNav({ tab, setTab }) {
     { id: 'routine', label: 'Routine', Icon: ListChecks },
     { id: 'meals', label: 'Meals', Icon: UtensilsCrossed },
     { id: 'budget', label: 'Budget', Icon: Wallet },
+    { id: 'notes', label: 'Notes', Icon: StickyNote },
   ];
   return (
     <div className="md:hidden fixed bottom-3 left-3 right-3 max-w-md mx-auto p-1.5" style={glassCard(999)}>
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {items.map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -1211,6 +1223,12 @@ export default function LifeTracker() {
     goal: { name: 'Savings', target: 1000, saved: 0, targetDate: defaultTargetDate() },
   });
 
+  const [notesData, setNotesState] = useState({ notes: [] });
+  const [noteText, setNoteText] = useState('');
+  const [noteTag, setNoteTag] = useState('General');
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
+
   // Cheer-up toast shown for 5s after logging today's vibe.
   const [cheer, setCheer] = useState(null);
   const cheerTimer = useRef(null);
@@ -1359,7 +1377,7 @@ export default function LifeTracker() {
     let mounted = true;
     setLoading(true);
     (async () => {
-      const [g, r, m, b, th] = await Promise.all([
+      const [g, r, m, b, th, n] = await Promise.all([
         loadKey(pKey(profile, 'gym-data'), { workouts: [], split: DEFAULT_SPLIT }),
         loadKey(pKey(profile, 'routine-data'), { habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE, moodLog: {} }),
         loadKey(pKey(profile, 'meals-data'), { entries: [], calorieGoal: 2400 }),
@@ -1375,7 +1393,9 @@ export default function LifeTracker() {
         // A brand-new profile has no saved theme yet — start it on whatever
         // was showing on the "Who's this?" screen rather than always Noir.
         loadKey(pKey(profile, 'theme'), pickerTheme),
+        loadKey(pKey(profile, 'notes-data'), { notes: [] }),
       ]);
+      if (!n.notes) n.notes = [];
 
       if (!g.split) g.split = DEFAULT_SPLIT;
       if (!r.schedule) r.schedule = DEFAULT_SCHEDULE;
@@ -1410,6 +1430,7 @@ export default function LifeTracker() {
         setRoutineState(r);
         setMealsState(m);
         setBudgetState(b);
+        setNotesState(n);
         setThemeState(THEMES[th] ? th : 'noir');
         setLoading(false);
       }
@@ -1433,6 +1454,28 @@ export default function LifeTracker() {
     setMealsState(next);
     writeDebounced(pKey(profile, 'meals-data'), next);
   }
+  function updateNotes(next) {
+    setNotesState(next);
+    writeDebounced(pKey(profile, 'notes-data'), next);
+  }
+  function addNote() {
+    const text = noteText.trim();
+    if (!text) return;
+    updateNotes({ ...notesData, notes: [{ id: uid(), text, tag: noteTag, pinned: false, createdAt: todayStr() }, ...notesData.notes] });
+    setNoteText('');
+  }
+  function deleteNote(id) {
+    updateNotes({ ...notesData, notes: notesData.notes.filter(nt => nt.id !== id) });
+  }
+  function togglePinNote(id) {
+    updateNotes({ ...notesData, notes: notesData.notes.map(nt => nt.id === id ? { ...nt, pinned: !nt.pinned } : nt) });
+  }
+  function saveNoteEdit() {
+    const text = editNoteText.trim();
+    if (text) updateNotes({ ...notesData, notes: notesData.notes.map(nt => nt.id === editingNoteId ? { ...nt, text } : nt) });
+    setEditingNoteId(null);
+  }
+
   function updateBudget(next) {
     setBudgetState(next);
     writeDebounced(pKey(profile, 'budget-data'), next);
@@ -2833,6 +2876,82 @@ export default function LifeTracker() {
               )}
             </Panel>
           </div>
+          </div>
+          </div>
+        )}
+
+        {tab === 'notes' && (
+          <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
+          <div>
+            <Panel title="New note">
+              <textarea
+                className="w-full text-sm px-3 py-2 focus:outline-none mb-2 resize-none"
+                style={{ ...inputStyle, minHeight: 90 }}
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="Something about money, your routine, an idea — anything you don't want to forget."
+              />
+              <div className="flex gap-1.5 flex-wrap mb-3">
+                {NOTE_TAGS.map(t => (
+                  <button key={t.id} onClick={() => setNoteTag(t.id)}
+                    className="text-xs px-2.5 py-1"
+                    style={{
+                      border: `1px solid ${noteTag === t.id ? t.color : 'var(--border)'}`,
+                      background: noteTag === t.id ? `color-mix(in srgb, ${t.color} 18%, transparent)` : 'transparent',
+                      color: noteTag === t.id ? t.color : 'var(--dim)',
+                    }}>{t.id}</button>
+                ))}
+              </div>
+              <BtnPrimary onClick={addNote}>Save note</BtnPrimary>
+            </Panel>
+          </div>
+
+          <div>
+            <Panel title={`Notes (${notesData.notes.length})`}>
+              {notesData.notes.length === 0 ? (
+                <p className="text-sm" style={dimText}>Nothing saved yet — jot something down on the left.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-[28rem] overflow-y-auto">
+                  {notesData.notes
+                    .slice()
+                    .sort((a, b) => (b.pinned === true) - (a.pinned === true))
+                    .map(nt => (
+                      <div key={nt.id} className="px-3 py-2" style={{ background: 'var(--field)', border: `1px solid ${nt.pinned ? 'var(--accent)' : 'var(--border)'}`, borderRadius: RADIUS_SM }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] uppercase tracking-widest" style={{ fontFamily: MONO, color: noteTagColor(nt.tag) }}>
+                            {nt.tag} · {fmtDate(nt.createdAt)}
+                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button onClick={() => togglePinNote(nt.id)} title={nt.pinned ? 'Unpin' : 'Pin to top'}>
+                              <Pin size={13} color={nt.pinned ? 'var(--accent)' : 'var(--dim)'} fill={nt.pinned ? 'var(--accent)' : 'none'} />
+                            </button>
+                            <button onClick={() => deleteNote(nt.id)} style={dimText}><Trash2 size={13} /></button>
+                          </div>
+                        </div>
+                        {editingNoteId === nt.id ? (
+                          <div>
+                            <textarea
+                              className="w-full text-sm px-2 py-1.5 focus:outline-none mb-1.5 resize-none"
+                              style={{ ...inputStyle, minHeight: 60 }}
+                              value={editNoteText}
+                              onChange={e => setEditNoteText(e.target.value)}
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <button onClick={saveNoteEdit} className="text-xs px-2 py-1" style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}>Save</button>
+                              <button onClick={() => setEditingNoteId(null)} className="text-xs px-2 py-1" style={dimText}>Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setEditingNoteId(nt.id); setEditNoteText(nt.text); }} className="text-sm text-left w-full" style={{ whiteSpace: 'pre-wrap', color: 'var(--text)' }}>
+                            {nt.text}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </Panel>
           </div>
           </div>
         )}

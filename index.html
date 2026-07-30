@@ -23,8 +23,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <!-- Vercel Web Analytics + Speed Insights (no-ops when self-hosted) -->
-    <script defer src="/_vercel/insights/script.js"></script>
-    <script defer src="/_vercel/speed-insights/script.js"></script>
+    <!-- Vercel Web Analytics + Speed Insights (injected at runtime by Vercel;
+         appended via JS instead of a static tag so Vite's build doesn't try
+         to resolve these as local assets — they only exist once deployed). -->
+    <script>
+      ['/_vercel/insights/script.js', '/_vercel/speed-insights/script.js'].forEach(src => {
+        var s = document.createElement('script');
+        s.defer = true;
+        s.src = src;
+        document.body.appendChild(s);
+      });
+    </script>
   </body>
 </html>

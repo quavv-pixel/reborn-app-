@@ -74,3 +74,29 @@ export function claudeMessage(book, pickedPages = []) {
     .map(([item, n]) => (n > 1 ? `${item} x${n}` : item));
   return `Load my Instacart cart at ALDI for this week. Recipes: ${names.join(", ")}. Ingredients: ${list.join(", ")}.`;
 }
+
+/**
+ * Shape the list the way Instacart's "create shopping list page" endpoint
+ * wants it. Only `name` is strictly required; `display_text` is what you read
+ * on the page.
+ *
+ * Quantity is deliberately always 1. The book has the measurements and this
+ * app doesn't — inventing "2 chicken breast" because two recipes use chicken
+ * would be a number nobody checked. Instead the recipe count goes in the
+ * display text, so you can see it needs to stretch across two meals and judge
+ * the size yourself at the shelf.
+ */
+export function toInstacartLineItems(book, pickedPages = []) {
+  return buildList(book, pickedPages).map(([item, n]) => ({
+    name: item,
+    quantity: 1,
+    unit: "each",
+    display_text: n > 1 ? `${item} (for ${n} recipes)` : item,
+  }));
+}
+
+// Title for the Instacart shopping list page.
+export function instacartTitle(book, pickedPages = []) {
+  const count = pickedPages.filter(pg => book.some(r => r.p === pg)).length;
+  return count ? `Skinny Chef — ${count} dinner${count === 1 ? "" : "s"}` : "Skinny Chef week";
+}

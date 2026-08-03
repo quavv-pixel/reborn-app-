@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { RefreshCw, Check, Copy, ShoppingCart, BookOpen, Loader2 } from "lucide-react";
 import { BOOK } from "./book";
-import { weekIndex, weekLabel, pickOptions, buildList, claudeMessage, hasWrapped } from "./rotation";
+import {
+  weekIndex,
+  weekLabel,
+  pickOptions,
+  buildList,
+  claudeMessage,
+  hasWrapped,
+  toInstacartLineItems,
+  instacartTitle,
+} from "./rotation";
 
 const C = {
   paper: "#EFEDE6",
@@ -49,6 +58,8 @@ export default function SkinnyChefWeek() {
   const [cooked, setCooked] = useState([]);
   const [copied, setCopied] = useState(false);
   const [ready, setReady] = useState(false);
+  const [cartBusy, setCartBusy] = useState(false);
+  const [cartMsg, setCartMsg] = useState("");
 
   useEffect(() => {
     const saved = readJSON(STORE_KEY, []);
@@ -111,6 +122,35 @@ export default function SkinnyChefWeek() {
       // Clipboard is blocked outside a secure context and in some in-app
       // browsers. Fall back to a prompt the user can copy out of by hand.
       window.prompt("Copy this and paste it to Claude:", msg);
+    }
+  }
+
+  // Hands the list to /api/instacart, which asks Instacart for a shopping list
+  // page and returns its URL. On a phone that URL opens the Instacart app with
+  // the list loaded. Push-only — nothing is read back from your account.
+  async function openInInstacart() {
+    if (!picked.length) return;
+    setCartBusy(true);
+    setCartMsg("");
+    try {
+      const res = await fetch("/api/instacart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: instacartTitle(BOOK, picked),
+          line_items: toInstacartLineItems(BOOK, picked),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.url) {
+        window.open(data.url, "_blank", "noopener");
+      } else {
+        setCartMsg(data?.message || data?.error || `Instacart request failed (${res.status}).`);
+      }
+    } catch {
+      setCartMsg("Couldn't reach Instacart. Are you online?");
+    } finally {
+      setCartBusy(false);
     }
   }
 
@@ -315,24 +355,43 @@ export default function SkinnyChefWeek() {
           )}
 
           {list.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={copyForClaude}
-                className="flex items-center gap-2 px-4 py-3"
-                style={{ background: C.orange, color: "#fff", fontSize: 13.5, fontWeight: 600 }}
-              >
-                {copied ? <Check size={15} /> : <Copy size={15} />}
-                {copied ? "Copied — paste it to Claude" : "Copy for Claude"}
-              </button>
-              <button
-                onClick={markCooked}
-                className="flex items-center gap-2 px-4 py-3"
-                style={{ background: "transparent", border: `1px solid ${C.ink}`, fontSize: 13.5 }}
-              >
-                <BookOpen size={15} />
-                Mark cooked
-              </button>
-            </div>
+            <>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={openInInstacart}
+                  disabled={cartBusy}
+                  className="flex items-center gap-2 px-4 py-3"
+                  style={{ background: C.orange, color: "#fff", fontSize: 13.5, fontWeight: 600 }}
+                >
+                  {cartBusy ? <Loader2 size={15} className="animate-spin" /> : <ShoppingCart size={15} />}
+                  {cartBusy ? "Opening…" : "Open in Instacart"}
+                </button>
+                <button
+                  onClick={copyForClaude}
+                  className="flex items-center gap-2 px-4 py-3"
+                  style={{ background: "transparent", border: `1px solid ${C.ink}`, fontSize: 13.5 }}
+                >
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? "Copied — paste it to Claude" : "Copy for Claude"}
+                </button>
+                <button
+                  onClick={markCooked}
+                  className="flex items-center gap-2 px-4 py-3"
+                  style={{ background: "transparent", border: `1px solid ${C.ink}`, fontSize: 13.5 }}
+                >
+                  <BookOpen size={15} />
+                  Mark cooked
+                </button>
+              </div>
+
+              {cartMsg && (
+                <p className="mt-3" style={{ fontSize: 12.5, color: C.red }}>{cartMsg}</p>
+              )}
+              <p className="mt-3" style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.4 }}>
+                Instacart opens a shopping list page with these items — it can't see what's
+                already in your cart. Needs a key on the server; until then use Copy for Claude.
+              </p>
+            </>
           )}
         </section>
 

@@ -9,6 +9,8 @@ import {
   buildList,
   claudeMessage,
   hasWrapped,
+  toInstacartLineItems,
+  instacartTitle,
 } from '../src/rotation.js';
 
 let passed = 0, failed = 0;
@@ -171,6 +173,54 @@ test('marks shared ingredients with a multiplier', () => {
 test('skips unknown pages', () => {
   const msg = claudeMessage(BOOK, [99999]);
   assert.ok(msg.includes('Recipes: .'), msg);
+});
+
+console.log('\ntoInstacartLineItems');
+test('every line item has the name Instacart requires', () => {
+  const items = toInstacartLineItems(BOOK, [118, 116, 44]);
+  assert.ok(items.length > 0);
+  for (const it of items) {
+    assert.ok(typeof it.name === 'string' && it.name.length > 0);
+    assert.ok(Number.isFinite(it.quantity) && it.quantity > 0);
+    assert.ok(typeof it.unit === 'string' && it.unit.length > 0);
+    assert.ok(typeof it.display_text === 'string' && it.display_text.length > 0);
+  }
+});
+test('quantity stays 1 — the book has the measurements, this app does not', () => {
+  for (const it of toInstacartLineItems(BOOK, [118, 116, 44])) {
+    assert.strictEqual(it.quantity, 1, it.name + ' invented a quantity');
+  }
+});
+test('a shared ingredient says so in the display text instead', () => {
+  const items = toInstacartLineItems(BOOK, [118, 116]);
+  const tortillas = items.find(it => it.name === 'flour tortillas');
+  assert.ok(tortillas, 'flour tortillas missing');
+  assert.strictEqual(tortillas.display_text, 'flour tortillas (for 2 recipes)');
+});
+test('a single-use ingredient just uses its name', () => {
+  const items = toInstacartLineItems(BOOK, [92]);
+  const celery = items.find(it => it.name === 'celery');
+  assert.strictEqual(celery.display_text, 'celery');
+});
+test('sends one line per ingredient, never a duplicate', () => {
+  const items = toInstacartLineItems(BOOK, [118, 116, 44]);
+  const names = items.map(it => it.name);
+  assert.strictEqual(new Set(names).size, names.length);
+});
+test('an empty pick sends nothing', () => {
+  assert.deepStrictEqual(toInstacartLineItems(BOOK, []), []);
+});
+
+console.log('\ninstacartTitle');
+test('counts the dinners', () => {
+  assert.strictEqual(instacartTitle(BOOK, [118, 116]), 'Skinny Chef — 2 dinners');
+  assert.strictEqual(instacartTitle(BOOK, [118]), 'Skinny Chef — 1 dinner');
+});
+test('ignores unknown pages when counting', () => {
+  assert.strictEqual(instacartTitle(BOOK, [118, 99999]), 'Skinny Chef — 1 dinner');
+});
+test('falls back to a generic title with nothing picked', () => {
+  assert.strictEqual(instacartTitle(BOOK, []), 'Skinny Chef week');
 });
 
 console.log(`\n${passed} passed, ${failed} failed\n`);

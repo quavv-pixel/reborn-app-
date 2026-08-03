@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Dumbbell, ListChecks, UtensilsCrossed, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin } from 'lucide-react';
+import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin } from 'lucide-react';
 import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace";
@@ -344,210 +344,6 @@ const QUOTES = [
   { text: "Don't live the same year 75 times and call it a life.", author: "Robin Sharma" },
 ];
 
-// Full meal book — browsable by category in the Meals tab. Tapping an entry
-// fills the Add meal form (name/calories/type) so you can review before
-// logging. Calorie figures are estimates for a typical single serving.
-const MEAL_BOOK = [
-  // breakfast
-  { name: 'Scrambled eggs (2) & toast', calories: 320, type: 'breakfast' },
-  { name: 'Oatmeal with banana', calories: 340, type: 'breakfast' },
-  { name: 'Greek yogurt with granola', calories: 300, type: 'breakfast' },
-  { name: 'Protein pancakes (3)', calories: 380, type: 'breakfast' },
-  { name: 'Bacon, egg & cheese bagel', calories: 520, type: 'breakfast' },
-  { name: 'Avocado toast (2 slices)', calories: 350, type: 'breakfast' },
-  { name: 'Breakfast burrito', calories: 480, type: 'breakfast' },
-  { name: 'Cereal with milk', calories: 280, type: 'breakfast' },
-  { name: 'Smoothie (fruit + protein)', calories: 310, type: 'breakfast' },
-  { name: 'French toast (2 slices)', calories: 360, type: 'breakfast' },
-  { name: 'Egg white omelet with veggies', calories: 220, type: 'breakfast' },
-  { name: 'Peanut butter toast', calories: 290, type: 'breakfast' },
-  { name: 'Belgian waffles (2)', calories: 420, type: 'breakfast' },
-  { name: 'Breakfast tacos (2)', calories: 380, type: 'breakfast' },
-  { name: 'Bagel with cream cheese', calories: 350, type: 'breakfast' },
-  { name: 'Overnight oats', calories: 320, type: 'breakfast' },
-  { name: 'Shakshuka', calories: 340, type: 'breakfast' },
-  { name: 'Breakfast quesadilla', calories: 450, type: 'breakfast' },
-  { name: 'Yogurt parfait', calories: 280, type: 'breakfast' },
-  { name: 'Sausage and egg muffin', calories: 400, type: 'breakfast' },
-  // lunch
-  { name: 'Chicken and rice bowl', calories: 550, type: 'lunch' },
-  { name: 'Turkey sandwich', calories: 420, type: 'lunch' },
-  { name: 'Caesar salad with chicken', calories: 450, type: 'lunch' },
-  { name: 'Burrito bowl (chicken)', calories: 650, type: 'lunch' },
-  { name: 'Grilled chicken wrap', calories: 480, type: 'lunch' },
-  { name: 'Tuna salad sandwich', calories: 400, type: 'lunch' },
-  { name: 'Sushi roll combo (2 rolls)', calories: 500, type: 'lunch' },
-  { name: 'Pasta with marinara', calories: 520, type: 'lunch' },
-  { name: 'Chicken noodle soup + roll', calories: 380, type: 'lunch' },
-  { name: 'Quesadilla (chicken)', calories: 560, type: 'lunch' },
-  { name: 'Poke bowl', calories: 500, type: 'lunch' },
-  { name: 'Leftover meal prep plate', calories: 550, type: 'lunch' },
-  { name: 'Falafel wrap', calories: 480, type: 'lunch' },
-  { name: 'BLT sandwich', calories: 420, type: 'lunch' },
-  { name: 'Chicken Caesar wrap', calories: 500, type: 'lunch' },
-  { name: 'Beef and broccoli', calories: 550, type: 'lunch' },
-  { name: 'Cobb salad', calories: 500, type: 'lunch' },
-  { name: 'Grilled cheese and tomato soup', calories: 500, type: 'lunch' },
-  { name: 'Bibimbap', calories: 600, type: 'lunch' },
-  // dinner
-  { name: 'Steak with baked potato', calories: 700, type: 'dinner' },
-  { name: 'Salmon with rice and broccoli', calories: 580, type: 'dinner' },
-  { name: 'Spaghetti with meat sauce', calories: 620, type: 'dinner' },
-  { name: 'Grilled chicken with veggies', calories: 480, type: 'dinner' },
-  { name: 'Homemade burger with fries', calories: 750, type: 'dinner' },
-  { name: 'Stir fry (beef or chicken)', calories: 550, type: 'dinner' },
-  { name: 'Pizza (3 slices)', calories: 750, type: 'dinner' },
-  { name: 'Tacos (3, beef or chicken)', calories: 600, type: 'dinner' },
-  { name: 'Shrimp pasta alfredo', calories: 680, type: 'dinner' },
-  { name: 'Pork chops with rice', calories: 620, type: 'dinner' },
-  { name: 'Chili with cornbread', calories: 560, type: 'dinner' },
-  { name: 'Sheet pan chicken & veggies', calories: 500, type: 'dinner' },
-  { name: 'Chicken parmesan', calories: 700, type: 'dinner' },
-  { name: 'Fish and chips', calories: 750, type: 'dinner' },
-  { name: 'Beef stir fry with noodles', calories: 620, type: 'dinner' },
-  { name: 'Lamb chops with couscous', calories: 650, type: 'dinner' },
-  { name: 'BBQ ribs with coleslaw', calories: 800, type: 'dinner' },
-  { name: 'Vegetable curry with rice', calories: 550, type: 'dinner' },
-  { name: 'Meatloaf with mashed potatoes', calories: 650, type: 'dinner' },
-  { name: 'Shrimp scampi', calories: 600, type: 'dinner' },
-  // snack
-  { name: 'Protein shake', calories: 150, type: 'snack' },
-  { name: 'Protein bar', calories: 200, type: 'snack' },
-  { name: 'Apple with peanut butter', calories: 250, type: 'snack' },
-  { name: 'Handful of almonds', calories: 165, type: 'snack' },
-  { name: 'Greek yogurt cup', calories: 130, type: 'snack' },
-  { name: 'Rice cakes with peanut butter', calories: 180, type: 'snack' },
-  { name: 'String cheese', calories: 80, type: 'snack' },
-  { name: 'Trail mix (small handful)', calories: 200, type: 'snack' },
-  { name: 'Beef jerky (1oz)', calories: 110, type: 'snack' },
-  { name: 'Banana', calories: 105, type: 'snack' },
-  { name: 'Hard-boiled eggs (2)', calories: 140, type: 'snack' },
-  { name: 'Chips and guac', calories: 300, type: 'snack' },
-  { name: 'Cottage cheese cup', calories: 120, type: 'snack' },
-  { name: 'Popcorn (air-popped)', calories: 100, type: 'snack' },
-  { name: 'Dark chocolate square', calories: 90, type: 'snack' },
-  { name: 'Hummus with veggies', calories: 150, type: 'snack' },
-  { name: 'Fruit cup', calories: 90, type: 'snack' },
-  { name: 'Mixed nuts', calories: 170, type: 'snack' },
-  { name: 'Pretzels (small bag)', calories: 110, type: 'snack' },
-];
-
-// Calorie estimates for common foods and dish variants, per a stated single
-// serving. Figures are rounded reference-range values for that portion (the
-// kind you'd find on a nutrition label or standard database), not a lookup
-// against what you actually cooked — treat them as a solid starting point
-// to adjust, not a precise measurement of your specific plate.
-const FOOD_CALORIES = [
-  // proteins (per standard 3oz cooked serving unless noted)
-  ['chicken breast', 140, '3oz, grilled, skinless'],
-  ['chicken thigh', 178, '3oz, skin-on'],
-  ['fried chicken', 280, '3oz, breaded'],
-  ['ground beef', 215, '3oz, 85/15 cooked'],
-  ['steak', 330, '6oz sirloin'],
-  ['salmon', 175, '3oz, cooked'],
-  ['tuna', 100, '3oz canned in water'],
-  ['shrimp', 85, '3oz, cooked'],
-  ['egg', 72, 'each, large'],
-  ['bacon', 43, 'per slice, cooked'],
-  ['turkey breast', 125, '3oz, roasted'],
-  ['pork chop', 210, '3oz, cooked'],
-  ['tofu', 90, '3oz, firm'],
-  // grains / starches
-  ['white rice', 205, '1 cup cooked'],
-  ['brown rice', 216, '1 cup cooked'],
-  ['pasta', 220, '1 cup cooked, plain'],
-  ['bread', 80, 'per slice, whole wheat'],
-  ['bagel', 270, 'each, medium'],
-  ['oatmeal', 150, '1 cup cooked, water'],
-  ['tortilla', 95, 'each, flour, medium'],
-  ['potato', 160, 'medium, baked, plain'],
-  ['sweet potato', 115, 'medium, baked'],
-  ['fries', 365, 'medium fast-food serving'],
-  ['spaghetti squash', 100, '1 cup, plain'],
-  // spaghetti / pasta dish variants
-  ['spaghetti with marinara', 350, '1.5 cups w/ sauce'],
-  ['spaghetti alfredo', 600, '1.5 cups'],
-  ['spaghetti bolognese', 550, '1.5 cups w/ meat sauce'],
-  ['spaghetti with meatballs', 620, '1.5 cups + 3 meatballs'],
-  ['spaghetti carbonara', 580, '1.5 cups'],
-  ['spaghetti with shrimp', 480, '1.5 cups, garlic shrimp'],
-  ['spaghetti with chicken', 520, '1.5 cups, chicken + sauce'],
-  // veggies / fruit
-  ['broccoli', 55, '1 cup, cooked'],
-  ['banana', 105, 'medium'],
-  ['apple', 95, 'medium'],
-  ['avocado', 250, 'whole, medium'],
-  // salads
-  ['garden salad', 100, 'no dressing'],
-  ['caesar salad', 350, 'w/ dressing + croutons, no protein'],
-  ['caesar salad with chicken', 470, 'w/ dressing + croutons'],
-  ['greek salad', 300, 'w/ feta + olive oil'],
-  ['cobb salad', 500, 'full salad w/ protein'],
-  ['salad', 120, 'w/ light dressing, general'],
-  // snacks / dairy
-  ['almonds', 164, '1oz / ~23 nuts'],
-  ['peanut butter', 190, '2 tbsp'],
-  ['greek yogurt', 130, '1 cup, plain nonfat'],
-  ['milk', 150, '1 cup, whole'],
-  ['cheese', 113, '1oz slice, cheddar'],
-  ['protein shake', 130, '1 scoop whey + water'],
-  ['protein bar', 200, 'each'],
-  ['granola bar', 140, 'each'],
-  ['chips', 150, '1oz bag'],
-  ['cookie', 150, 'each, medium'],
-  ['ice cream', 270, '1 cup'],
-  // sandwiches / burgers
-  ['turkey sandwich', 380, 'deli style'],
-  ['ham sandwich', 350, 'deli style'],
-  ['club sandwich', 550, 'triple decker'],
-  ['blt sandwich', 400, 'w/ mayo'],
-  ['grilled chicken sandwich', 400, 'fast food'],
-  ['crispy chicken sandwich', 550, 'fast food, breaded'],
-  ['chicken salad sandwich', 450, 'w/ mayo'],
-  ['buffalo chicken sandwich', 500, 'fast food'],
-  ['sandwich', 400, 'deli style, general'],
-  ['cheeseburger', 600, 'fast food, single'],
-  ['double cheeseburger', 750, 'fast food'],
-  ['veggie burger', 350, 'patty + bun'],
-  ['turkey burger', 400, 'patty + bun'],
-  ['burger', 550, 'fast food, single'],
-  // bowls / mexican
-  ['chicken rice bowl', 550, 'meal-prep style'],
-  ['beef rice bowl', 600, 'meal-prep style'],
-  ['shrimp rice bowl', 480, 'meal-prep style'],
-  ['tofu rice bowl', 450, 'meal-prep style'],
-  ['chicken and rice', 550, 'typical meal prep plate'],
-  ['chicken taco', 170, 'each, soft shell'],
-  ['beef taco', 210, 'each, soft shell'],
-  ['fish taco', 180, 'each'],
-  ['shrimp taco', 160, 'each'],
-  ['burrito', 700, 'large, fast-casual style'],
-  ['quesadilla', 500, 'cheese, one full'],
-  // other common meals
-  ['pizza', 285, 'per slice, cheese'],
-  ['sushi roll', 280, '8pc, e.g. California roll'],
-  ['ramen', 500, '1 bowl, restaurant style'],
-  ['soup', 180, '1 cup'],
-  ['soda', 150, '12oz can'],
-  ['coffee', 5, 'black'],
-  ['latte', 200, '16oz, whole milk'],
-  ['beer', 150, '12oz, regular'],
-  ['waffles', 420, '2, w/ syrup'],
-  ['falafel', 330, '4 pieces, fried'],
-  ['falafel wrap', 480, 'w/ tahini sauce'],
-  ['chicken parmesan', 700, 'w/ pasta side'],
-  ['fish and chips', 750, 'pub style'],
-  ['lamb chops', 400, '3oz, grilled'],
-  ['shrimp scampi', 600, 'w/ pasta'],
-  ['meatloaf', 350, '1 slice'],
-  ['curry', 450, '1 cup, w/o rice'],
-  ['bibimbap', 600, '1 bowl'],
-  ['cottage cheese', 120, '1 cup, low-fat'],
-  ['popcorn', 100, '3 cups, air-popped'],
-  ['hummus', 70, '2 tbsp, no dippers'],
-  ['dark chocolate', 90, '1 square, ~1oz'],
-];
-
 // Exercise options per split-day type, so at the gym you pick from a list
 // instead of typing. Matched case-insensitively against gym.split[today].type;
 // unrecognized day types (custom labels) fall back to a combined list.
@@ -565,30 +361,6 @@ function getExercisesForType(type) {
   if (EXERCISE_LIBRARY[key]) return EXERCISE_LIBRARY[key];
   // Custom/unrecognized day label — offer everything rather than nothing.
   return ALL_EXERCISES;
-}
-
-// Returns up to 6 ranked suggestions for whatever's typed so far — e.g.
-// "spaghetti" surfaces every spaghetti variant (alfredo, with shrimp, with
-// chicken, ...) instead of collapsing to one guess. A match counts if the
-// typed text is a substring of the food name, the food name is a substring
-// of what's typed, or every word typed appears somewhere in the food name.
-function estimateCalorieOptions(name) {
-  const q = (name || '').trim().toLowerCase();
-  if (q.length < 3) return [];
-  const qTokens = q.split(/\s+/).filter(Boolean);
-  const matches = FOOD_CALORIES.filter(([key]) => {
-    const k = key.toLowerCase();
-    if (k.includes(q) || q.includes(k)) return true;
-    return qTokens.every(t => k.includes(t));
-  });
-  matches.sort((a, b) => {
-    const ak = a[0].toLowerCase(), bk = b[0].toLowerCase();
-    const aStarts = ak.startsWith(q) ? 0 : 1;
-    const bStarts = bk.startsWith(q) ? 0 : 1;
-    if (aStarts !== bStarts) return aStarts - bStarts;
-    return Math.abs(ak.length - q.length) - Math.abs(bk.length - q.length);
-  });
-  return matches.slice(0, 6).map(([key, cal, note]) => ({ name: key, calories: cal, note }));
 }
 
 function getDailyQuote(dateStr) {
@@ -922,7 +694,6 @@ function Header({ theme, setTheme, tab, setTab, profile, onSwitchProfile, notifs
     { id: 'home', label: 'Home', Icon: Home },
     { id: 'gym', label: 'Gym', Icon: Dumbbell },
     { id: 'routine', label: 'Routine', Icon: ListChecks },
-    { id: 'meals', label: 'Meals', Icon: UtensilsCrossed },
     { id: 'budget', label: 'Budget', Icon: Wallet },
     { id: 'notes', label: 'Notes', Icon: StickyNote },
   ];
@@ -978,13 +749,12 @@ function BottomNav({ tab, setTab }) {
     { id: 'home', label: 'Home', Icon: Home },
     { id: 'gym', label: 'Gym', Icon: Dumbbell },
     { id: 'routine', label: 'Routine', Icon: ListChecks },
-    { id: 'meals', label: 'Meals', Icon: UtensilsCrossed },
     { id: 'budget', label: 'Budget', Icon: Wallet },
     { id: 'notes', label: 'Notes', Icon: StickyNote },
   ];
   return (
     <div className="md:hidden fixed bottom-3 left-3 right-3 max-w-md mx-auto p-1.5" style={glassCard(999)}>
-      <div className="grid grid-cols-6">
+      <div className="grid grid-cols-5">
         {items.map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -1212,7 +982,6 @@ export default function LifeTracker() {
 
   const [gym, setGymState] = useState({ workouts: [], split: DEFAULT_SPLIT });
   const [routine, setRoutineState] = useState({ habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE });
-  const [meals, setMealsState] = useState({ entries: [], calorieGoal: 2400 });
   const [budget, setBudgetState] = useState({
     transactions: [],
     monthlyBudget: 0,
@@ -1346,13 +1115,6 @@ export default function LifeTracker() {
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitCategory, setNewHabitCategory] = useState('personal');
 
-  const [mName, setMName] = useState('');
-  const [mBookSearch, setMBookSearch] = useState('');
-  const [mBookFilter, setMBookFilter] = useState('all');
-  const [mCalories, setMCalories] = useState('');
-  const [mType, setMType] = useState('breakfast');
-  const [mDate, setMDate] = useState(todayStr());
-
   const [billName, setBillName] = useState('');
   const [billAmount, setBillAmount] = useState('');
   const [planCategory, setPlanCategory] = useState('');
@@ -1377,10 +1139,9 @@ export default function LifeTracker() {
     let mounted = true;
     setLoading(true);
     (async () => {
-      const [g, r, m, b, th, n] = await Promise.all([
+      const [g, r, b, th, n] = await Promise.all([
         loadKey(pKey(profile, 'gym-data'), { workouts: [], split: DEFAULT_SPLIT }),
         loadKey(pKey(profile, 'routine-data'), { habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE, moodLog: {} }),
-        loadKey(pKey(profile, 'meals-data'), { entries: [], calorieGoal: 2400 }),
         loadKey(pKey(profile, 'budget-data'), {
           transactions: [],
           monthlyBudget: 0,
@@ -1428,7 +1189,6 @@ export default function LifeTracker() {
       if (mounted) {
         setGymState(g);
         setRoutineState(r);
-        setMealsState(m);
         setBudgetState(b);
         setNotesState(n);
         setThemeState(THEMES[th] ? th : 'noir');
@@ -1449,10 +1209,6 @@ export default function LifeTracker() {
   function updateRoutine(next) {
     setRoutineState(next);
     writeDebounced(pKey(profile, 'routine-data'), next);
-  }
-  function updateMeals(next) {
-    setMealsState(next);
-    writeDebounced(pKey(profile, 'meals-data'), next);
   }
   function updateNotes(next) {
     setNotesState(next);
@@ -1555,20 +1311,6 @@ export default function LifeTracker() {
     updateRoutine({ ...routine, schedule, habits: syncHabitsToSchedule(routine.habits, schedule) });
   }
 
-  function addMeal(m) {
-    updateMeals({ ...meals, entries: [{ id: uid(), ...m }, ...meals.entries] });
-  }
-  function deleteMeal(id) {
-    updateMeals({ ...meals, entries: meals.entries.filter(m => m.id !== id) });
-  }
-  function setCalorieGoal(goalVal) {
-    updateMeals({ ...meals, calorieGoal: goalVal });
-  }
-  function handleAddMeal() {
-    if (!mName.trim() || mCalories === '') return;
-    addMeal({ date: mDate, name: mName.trim(), calories: mCalories, type: mType });
-    setMName(''); setMCalories('');
-  }
 
   function setMonthlyBudget(amt) {
     updateBudget({ ...budget, monthlyBudget: amt });
@@ -1832,7 +1574,7 @@ export default function LifeTracker() {
             <>
               <div className="text-2xl font-medium mb-1">Delete {pickerTarget}?</div>
               <p className="text-xs mb-4" style={{ color: 'var(--danger, #f87171)' }}>
-                This permanently erases everything in this profile on this device — workouts, habits, meals, budget, all of it. There is no undo.
+                This permanently erases everything in this profile on this device — workouts, habits, budget, all of it. There is no undo.
               </p>
               <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none mb-2" style={pwInputStyle}
                 value={pickerPassword} onChange={e => setPickerPassword(e.target.value)}
@@ -1861,17 +1603,6 @@ export default function LifeTracker() {
 
   const today = todayStr();
   const last7Days = getLast7Days();
-
-  const totalCaloriesToday = meals.entries
-    .filter(e => e.date === today)
-    .reduce((s, e) => s + (parseFloat(e.calories) || 0), 0);
-
-  const todaysMeals = meals.entries.filter(e => e.date === today);
-
-  const last7DaysCalories = last7Days.slice().reverse().map(date => ({
-    date,
-    total: meals.entries.filter(e => e.date === date).reduce((s, e) => s + (parseFloat(e.calories) || 0), 0),
-  }));
 
   const habitsToday = routine.logs[today] || [];
 
@@ -1924,27 +1655,20 @@ export default function LifeTracker() {
   const budgetPctDone = Math.min(100, Math.round((Number(goal.saved) || 0) / (Number(goal.target) || 1) * 100));
 
 
-  const isAllEmpty = gym.workouts.length === 0 && meals.entries.length === 0 && budget.transactions.length === 0 && Object.keys(routine.logs).length === 0;
+  const isAllEmpty = gym.workouts.length === 0 && budget.transactions.length === 0 && Object.keys(routine.logs).length === 0;
 
-  // How full today's four Home stat tiles are on average (0-1) — drives the
+  // How full today's three Home stat tiles are on average (0-1) — drives the
   // hero wave's color (cold→hot) and speed (slower→faster) below. Deliberately
   // reuses numbers already on screen rather than tracking a separate streak.
   const heroProgress = [
-    Math.min(1, totalCaloriesToday / (meals.calorieGoal || 1)),
     Math.min(1, (Number(goal.saved) || 0) / (Number(goal.target) || 1)),
     Math.min(1, habitsToday.length / (routine.habits.length || 1)),
     Math.min(1, workoutsThisWeek / 7),
-  ].reduce((a, b) => a + b, 0) / 4;
+  ].reduce((a, b) => a + b, 0) / 3;
   const heroWaveColor = heatColor(heroProgress);
   const heroWaveDuration = 8 - heroProgress * 6; // 8s idle → 2s at full progress
 
   const quote = getDailyQuote(today);
-  const mealSuggestions = estimateCalorieOptions(mName);
-  const filteredMealBook = MEAL_BOOK.filter(m => {
-    if (mBookFilter !== 'all' && m.type !== mBookFilter) return false;
-    if (mBookSearch.trim() && !m.name.toLowerCase().includes(mBookSearch.toLowerCase())) return false;
-    return true;
-  });
 
   return (
     <div className="min-h-screen" style={{
@@ -2023,15 +1747,7 @@ export default function LifeTracker() {
               <p className="text-xs" style={dimText}>— {quote.author}</p>
             </Panel>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-              <Meter
-                label="Calories"
-                value={totalCaloriesToday}
-                max={meals.calorieGoal || 1}
-                displayValue={`${Math.round(totalCaloriesToday)}`}
-                displayMax={`${meals.calorieGoal} cal`}
-                accentVar="--accent" barVar="--accent"
-              />
+            <div className="grid grid-cols-3 gap-2 mb-3">
               <Meter
                 label={`${goal.name} fund`}
                 value={Number(goal.saved) || 0}
@@ -2073,13 +1789,6 @@ export default function LifeTracker() {
                     divider
                   />
                   <NavCard
-                    icon={UtensilsCrossed}
-                    title="Meals"
-                    subtitle={`${Math.round(totalCaloriesToday)} / ${meals.calorieGoal} cal today`}
-                    onClick={() => setTab('meals')}
-                    divider
-                  />
-                  <NavCard
                     icon={Wallet}
                     title="Budget"
                     subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
@@ -2091,7 +1800,7 @@ export default function LifeTracker() {
               <div>
                 {isAllEmpty && (
                   <Panel title="Get started">
-                    <p className="text-sm" style={dimText}>Nothing logged yet. Tap a card to add your first gym session, habit check, meal, or expense.</p>
+                    <p className="text-sm" style={dimText}>Nothing logged yet. Tap a card to add your first gym session, habit check, or expense.</p>
                   </Panel>
                 )}
               </div>
@@ -2402,156 +2111,6 @@ export default function LifeTracker() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </Panel>
-          </div>
-          </div>
-        )}
-
-        {tab === 'meals' && (
-          <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
-          <div>
-            <Panel
-              title="Daily goal"
-              right={
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    className="w-20 text-sm px-2 py-1 text-right"
-                    style={inputStyle}
-                    value={meals.calorieGoal}
-                    onChange={e => setCalorieGoal(e.target.value === '' ? 0 : Number(e.target.value))}
-                  />
-                  <span className="text-xs" style={dimText}>cal</span>
-                </div>
-              }
-            >
-              <Meter
-                label="Today"
-                value={totalCaloriesToday}
-                max={meals.calorieGoal || 1}
-                displayValue={`${Math.round(totalCaloriesToday)} cal`}
-                displayMax={`${meals.calorieGoal} cal`}
-                accentVar="--accent" barVar="--accent"
-              />
-            </Panel>
-
-            <Panel title="Add meal">
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="col-span-2">
-                  <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Meal</label>
-                  <input className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mName} onChange={e => setMName(e.target.value)} placeholder="Chicken and rice" autoComplete="off" />
-                  {mealSuggestions.length > 0 && (
-                    <div className="mt-1" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
-                      {mealSuggestions.map(s => (
-                        <button key={s.name}
-                          onClick={() => { setMName(s.name.replace(/\b\w/g, c => c.toUpperCase())); setMCalories(String(s.calories)); }}
-                          className="w-full flex items-center justify-between px-2 py-1.5 text-left"
-                          style={{ borderBottom: '1px solid var(--border)' }}
-                        >
-                          <span className="text-xs capitalize" style={{ color: 'var(--text)' }}>{s.name}</span>
-                          <span className="text-xs flex-shrink-0 ml-2" style={{ fontFamily: MONO, color: 'var(--accent2)' }}>~{s.calories} cal</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Calories</label>
-                  <input type="number" className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mCalories} onChange={e => setMCalories(e.target.value)} placeholder="600" />
-                </div>
-                <div>
-                  <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Type</label>
-                  <select className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mType} onChange={e => setMType(e.target.value)}>
-                    <option value="breakfast">Breakfast</option>
-                    <option value="lunch">Lunch</option>
-                    <option value="dinner">Dinner</option>
-                    <option value="snack">Snack</option>
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Date</label>
-                  <input type="date" className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mDate} onChange={e => setMDate(e.target.value)} />
-                </div>
-              </div>
-              <BtnPrimary onClick={handleAddMeal}>Add meal</BtnPrimary>
-            </Panel>
-
-            <Panel title="Today's meals">
-              {todaysMeals.length === 0 ? (
-                <p className="text-sm" style={dimText}>Nothing logged today yet.</p>
-              ) : (
-                <div className="space-y-1">
-                  {todaysMeals.map(m => (
-                    <div key={m.id} className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
-                      <div className="text-sm">
-                        {m.name} <span className="capitalize" style={dimText}>({m.type})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{m.calories}</span>
-                        <button onClick={() => deleteMeal(m.id)} style={dimText}><Trash2 size={14} /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
-          </div>
-
-          <div>
-            <Panel title="Meal book">
-              <div className="flex gap-2 mb-2">
-                <input
-                  className="flex-1 text-sm px-3 py-2 focus:outline-none"
-                  style={inputStyle}
-                  value={mBookSearch}
-                  onChange={e => setMBookSearch(e.target.value)}
-                  placeholder="Search meals…"
-                />
-              </div>
-              <div className="flex gap-1 mb-2 flex-wrap">
-                {['all', 'breakfast', 'lunch', 'dinner', 'snack'].map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setMBookFilter(f)}
-                    className="text-xs px-2 py-1 capitalize"
-                    style={{
-                      fontFamily: MONO,
-                      border: `1px solid ${mBookFilter === f ? 'var(--accent)' : 'var(--border)'}`,
-                      background: mBookFilter === f ? 'var(--accent)' : 'transparent',
-                      color: mBookFilter === f ? 'var(--bg)' : 'var(--dim)',
-                    }}
-                  >{f}</button>
-                ))}
-              </div>
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {filteredMealBook.length === 0 ? (
-                  <p className="text-sm" style={dimText}>No meals match that search.</p>
-                ) : (
-                  filteredMealBook.map(m => (
-                    <button
-                      key={m.name}
-                      onClick={() => { setMName(m.name); setMCalories(String(m.calories)); setMType(m.type); }}
-                      className="w-full flex items-center justify-between px-2 py-1.5 text-left"
-                      style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}
-                    >
-                      <span className="text-sm">{m.name} <span className="text-xs capitalize" style={dimText}>({m.type})</span></span>
-                      <span className="text-sm flex-shrink-0" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{m.calories} cal</span>
-                    </button>
-                  ))
-                )}
-              </div>
-              <p className="text-xs mt-2" style={dimText}>Tap a meal to fill the form above, then hit "Add meal" to log it.</p>
-            </Panel>
-
-            <Panel title="Last 7 days">
-              <div className="space-y-1">
-                {last7DaysCalories.map(d => (
-                  <div key={d.date} className="flex justify-between text-sm">
-                    <span style={dimText}>{fmtDate(d.date)}</span>
-                    <span style={{ fontFamily: MONO }}>{Math.round(d.total)} cal</span>
-                  </div>
-                ))}
               </div>
             </Panel>
           </div>

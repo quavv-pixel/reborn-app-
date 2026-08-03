@@ -21,6 +21,8 @@
 // Without INSTACART_API_KEY this returns 501 with a plain explanation and the
 // app falls back to "Copy for Claude", which needs no setup at all.
 
+import { clientIp, checkAccess } from "./_util.js";
+
 export const config = { maxDuration: 30 };
 
 const HOSTS = {
@@ -30,11 +32,11 @@ const HOSTS = {
 const PATH = "/idp/v1/products/products_link";
 const MAX_ITEMS = 100;
 
-// Same best-effort throttle as /api/deals. This endpoint is unauthenticated —
-// there is no login in this app to gate on — so anyone who finds the URL can
-// make list pages against your key. Instacart isn't billed per call, so the
-// exposure is your rate limit rather than your wallet, but the cap keeps a
-// stuck client from burning it. See the README if you want a real gate.
+// Same best-effort throttle as /api/deals. Without APP_ACCESS_KEY set (see
+// _util.js) this endpoint is open to the internet — anyone who finds the URL
+// can make list pages against your key. Instacart isn't billed per call, so
+// the exposure is your rate limit rather than your wallet, but the cap keeps
+// a stuck client from burning it.
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 10;
 const hits = new Map();
@@ -74,6 +76,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POST a { line_items } body to this endpoint." });
   }
 
+  if (!checkAccess(req, res)) return;
+
   const apiKey = process.env.INSTACART_API_KEY;
   if (!apiKey) {
     return res.status(501).json({
@@ -82,7 +86,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIp(req);
   if (throttled(ip)) {
     return res.status(429).json({ error: "rate_limited", message: "Slow down a moment, then try again." });
   }

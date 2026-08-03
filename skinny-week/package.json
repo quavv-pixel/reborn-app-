@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/rotation.test.js"
+    "test": "node test/rotation.test.js && node test/util.test.js",
+    "test:e2e": "bash test/run-e2e.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",

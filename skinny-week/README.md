@@ -23,7 +23,8 @@ npm install
 npm run dev
 ```
 
-`npm test` runs the rotation and list-building tests (38 of them, no framework).
+`npm test` runs the unit tests (49 of them, no framework). See **Testing this
+yourself** below for the heavier end-to-end pass.
 
 ## Deploy it
 
@@ -59,6 +60,43 @@ changes.
 | **CHECK** (ALDI ad) | `ANTHROPIC_API_KEY` | says it isn't set up |
 | **Open in Instacart** | `INSTACART_API_KEY` | says it isn't set up |
 
+## Can people access my data?
+
+**There is no database.** Nothing about your picks or cooked history is stored
+on a server anywhere. It all lives in your own browser's `localStorage`, on
+your own device, under the keys listed in **Storage** below. Clear your
+browser's site data and it's gone from that device; it was never anywhere else
+to begin with.
+
+What *is* true, once you deploy: `/api/deals` and `/api/instacart` are public
+URLs on the internet, same as the rest of the site. If you configure a key for
+either one, anyone who finds those two specific URLs could call them directly
+(not through the UI) — not to read anything of yours, since there's nothing to
+read, but to spend what the key allows: Anthropic usage on `/api/deals`,
+Instacart's rate limit on `/api/instacart`.
+
+Two things now guard against that, both added in this pass:
+
+- **A passphrase gate, off by default.** Set `APP_ACCESS_KEY` in Vercel and
+  both endpoints require it. The first time any device tries CHECK or Open in
+  Instacart, the browser prompts once for the passphrase, then remembers it
+  for that device via `localStorage`. Leave `APP_ACCESS_KEY` unset (the
+  default) and neither endpoint ever prompts — this is opt-in, not a change to
+  the zero-config default.
+- **The per-IP rate limiter now trusts the right address.** It previously read
+  the *first* address in the `X-Forwarded-For` header, which is exactly the
+  part a client controls — anyone could reset their own limit by sending a
+  made-up value there on every request. It now reads the *last* entry, the one
+  Vercel's own edge appends, which a client can't spoof.
+
+Neither of these is a full login system, and the rate limiting is still
+best-effort (see below) — but a determined caller now needs your passphrase to
+get anywhere, instead of nothing at all standing between them and your key.
+
+| Variable | Value |
+|---|---|
+| `APP_ACCESS_KEY` | any passphrase you pick — unset by default (no gate) |
+
 ## Open in Instacart (optional, free key)
 
 Sends the week's list to Instacart's Developer Platform, which returns a URL for
@@ -90,12 +128,12 @@ in this app, so sending "2 chicken breast" because two recipes use chicken would
 be a number nobody checked. Instead each shared item reads "(for 2 recipes)" on
 the Instacart page and you judge the size at the shelf.
 
-**This endpoint is unauthenticated.** There's no login in this app to gate on,
-so anyone who finds the URL can create list pages against your key. Instacart
-doesn't bill per call, so the exposure is your rate limit rather than your
-wallet, and requests are capped at 10/min per IP — but that cap is per-instance
-and best-effort, same caveat as the ad lookup below. If that bothers you, the
-options are to keep the site private, or add a shared secret and a small login.
+This endpoint has no login by default, so anyone who finds the URL could call
+it directly against your key — Instacart doesn't bill per call, so what's at
+risk is your rate limit, not your wallet, but see **Can people access my
+data?** above for the `APP_ACCESS_KEY` passphrase gate that closes this off,
+and note the 10/min-per-IP cap here is best-effort (per-instance, not a shared
+counter — see the ALDI ad section below for why).
 
 ## The ALDI ad (optional, costs money)
 
@@ -118,10 +156,15 @@ is one tap and nothing stops you from tapping it repeatedly.
 Guards that are in place:
 
 - The key lives only on the server. It is never sent to the browser.
-- Requests are capped at 5 per minute per IP.
+- Requests are capped at 5 per minute per IP — see **Can people access my
+  data?** above for the fix that made this actually mean per-*IP*.
 - `max_uses: 5` bounds how many searches one request can run.
-- The endpoint rejects anything but `POST`, and the area you type is truncated
-  to 60 characters and flattened to one line before it reaches the prompt.
+- The endpoint rejects anything but `POST`, and the area you type is stripped
+  to letters, numbers, spaces, commas, and periods before it reaches the
+  prompt — a place name still works fine, but there's no character left to
+  smuggle a second instruction to the model in.
+- Set `APP_ACCESS_KEY` (above) to require a passphrase before this endpoint
+  runs at all.
 
 The rate limit is **best-effort**: Vercel functions are ephemeral and several
 instances can run at once, so the counter isn't shared between them. It stops a
@@ -140,6 +183,28 @@ and likely just as good — change the two `model:` lines to `claude-sonnet-5` i
 you'd rather. Leave `thinking` alone: it's on by default on these models, and the
 web-search tool is noticeably less reliable with it off.
 
+## Testing this yourself
+
+`npm test` (38 rotation/list tests + 11 covering the IP fix and access gate,
+no framework, no browser) runs in a couple seconds and needs nothing installed
+beyond `npm install`.
+
+`npm run test:e2e` is heavier: it builds the app, boots a local stand-in for
+Vercel that runs the *real* `api/deals.js` and `api/instacart.js` with
+Anthropic and Instacart's responses faked (no real key, no real network, no
+cost), and drives all three buttons in an actual headless Chromium — including
+opening the Instacart tab and typing the passphrase into the access-key
+prompt. It needs Playwright (`npm install --no-save playwright`, plus
+`npx playwright install chromium` on a machine that doesn't already have one).
+This is what proved out the two real bugs described above — the popup timing
+one only shows up with a real browser enforcing real popup-block rules, not a
+plain fetch-based check.
+
+What it can't prove: that Anthropic's and Instacart's real APIs behave exactly
+as documented. It proves this app calls them correctly and handles every
+response shape they're documented to return — the live call still needs a
+real key to fully confirm.
+
 ## Layout
 
 ```
@@ -148,13 +213,18 @@ src/main.jsx               boot
 src/SkinnyChefWeek.jsx     the whole UI
 src/book.js                the recipe index (titles, pages, grocery terms)
 src/rotation.js            week maths, rotation, list building — no DOM, no storage
+src/apiClient.js           frontend fetch wrapper: handles the access-key prompt/retry
+api/_util.js               shared helpers: the IP fix, the access-key gate
 api/deals.js               Vercel function: ALDI ad lookup via Claude + web search
 api/instacart.js           Vercel function: list -> Instacart shopping list page URL
 test/rotation.test.js      38 tests over rotation.js and the book data
+test/util.test.js          11 tests over the IP fix and the access gate
+test/devserver.mjs         local stand-in for Vercel, real handlers + faked upstreams
+test/browser-check.mjs     drives every button in a real browser against devserver.mjs
 ```
 
-`rotation.js` is deliberately free of browser globals so the tests can import it
-straight into Node.
+`rotation.js` and `api/_util.js` are deliberately free of browser/Vercel
+globals so the tests can import them straight into Node.
 
 ## Storage
 

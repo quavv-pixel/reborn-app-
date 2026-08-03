@@ -15,6 +15,7 @@
 // search costs more than a plain message. See the README before enabling.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { clientIp, checkAccess } from "./_util.js";
 
 // Web search takes real time. Vercel's default is 10s, which this will exceed.
 export const config = { maxDuration: 60 };
@@ -43,11 +44,13 @@ function throttled(key) {
   return false;
 }
 
-// The store string is interpolated into the prompt, so it gets flattened to a
-// single short line first — no newlines to inject a second instruction with.
+// The store string is interpolated straight into the prompt. Rather than just
+// stripping newlines, only allow the characters a place name actually needs —
+// this closes off prompt-injection attempts ("ignore previous instructions…")
+// at the character level instead of trying to pattern-match phrasings.
 function cleanStore(raw) {
   return String(raw || "")
-    .replace(/[\r\n]+/g, " ")
+    .replace(/[^a-zA-Z0-9,.\-'\s]/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_STORE_LEN);
@@ -78,6 +81,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POST a { store } body to this endpoint." });
   }
 
+  if (!checkAccess(req, res)) return;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(501).json({
@@ -86,7 +91,7 @@ export default async function handler(req, res) {
     });
   }
 
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  const ip = clientIp(req);
   if (throttled(ip)) {
     return res.status(429).json({ error: "rate_limited", message: "Slow down a moment, then try again." });
   }
@@ -137,7 +142,13 @@ export default async function handler(req, res) {
       .join("\n")
       .replace(/```json|```/g, "");
 
-    return res.status(200).json({ deals: parseDeals(text) });
+    const deals = parseDeals(text);
+    // stop_reason "max_tokens" means the reply was cut off mid-generation —
+    // distinct from a clean search that genuinely found nothing, and worth
+    // telling the user apart from "no specials this week" (they're allowed to
+    // just try again).
+    const truncated = response.stop_reason === "max_tokens" && deals.length === 0;
+    return res.status(200).json({ deals, truncated });
   } catch (err) {
     // Surface the shape of the failure without leaking the key or a stack.
     const status = err?.status;

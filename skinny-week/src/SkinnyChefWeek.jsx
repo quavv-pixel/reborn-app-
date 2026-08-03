@@ -11,6 +11,7 @@ import {
   toInstacartLineItems,
   instacartTitle,
 } from "./rotation";
+import { callApi } from "./apiClient";
 
 const C = {
   paper: "#EFEDE6",
@@ -60,6 +61,7 @@ export default function SkinnyChefWeek() {
   const [ready, setReady] = useState(false);
   const [cartBusy, setCartBusy] = useState(false);
   const [cartMsg, setCartMsg] = useState("");
+  const [cartUrl, setCartUrl] = useState("");
 
   useEffect(() => {
     const saved = readJSON(STORE_KEY, []);
@@ -79,20 +81,27 @@ export default function SkinnyChefWeek() {
     setDealsMsg("");
     writeJSON(STORE_AREA, store);
     try {
-      const res = await fetch("/api/deals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ store }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
+      const { ok, status, data } = await callApi("/api/deals", { store });
+      if (!ok) {
         setDealsState("error");
-        setDealsMsg(data?.message || data?.error || `Request failed (${res.status}).`);
+        setDealsMsg(data?.message || data?.error || `Request failed (${status}).`);
+        return;
+      }
+      if (data?.refused) {
+        setDealsState("error");
+        setDealsMsg("That search was declined — try a different phrasing for the area, or try again.");
         return;
       }
       const found = Array.isArray(data?.deals) ? data.deals : [];
       setDeals(found);
-      setDealsState(found.length ? "done" : "empty");
+      if (found.length) {
+        setDealsState("done");
+      } else if (data?.truncated) {
+        setDealsState("error");
+        setDealsMsg("The search ran long and didn't finish — try again.");
+      } else {
+        setDealsState("empty");
+      }
     } catch {
       setDealsState("error");
       setDealsMsg("Couldn't reach the ad. Try again in a moment.");
@@ -132,22 +141,39 @@ export default function SkinnyChefWeek() {
     if (!picked.length) return;
     setCartBusy(true);
     setCartMsg("");
+    setCartUrl("");
+
+    // Open the tab NOW, synchronously, inside the click handler — before any
+    // await. Mobile Safari (and most browsers) only allow window.open without
+    // a popup-block prompt when it happens synchronously in direct response to
+    // a click; calling it after an awaited fetch gets silently blocked, which
+    // is exactly the kind of "the button looks like it works but doesn't on a
+    // phone" bug that's easy to miss testing on a desktop. `win` keeps a real
+    // reference (no `noopener` at open time) so it can be navigated once the
+    // real URL is known; `win.opener = null` then closes the same reverse-
+    // tabnabbing hole `noopener` would have, without losing the reference.
+    const win = window.open("", "_blank");
+    if (win) win.opener = null;
+
     try {
-      const res = await fetch("/api/instacart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: instacartTitle(BOOK, picked),
-          line_items: toInstacartLineItems(BOOK, picked),
-        }),
+      const { ok, data } = await callApi("/api/instacart", {
+        title: instacartTitle(BOOK, picked),
+        line_items: toInstacartLineItems(BOOK, picked),
       });
-      const data = await res.json().catch(() => null);
-      if (res.ok && data?.url) {
-        window.open(data.url, "_blank", "noopener");
+      if (ok && data?.url) {
+        if (win) {
+          win.location.href = data.url;
+        } else {
+          // The blank tab itself got blocked — don't force-navigate the app
+          // away from an unrelated click; hand back a link to tap instead.
+          setCartUrl(data.url);
+        }
       } else {
-        setCartMsg(data?.message || data?.error || `Instacart request failed (${res.status}).`);
+        if (win) win.close();
+        setCartMsg(data?.message || data?.error || "Instacart request failed.");
       }
     } catch {
+      if (win) win.close();
       setCartMsg("Couldn't reach Instacart. Are you online?");
     } finally {
       setCartBusy(false);
@@ -386,6 +412,20 @@ export default function SkinnyChefWeek() {
 
               {cartMsg && (
                 <p className="mt-3" style={{ fontSize: 12.5, color: C.red }}>{cartMsg}</p>
+              )}
+              {cartUrl && (
+                <p className="mt-3" style={{ fontSize: 12.5 }}>
+                  Your browser blocked the new tab —{" "}
+                  <a
+                    href={cartUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: C.orange, textDecoration: "underline" }}
+                  >
+                    tap here to open your Instacart list
+                  </a>
+                  .
+                </p>
               )}
               <p className="mt-3" style={{ fontSize: 12, color: C.inkSoft, lineHeight: 1.4 }}>
                 Instacart opens a shopping list page with these items — it can't see what's

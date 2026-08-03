@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin } from 'lucide-react';
+import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X } from 'lucide-react';
 import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
+import { BOOK } from './book';
+import {
+  weekIndex,
+  weekLabel,
+  pickOptions,
+  buildList,
+  claudeMessage,
+  hasWrapped,
+  toInstacartLineItems,
+  instacartTitle,
+} from './rotation';
+import { callApi } from './apiClient';
 
 const MONO = "'JetBrains Mono', ui-monospace, monospace";
 const SANS = "'Inter', ui-sans-serif, sans-serif";
@@ -750,11 +762,12 @@ function BottomNav({ tab, setTab }) {
     { id: 'gym', label: 'Gym', Icon: Dumbbell },
     { id: 'routine', label: 'Routine', Icon: ListChecks },
     { id: 'budget', label: 'Budget', Icon: Wallet },
+    { id: 'week', label: 'Weekly', Icon: ShoppingCart },
     { id: 'notes', label: 'Notes', Icon: StickyNote },
   ];
   return (
     <div className="md:hidden fixed bottom-3 left-3 right-3 max-w-md mx-auto p-1.5" style={glassCard(999)}>
-      <div className="grid grid-cols-5">
+      <div className="grid grid-cols-6">
         {items.map(({ id, label, Icon }) => (
           <button
             key={id}
@@ -998,6 +1011,15 @@ export default function LifeTracker() {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editNoteText, setEditNoteText] = useState('');
 
+  // Weekly recipe rotation and shopping
+  const [cooked, setCooked] = useState([]);
+  const [picked, setPicked] = useState([]);
+  const [copied, setCopied] = useState(false);
+  const [weeklyReady, setWeeklyReady] = useState(false);
+  const [cartBusy, setCartBusy] = useState(false);
+  const [cartMsg, setCartMsg] = useState('');
+  const [cartUrl, setCartUrl] = useState('');
+
   // Cheer-up toast shown for 5s after logging today's vibe.
   const [cheer, setCheer] = useState(null);
   const cheerTimer = useRef(null);
@@ -1139,7 +1161,7 @@ export default function LifeTracker() {
     let mounted = true;
     setLoading(true);
     (async () => {
-      const [g, r, b, th, n] = await Promise.all([
+      const [g, r, b, th, n, cooked] = await Promise.all([
         loadKey(pKey(profile, 'gym-data'), { workouts: [], split: DEFAULT_SPLIT }),
         loadKey(pKey(profile, 'routine-data'), { habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE, moodLog: {} }),
         loadKey(pKey(profile, 'budget-data'), {
@@ -1155,6 +1177,7 @@ export default function LifeTracker() {
         // was showing on the "Who's this?" screen rather than always Noir.
         loadKey(pKey(profile, 'theme'), pickerTheme),
         loadKey(pKey(profile, 'notes-data'), { notes: [] }),
+        loadKey(pKey(profile, 'weekly-cooked'), []),
       ]);
       if (!n.notes) n.notes = [];
 
@@ -1191,7 +1214,9 @@ export default function LifeTracker() {
         setRoutineState(r);
         setBudgetState(b);
         setNotesState(n);
+        setCooked(Array.isArray(cooked) ? cooked.filter(n => typeof n === 'number') : []);
         setThemeState(THEMES[th] ? th : 'noir');
+        setWeeklyReady(true);
         setLoading(false);
       }
     })();
@@ -1231,6 +1256,60 @@ export default function LifeTracker() {
     if (text) updateNotes({ ...notesData, notes: notesData.notes.map(nt => nt.id === editingNoteId ? { ...nt, text } : nt) });
     setEditingNoteId(null);
   }
+
+  function updateWeekly(next) {
+    setCooked(next);
+    writeDebounced(pKey(profile, 'weekly-cooked'), next);
+  }
+  function markCooked() {
+    const next = [...new Set([...cooked, ...picked])];
+    updateWeekly(next);
+    setPicked([]);
+  }
+  function resetCooked() {
+    updateWeekly([]);
+    setPicked([]);
+  }
+  async function copyForClaude() {
+    const msg = claudeMessage(BOOK, picked);
+    try {
+      await navigator.clipboard.writeText(msg);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2200);
+    } catch {
+      window.prompt('Copy this and paste it to Claude:', msg);
+    }
+  }
+  async function openInInstacart() {
+    if (!picked.length) return;
+    setCartBusy(true);
+    setCartMsg('');
+    setCartUrl('');
+    const win = window.open('', '_blank');
+    if (win) win.opener = null;
+    try {
+      const { ok, data } = await callApi('/api/instacart', {
+        title: instacartTitle(BOOK, picked),
+        line_items: toInstacartLineItems(BOOK, picked),
+      });
+      if (ok && data?.url) {
+        if (win) {
+          win.location.href = data.url;
+        } else {
+          setCartUrl(data.url);
+        }
+      } else {
+        if (win) win.close();
+        setCartMsg(data?.message || data?.error || 'Instacart request failed.');
+      }
+    } catch {
+      if (win) win.close();
+      setCartMsg('Couldn\'t reach Instacart. Are you online?');
+    } finally {
+      setCartBusy(false);
+    }
+  }
+  const toggleRecipe = pg => setPicked(p => (p.includes(pg) ? p.filter(x => x !== pg) : [...p, pg]));
 
   function updateBudget(next) {
     setBudgetState(next);
@@ -1794,6 +1873,12 @@ export default function LifeTracker() {
                     subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
                     onClick={() => setTab('budget')}
                     divider
+                  />
+                  <NavCard
+                    icon={ShoppingCart}
+                    title="Weekly"
+                    subtitle={`${picked.length} recipe${picked.length !== 1 ? 's' : ''} picked · ${cooked.length}/${BOOK.length} cooked`}
+                    onClick={() => setTab('week')}
                   />
                 </div>
               </div>
@@ -2435,6 +2520,130 @@ export default function LifeTracker() {
               )}
             </Panel>
           </div>
+          </div>
+          </div>
+        )}
+
+        {tab === 'week' && (
+          <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
+          <div>
+            <Panel title="Pick recipes">
+              {weeklyReady && (
+                <>
+                  <div style={{ fontSize: 12, color: 'var(--dim)', marginBottom: 10 }}>
+                    Week of {weekLabel()} — choose up to 3 recipes
+                  </div>
+                  <div className="space-y-1.5 mb-3 max-h-64 overflow-y-auto">
+                    {pickOptions(BOOK, weekIndex(), cooked).map(r => (
+                      <button
+                        key={r.p}
+                        onClick={() => toggleRecipe(r.p)}
+                        className="w-full text-left p-3"
+                        style={{
+                          background: picked.includes(r.p) ? 'var(--accent)' : 'var(--field)',
+                          color: picked.includes(r.p) ? 'var(--bg)' : 'var(--text)',
+                          border: `1px solid ${picked.includes(r.p) ? 'var(--accent)' : 'var(--border)'}`,
+                          borderRadius: RADIUS_SM,
+                          cursor: 'pointer',
+                          transition: 'background 140ms ease',
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{r.t}</div>
+                        <div style={{ fontSize: 11, color: picked.includes(r.p) ? 'rgba(255,255,255,0.7)' : 'var(--dim)', marginTop: 4, fontFamily: MONO }}>
+                          Page {r.p} · {r.tag.toUpperCase()} · {r.items.length} items
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  {hasWrapped(BOOK, cooked) && (
+                    <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8, padding: '8px 0' }}>
+                      Rotation complete! <button onClick={resetCooked} style={{ textDecoration: 'underline', background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}>Clear record</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </Panel>
+          </div>
+
+          <div>
+            <Panel title={`Shopping list (${buildList(BOOK, picked).length} items)`}>
+              {buildList(BOOK, picked).length === 0 ? (
+                <p className="text-sm" style={dimText}>Pick recipes on the left to build your list.</p>
+              ) : (
+                <>
+                  <div className="space-y-1 mb-3 max-h-48 overflow-y-auto" style={{ fontSize: 13 }}>
+                    {buildList(BOOK, picked).map(([item, n]) => (
+                      <div key={item} className="flex items-baseline justify-between py-1.5 px-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <span className="capitalize">{item}</span>
+                        <span style={{ fontFamily: MONO, fontSize: 12, color: n > 1 ? 'var(--accent)' : 'var(--dim)' }}>
+                          {n > 1 ? `×${n} recipes` : '1'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={openInInstacart}
+                      disabled={cartBusy}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2"
+                      style={{
+                        background: 'var(--accent)',
+                        color: 'var(--bg)',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        borderRadius: RADIUS_SM,
+                        border: 'none',
+                        cursor: cartBusy ? 'wait' : 'pointer',
+                      }}
+                    >
+                      {cartBusy ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
+                      {cartBusy ? 'Opening…' : 'Open in Instacart'}
+                    </button>
+                    <button
+                      onClick={copyForClaude}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text)',
+                        fontSize: 13,
+                        borderRadius: RADIUS_SM,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                      {copied ? 'Copied to clipboard' : 'Copy for Claude'}
+                    </button>
+                    <button
+                      onClick={markCooked}
+                      className="w-full px-4 py-2"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text)',
+                        fontSize: 13,
+                        borderRadius: RADIUS_SM,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Mark cooked
+                    </button>
+                  </div>
+
+                  {cartMsg && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 8 }}>{cartMsg}</p>}
+                  {cartUrl && (
+                    <p style={{ fontSize: 12, marginTop: 8 }}>
+                      Browser blocked the tab —{' '}
+                      <a href={cartUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                        open Instacart list
+                      </a>
+                      .
+                    </p>
+                  )}
+                </>
+              )}
+            </Panel>
           </div>
           </div>
         )}

@@ -1396,6 +1396,8 @@ export default function LifeTracker() {
         loadKey(pKey(profile, 'notes-data'), { notes: [] }),
       ]);
       if (!n.notes) n.notes = [];
+      if (!Array.isArray(m.entries)) m.entries = [];
+      if (m.calorieGoal === undefined || m.calorieGoal === null) m.calorieGoal = 2400;
 
       if (!g.split) g.split = DEFAULT_SPLIT;
       if (!r.schedule) r.schedule = DEFAULT_SCHEDULE;
@@ -1565,7 +1567,9 @@ export default function LifeTracker() {
     updateMeals({ ...meals, calorieGoal: goalVal });
   }
   function handleAddMeal() {
-    if (!mName.trim() || mCalories === '') return;
+    if (!mName.trim() || mCalories === '' || !mDate) return;
+    const cal = parseFloat(mCalories);
+    if (!Number.isFinite(cal) || cal < 0) return;
     addMeal({ date: mDate, name: mName.trim(), calories: mCalories, type: mType });
     setMName(''); setMCalories('');
   }
@@ -2417,10 +2421,11 @@ export default function LifeTracker() {
                 <div className="flex items-center gap-1">
                   <input
                     type="number"
+                    min="0"
                     className="w-20 text-sm px-2 py-1 text-right"
                     style={inputStyle}
                     value={meals.calorieGoal}
-                    onChange={e => setCalorieGoal(e.target.value === '' ? 0 : Number(e.target.value))}
+                    onChange={e => setCalorieGoal(e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)))}
                   />
                   <span className="text-xs" style={dimText}>cal</span>
                 </div>
@@ -2458,7 +2463,7 @@ export default function LifeTracker() {
                 </div>
                 <div>
                   <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Calories</label>
-                  <input type="number" className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mCalories} onChange={e => setMCalories(e.target.value)} placeholder="600" />
+                  <input type="number" min="0" className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={mCalories} onChange={e => setMCalories(e.target.value)} placeholder="600" />
                 </div>
                 <div>
                   <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Type</label>

@@ -12,6 +12,7 @@
     "test": "node test/security.test.js && node test/middleware.test.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1",
     "express": "^4.19.2",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X, Share2, BookOpen } from 'lucide-react';
+import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X, Share2, BookOpen, Send } from 'lucide-react';
 import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 import { BOOK } from './book';
 import {
@@ -1029,6 +1029,8 @@ export default function LifeTracker() {
   const [deals, setDeals] = useState([]);
   const [dealsState, setDealsState] = useState('idle'); // idle | loading | done | empty | error
   const [dealsMsg, setDealsMsg] = useState('');
+  const [sendState, setSendState] = useState('idle'); // idle | sending | sent | error
+  const [sendMsg, setSendMsg] = useState('');
 
   // Cheer-up toast shown for 5s after logging today's vibe.
   const [cheer, setCheer] = useState(null);
@@ -1341,6 +1343,28 @@ export default function LifeTracker() {
     }
   }
   const toggleRecipe = pg => setPicked(p => (p.includes(pg) ? p.filter(x => x !== pg) : [...p, pg]));
+
+  async function sendToClaude() {
+    if (!picked.length) return;
+    setSendState('sending');
+    setSendMsg('');
+    try {
+      const { ok, data } = await callApi('/api/weekly-send', {
+        title: instacartTitle(BOOK, picked),
+        items: buildList(BOOK, picked).map(([name]) => ({ name, quantity: 1 })),
+      });
+      if (ok) {
+        setSendState('sent');
+        setTimeout(() => setSendState('idle'), 3000);
+      } else {
+        setSendState('error');
+        setSendMsg(data?.message || data?.error || 'Couldn\'t send the list.');
+      }
+    } catch {
+      setSendState('error');
+      setSendMsg('Couldn\'t reach the server. Are you online?');
+    }
+  }
 
   function updateDealsStore(next) {
     setDealsStore(next);
@@ -2753,6 +2777,15 @@ export default function LifeTracker() {
                       {cartBusy ? 'Opening…' : 'Open in Instacart'}
                     </button>
                     <button
+                      onClick={sendToClaude}
+                      disabled={sendState === 'sending'}
+                      className="flex items-center gap-2 px-4 py-3"
+                      style={{ background: 'transparent', border: '1px solid var(--text)', color: 'var(--text)', fontSize: 13.5, cursor: sendState === 'sending' ? 'wait' : 'pointer' }}
+                    >
+                      {sendState === 'sending' ? <Loader2 size={15} className="animate-spin" /> : sendState === 'sent' ? <Check size={15} /> : <Send size={15} />}
+                      {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent to Claude' : 'Send to Claude'}
+                    </button>
+                    <button
                       onClick={copyForClaude}
                       className="flex items-center gap-2 px-4 py-3"
                       style={{ background: 'transparent', border: '1px solid var(--text)', color: 'var(--text)', fontSize: 13.5, cursor: 'pointer' }}
@@ -2789,9 +2822,11 @@ export default function LifeTracker() {
                       </a>.
                     </p>
                   )}
+                  {sendState === 'error' && <p className="mt-3" style={{ fontSize: 12.5, color: 'var(--danger)' }}>{sendMsg}</p>}
+                  {sendState === 'sent' && <p className="mt-3" style={{ fontSize: 12.5, color: 'var(--accent)' }}>Claude will add this to your Instacart cart within the hour.</p>}
                   <p className="mt-3" style={{ fontSize: 12, color: 'var(--dim)', lineHeight: 1.4 }}>
                     Instacart opens a shopping list page with these items — it can't see what's already in your cart.{' '}
-                    {typeof navigator !== 'undefined' && navigator.share ? 'No key yet? Use Share list or Copy for Claude.' : 'Needs a key on the server; until then use Copy for Claude.'}
+                    Send to Claude adds it to your real cart directly (up to an hour of lag) — no key needed.
                   </p>
                 </>
               )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X } from 'lucide-react';
+import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X, Share2 } from 'lucide-react';
 import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 import { BOOK } from './book';
 import {
@@ -1289,6 +1289,25 @@ export default function LifeTracker() {
       setTimeout(() => setCopied(false), 2200);
     } catch {
       window.prompt('Copy this and paste it to Claude:', msg);
+    }
+  }
+  async function shareList() {
+    const items = buildList(BOOK, picked).map(([item]) => item);
+    const text = `Shopping list:\n${items.map(i => `- ${i}`).join('\n')}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Shopping list', text });
+      } catch {
+        // AbortError when the user cancels the share sheet — nothing to do.
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2200);
+      } catch {
+        window.prompt('Copy this:', text);
+      }
     }
   }
   async function openInInstacart() {
@@ -2718,6 +2737,23 @@ export default function LifeTracker() {
                       {copied ? <Check size={14} /> : <Copy size={14} />}
                       {copied ? 'Copied to clipboard' : 'Copy for Claude'}
                     </button>
+                    {typeof navigator !== 'undefined' && navigator.share && (
+                      <button
+                        onClick={shareList}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2"
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                          fontSize: 13,
+                          borderRadius: RADIUS_SM,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Share2 size={14} />
+                        Share list
+                      </button>
+                    )}
                     <button
                       onClick={markCooked}
                       className="w-full px-4 py-2"

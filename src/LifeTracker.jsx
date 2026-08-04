@@ -2663,10 +2663,10 @@ export default function LifeTracker() {
               </div>
 
               {dealsState === 'idle' && (
-                <p className="mt-3 text-sm" style={dimText}>Tap check to search this week's Aldi ad for your area. Each check costs a little API usage.</p>
+                <p className="mt-3 text-sm" style={dimText}>Tap check to search this week's grocery ads for your area, across whatever stores serve it. Each check costs a little API usage.</p>
               )}
               {dealsState === 'loading' && (
-                <p className="mt-3 text-sm" style={dimText}>Searching the ad — this takes a few seconds.</p>
+                <p className="mt-3 text-sm" style={dimText}>Searching the ads — this takes a few seconds.</p>
               )}
               {dealsState === 'error' && (
                 <p className="mt-3 text-sm" style={{ color: 'var(--danger)' }}>{dealsMsg || 'Couldn\'t reach the ad. Try again in a moment.'}</p>
@@ -2680,7 +2680,11 @@ export default function LifeTracker() {
                     <div key={i} className="p-3" style={{ background: 'var(--panel)', borderLeft: '4px solid var(--accent)' }}>
                       <div style={{ fontFamily: MONO, fontSize: 17, color: 'var(--danger)' }}>{d.price}</div>
                       <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.25, marginTop: 2, color: 'var(--text)' }}>{d.item}</div>
-                      {d.note && <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--dim)', marginTop: 3 }}>{d.note}</div>}
+                      {(d.store || d.note) && (
+                        <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--dim)', marginTop: 3 }}>
+                          {[d.store, d.note].filter(Boolean).join(' · ')}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

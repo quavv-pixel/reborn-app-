@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X, Share2, BookOpen, Send } from 'lucide-react';
+import { Home, Dumbbell, ListChecks, Wallet, Plus, Trash2, ChevronRight, CalendarDays, Download, Bell, BellOff, StickyNote, Pin, ShoppingCart, Check, Copy, Loader2, RefreshCw, X, Share2, BookOpen, ExternalLink } from 'lucide-react';
 import { bootstrapToken, backendAvailable, armRealPush, syncSchedule } from './push';
 import { BOOK } from './book';
 import {
@@ -1021,6 +1021,7 @@ export default function LifeTracker() {
   const [cooked, setCooked] = useState([]);
   const [picked, setPicked] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [openedClaude, setOpenedClaude] = useState(false);
   const [weeklyReady, setWeeklyReady] = useState(false);
   const [cartBusy, setCartBusy] = useState(false);
   const [cartMsg, setCartMsg] = useState('');
@@ -1029,8 +1030,6 @@ export default function LifeTracker() {
   const [deals, setDeals] = useState([]);
   const [dealsState, setDealsState] = useState('idle'); // idle | loading | done | empty | error
   const [dealsMsg, setDealsMsg] = useState('');
-  const [sendState, setSendState] = useState('idle'); // idle | sending | sent | error
-  const [sendMsg, setSendMsg] = useState('');
 
   // Cheer-up toast shown for 5s after logging today's vibe.
   const [cheer, setCheer] = useState(null);
@@ -1294,6 +1293,22 @@ export default function LifeTracker() {
       window.prompt('Copy this and paste it to Claude:', msg);
     }
   }
+  async function openInClaude() {
+    const msg = claudeMessage(BOOK, picked);
+    // Open synchronously, before any await, so mobile Safari's popup blocker
+    // doesn't silently eat the tab — same lesson as the Instacart button.
+    const win = window.open('https://claude.ai/new?q=' + encodeURIComponent(msg), '_blank');
+    if (win) win.opener = null;
+    // Best-effort: if the ?q= prefill doesn't take, the text is on the
+    // clipboard either way, so pasting it in still works.
+    try {
+      await navigator.clipboard.writeText(msg);
+      setOpenedClaude(true);
+      setTimeout(() => setOpenedClaude(false), 3000);
+    } catch {
+      /* clipboard blocked — the new tab still opened either way */
+    }
+  }
   async function shareList() {
     const items = buildList(BOOK, picked).map(([item]) => item);
     const text = `Shopping list:\n${items.map(i => `- ${i}`).join('\n')}`;
@@ -1344,27 +1359,6 @@ export default function LifeTracker() {
   }
   const toggleRecipe = pg => setPicked(p => (p.includes(pg) ? p.filter(x => x !== pg) : [...p, pg]));
 
-  async function sendToClaude() {
-    if (!picked.length) return;
-    setSendState('sending');
-    setSendMsg('');
-    try {
-      const { ok, data } = await callApi('/api/weekly-send', {
-        title: instacartTitle(BOOK, picked),
-        items: buildList(BOOK, picked).map(([name]) => ({ name, quantity: 1 })),
-      });
-      if (ok) {
-        setSendState('sent');
-        setTimeout(() => setSendState('idle'), 3000);
-      } else {
-        setSendState('error');
-        setSendMsg(data?.message || data?.error || 'Couldn\'t send the list.');
-      }
-    } catch {
-      setSendState('error');
-      setSendMsg('Couldn\'t reach the server. Are you online?');
-    }
-  }
 
   function updateDealsStore(next) {
     setDealsStore(next);
@@ -2777,13 +2771,12 @@ export default function LifeTracker() {
                       {cartBusy ? 'Opening…' : 'Open in Instacart'}
                     </button>
                     <button
-                      onClick={sendToClaude}
-                      disabled={sendState === 'sending'}
+                      onClick={openInClaude}
                       className="flex items-center gap-2 px-4 py-3"
-                      style={{ background: 'transparent', border: '1px solid var(--text)', color: 'var(--text)', fontSize: 13.5, cursor: sendState === 'sending' ? 'wait' : 'pointer' }}
+                      style={{ background: 'transparent', border: '1px solid var(--text)', color: 'var(--text)', fontSize: 13.5, cursor: 'pointer' }}
                     >
-                      {sendState === 'sending' ? <Loader2 size={15} className="animate-spin" /> : sendState === 'sent' ? <Check size={15} /> : <Send size={15} />}
-                      {sendState === 'sending' ? 'Sending…' : sendState === 'sent' ? 'Sent to Claude' : 'Send to Claude'}
+                      {openedClaude ? <Check size={15} /> : <ExternalLink size={15} />}
+                      {openedClaude ? 'Opened — hit send' : 'Open in Claude'}
                     </button>
                     <button
                       onClick={copyForClaude}
@@ -2822,11 +2815,9 @@ export default function LifeTracker() {
                       </a>.
                     </p>
                   )}
-                  {sendState === 'error' && <p className="mt-3" style={{ fontSize: 12.5, color: 'var(--danger)' }}>{sendMsg}</p>}
-                  {sendState === 'sent' && <p className="mt-3" style={{ fontSize: 12.5, color: 'var(--accent)' }}>Claude will add this to your Instacart cart within the hour.</p>}
                   <p className="mt-3" style={{ fontSize: 12, color: 'var(--dim)', lineHeight: 1.4 }}>
                     Instacart opens a shopping list page with these items — it can't see what's already in your cart.{' '}
-                    Send to Claude adds it to your real cart directly (up to an hour of lag) — no key needed.
+                    Open in Claude starts a fresh chat with the list already typed in — just hit send.
                   </p>
                 </>
               )}

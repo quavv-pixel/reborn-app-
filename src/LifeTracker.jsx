@@ -103,6 +103,11 @@ const THEMES = {
     bg: '#060B14', panel: '#0D1524', field: '#131E33', border: '#1C2C46',
     text: '#E8EEF7', dim: '#7C8CA6', accent: '#3B9EFF', accent2: '#FF8A3D', danger: '#FF5C5C',
   },
+  aldi: {
+    label: 'Aldi',
+    bg: '#EFEDE6', panel: '#FBFAF6', field: '#E8E3D6', border: '#CFCCC2',
+    text: '#16233A', dim: '#4A5566', accent: '#F0531C', accent2: '#0A72B8', danger: '#CE1B24',
+  },
 };
 
 const CATEGORIES = [
@@ -1019,6 +1024,10 @@ export default function LifeTracker() {
   const [cartBusy, setCartBusy] = useState(false);
   const [cartMsg, setCartMsg] = useState('');
   const [cartUrl, setCartUrl] = useState('');
+  const [dealsStore, setDealsStore] = useState('');
+  const [deals, setDeals] = useState([]);
+  const [dealsState, setDealsState] = useState('idle'); // idle | loading | done | empty | error
+  const [dealsMsg, setDealsMsg] = useState('');
 
   // Cheer-up toast shown for 5s after logging today's vibe.
   const [cheer, setCheer] = useState(null);
@@ -1161,7 +1170,7 @@ export default function LifeTracker() {
     let mounted = true;
     setLoading(true);
     (async () => {
-      const [g, r, b, th, n, cooked] = await Promise.all([
+      const [g, r, b, th, n, cooked, weeklyStore] = await Promise.all([
         loadKey(pKey(profile, 'gym-data'), { workouts: [], split: DEFAULT_SPLIT }),
         loadKey(pKey(profile, 'routine-data'), { habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE, moodLog: {} }),
         loadKey(pKey(profile, 'budget-data'), {
@@ -1178,6 +1187,7 @@ export default function LifeTracker() {
         loadKey(pKey(profile, 'theme'), pickerTheme),
         loadKey(pKey(profile, 'notes-data'), { notes: [] }),
         loadKey(pKey(profile, 'weekly-cooked'), []),
+        loadKey(pKey(profile, 'weekly-store'), ''),
       ]);
       if (!n.notes) n.notes = [];
 
@@ -1215,6 +1225,7 @@ export default function LifeTracker() {
         setBudgetState(b);
         setNotesState(n);
         setCooked(Array.isArray(cooked) ? cooked.filter(n => typeof n === 'number') : []);
+        setDealsStore(typeof weeklyStore === 'string' ? weeklyStore : '');
         setThemeState(THEMES[th] ? th : 'noir');
         setWeeklyReady(true);
         setLoading(false);
@@ -1310,6 +1321,41 @@ export default function LifeTracker() {
     }
   }
   const toggleRecipe = pg => setPicked(p => (p.includes(pg) ? p.filter(x => x !== pg) : [...p, pg]));
+
+  function updateDealsStore(next) {
+    setDealsStore(next);
+    writeDebounced(pKey(profile, 'weekly-store'), next);
+  }
+  async function loadDeals() {
+    setDealsState('loading');
+    setDealsMsg('');
+    try {
+      const { ok, status, data } = await callApi('/api/deals', { store: dealsStore });
+      if (!ok) {
+        setDealsState('error');
+        setDealsMsg(data?.message || data?.error || `Request failed (${status}).`);
+        return;
+      }
+      if (data?.refused) {
+        setDealsState('error');
+        setDealsMsg('That search was declined — try a different phrasing for the area, or try again.');
+        return;
+      }
+      const found = Array.isArray(data?.deals) ? data.deals : [];
+      setDeals(found);
+      if (found.length) {
+        setDealsState('done');
+      } else if (data?.truncated) {
+        setDealsState('error');
+        setDealsMsg('The search ran long and didn\'t finish — try again.');
+      } else {
+        setDealsState('empty');
+      }
+    } catch {
+      setDealsState('error');
+      setDealsMsg('Couldn\'t reach the ad. Try again in a moment.');
+    }
+  }
 
   function updateBudget(next) {
     setBudgetState(next);
@@ -2527,6 +2573,63 @@ export default function LifeTracker() {
         {tab === 'week' && (
           <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
           <div>
+            <Panel
+              title="On sale now"
+              right={
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={dealsStore}
+                    onChange={e => updateDealsStore(e.target.value)}
+                    placeholder="Your area"
+                    aria-label="Store area"
+                    className="text-xs px-2 py-1 focus:outline-none"
+                    style={{ ...inputStyle, width: 96 }}
+                  />
+                  <button
+                    onClick={loadDeals}
+                    disabled={dealsState === 'loading' || !dealsStore.trim()}
+                    className="flex items-center gap-1 px-2 py-1 text-xs"
+                    style={{
+                      fontFamily: MONO,
+                      background: 'var(--accent)',
+                      color: 'var(--bg)',
+                      borderRadius: RADIUS_SM,
+                      border: 'none',
+                      cursor: dealsState === 'loading' ? 'wait' : 'pointer',
+                      opacity: !dealsStore.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {dealsState === 'loading' ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                    CHECK
+                  </button>
+                </div>
+              }
+            >
+              {dealsState === 'idle' && (
+                <p className="text-sm" style={dimText}>Tap check to search this week's Aldi ad for your area. Each check costs a little API usage.</p>
+              )}
+              {dealsState === 'loading' && (
+                <p className="text-sm" style={dimText}>Searching the ad — this takes a few seconds.</p>
+              )}
+              {dealsState === 'error' && (
+                <p className="text-sm" style={{ color: 'var(--danger)' }}>{dealsMsg || 'Couldn\'t reach the ad. Try again in a moment.'}</p>
+              )}
+              {dealsState === 'empty' && (
+                <p className="text-sm" style={dimText}>No specials found for that area this week.</p>
+              )}
+              {deals.length > 0 && (
+                <div className="grid grid-cols-2 gap-2">
+                  {deals.map((d, i) => (
+                    <div key={i} className="p-2.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM, borderLeft: '3px solid var(--accent)' }}>
+                      <div style={{ fontFamily: MONO, fontSize: 15, color: 'var(--danger)' }}>{d.price}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.25, marginTop: 2, color: 'var(--text)' }}>{d.item}</div>
+                      {d.note && <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--dim)', marginTop: 3 }}>{d.note}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
             <Panel title="Pick recipes">
               {weeklyReady && (
                 <>

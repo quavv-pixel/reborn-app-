@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:pages": "VITE_BASE=/reborn-app-/ vite build",
+    "postbuild": "node scripts/copy-car-fund.js",
+    "build:pages": "VITE_BASE=/reborn-app-/ npm run build",
     "preview": "vite preview",
     "start": "node server/server.js",
     "test": "node test/security.test.js && node test/middleware.test.js"

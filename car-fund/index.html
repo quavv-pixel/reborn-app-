@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#07090F">
-<meta name="description" content="Weekly savings tracker toward a $5,000 car fund.">
+<meta name="description" content="Weekly savings tracker toward a car fund — pay, budget, and goal are all editable.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Car Fund">
@@ -25,7 +25,7 @@
   --text: #E8EDF5; --muted: #8896B0; --dim: #4A5670; --dead: #2A3350;
   --red: #FF5757; --green: #4ADE80; --blue: #60A5FA; --purple: #C084FC; --orange: #FB923C;
 }
-html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Space Mono',monospace; overflow-x:hidden; }
+html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Space Mono',monospace; overflow-x:hidden; overscroll-behavior:none; }
 ::-webkit-scrollbar { display:none; }
 
 @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
@@ -59,7 +59,7 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 .scan-line { position:absolute; left:0; right:0; height:60px; pointer-events:none; background:linear-gradient(to bottom,transparent,rgba(245,200,66,0.04),transparent); animation:scan 6s linear infinite; }
 .corner-mark { position:absolute; top:max(env(safe-area-inset-top),28px); right:18px; font-family:'Bebas Neue'; font-size:11px; letter-spacing:2px; color:rgba(245,200,66,0.3); }
 .header-inner { position:relative; }
-.eyebrow { display:flex; align-items:center; gap:8px; font-size:9px; letter-spacing:4px; color:rgba(245,200,66,0.45); text-transform:uppercase; margin-bottom:8px; }
+.eyebrow { display:flex; align-items:center; gap:8px; font-size:9px; letter-spacing:4px; color:rgba(245,200,66,0.45); text-transform:uppercase; margin-bottom:8px; padding-right:96px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .eyebrow::before { content:''; width:20px; height:1px; background:rgba(245,200,66,0.3); }
 .title-line1 { font-family:'Bebas Neue'; font-size:44px; letter-spacing:3px; line-height:1; color:var(--text); }
 .title-line2 { font-family:'Bebas Neue'; font-size:44px; letter-spacing:3px; line-height:1; }
@@ -94,12 +94,12 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 
 /* TABS */
 #tabs { display:flex; background:var(--bg); border-bottom:1px solid var(--border); flex-shrink:0; position:sticky; top:0; z-index:10; }
-.tab-btn { flex:1; padding:13px 0; background:none; border:none; cursor:pointer; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); border-bottom:2px solid transparent; transition:color 0.2s,border-color 0.2s; }
+.tab-btn { flex:1; padding:13px 0; background:none; border:none; cursor:pointer; font-family:'Space Mono',monospace; font-size:8.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--dim); border-bottom:2px solid transparent; transition:color 0.2s,border-color 0.2s; }
 .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
 .tab-btn:focus-visible, .week-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* CONTENT */
-#content { flex:1; padding:16px 14px 80px; overflow-y:auto; }
+#content { flex:1; padding:16px 14px 80px; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; touch-action:pan-y; }
 .section-label { font-size:8px; color:var(--dim); letter-spacing:4px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
 .section-label::after { content:''; flex:1; height:1px; background:var(--border2); }
 
@@ -132,6 +132,7 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 .week-total.checked { color:var(--gold); }
 .week-total-label { font-size:7px; color:var(--dead); text-transform:uppercase; letter-spacing:1px; margin-top:1px; }
 .goal-divider { text-align:center; padding:9px 0; margin:8px 0; font-family:'Bebas Neue'; font-size:12px; letter-spacing:5px; color:var(--gold); text-transform:uppercase; border-top:1px dashed rgba(245,200,66,0.2); border-bottom:1px dashed rgba(245,200,66,0.2); background:rgba(245,200,66,0.03); border-radius:4px; }
+.empty-hint { font-size:11px; color:var(--muted); line-height:1.7; text-align:center; padding:30px 10px; }
 
 /* BREAKDOWN */
 .income-hero { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px 18px; margin-bottom:16px; position:relative; overflow:hidden; text-align:center; }
@@ -201,6 +202,21 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 #toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--border); color:var(--text); font-size:11px; padding:9px 18px; border-radius:30px; opacity:0; transition:all 0.3s ease; z-index:1000; white-space:nowrap; pointer-events:none; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .safe-bottom { height:max(env(safe-area-inset-bottom),16px); flex-shrink:0; }
+
+/* SETTINGS (same label-over-input, titled-panel format as the REBORN app's Budget/Goal editors) */
+.panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:12px; overflow:hidden; }
+.panel-head { padding:10px 14px; border-bottom:1px solid var(--border); font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); }
+.panel-body { padding:14px; }
+.field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.field { display:flex; flex-direction:column; }
+.field-label { font-size:8px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); margin-bottom:5px; }
+.field-input { background:var(--bg3); border:1px solid var(--border); color:var(--text); font-family:'Space Mono',monospace; font-size:13px; padding:9px 10px; border-radius:8px; width:100%; }
+.field-input:focus { outline:none; border-color:var(--gold); box-shadow:0 0 0 2px rgba(245,200,66,0.15); }
+.field-input::-webkit-inner-spin-button { opacity:0.6; }
+.field-hint { font-size:9px; color:var(--dim); margin-top:10px; line-height:1.6; }
+.reset-btn { width:100%; margin-top:2px; background:transparent; border:1px solid var(--red); color:var(--red); font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:11px; border-radius:8px; cursor:pointer; }
+.reset-btn:active { transform:scale(0.98); }
+.autosave-note { text-align:center; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -208,46 +224,36 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 
   <div class="ticker-wrap">
     <div class="ticker-inner" id="ticker">
-      <span class="ticker-text">🚗 CAR FUND 2026</span><span class="ticker-text">·</span>
-      <span class="ticker-text">AMAZON ONLY</span><span class="ticker-text">·</span>
-      <span class="ticker-text">$616 TAKE-HOME</span><span class="ticker-text">·</span>
-      <span class="ticker-text">$250 EVERY WEDNESDAY</span><span class="ticker-text">·</span>
-      <span class="ticker-text">NO EATING OUT</span><span class="ticker-text">·</span>
-      <span class="ticker-text">20 WEEKS TO $5K</span><span class="ticker-text">·</span>
-      <span class="ticker-text">🚗 CAR FUND 2026</span><span class="ticker-text">·</span>
-      <span class="ticker-text">AMAZON ONLY</span><span class="ticker-text">·</span>
-      <span class="ticker-text">$616 TAKE-HOME</span><span class="ticker-text">·</span>
-      <span class="ticker-text">$250 EVERY WEDNESDAY</span><span class="ticker-text">·</span>
-      <span class="ticker-text">NO EATING OUT</span><span class="ticker-text">·</span>
-      <span class="ticker-text">20 WEEKS TO $5K</span><span class="ticker-text">·</span>
+      <span class="ticker-text">🚗 CAR FUND TRACKER</span><span class="ticker-text">·</span>
+      <span class="ticker-text">LOADING…</span><span class="ticker-text">·</span>
     </div>
   </div>
 
   <div id="header">
     <div class="scan-line"></div>
-    <div class="corner-mark" id="corner-date">JUN 2026</div>
+    <div class="corner-mark" id="corner-date">—</div>
     <div class="header-inner">
-      <div class="eyebrow">Amazon · 40hrs · $19.25/hr</div>
+      <div class="eyebrow" id="eyebrow-text">Loading…</div>
       <div class="title-line1">CAR FUND</div>
       <div class="title-line2"><span class="gold-text">TRACKER</span></div>
       <div class="pay-chips">
         <div class="pay-chip">
           <div class="pay-chip-label">Gross</div>
-          <div class="pay-chip-val" style="color:var(--muted)">$770</div>
+          <div class="pay-chip-val" id="chip-gross-val" style="color:var(--muted)">$0</div>
         </div>
         <div class="pay-chip">
-          <div class="pay-chip-label">Tax 20%</div>
-          <div class="pay-chip-val" style="color:var(--red)">-$154</div>
+          <div class="pay-chip-label" id="chip-tax-label">Tax</div>
+          <div class="pay-chip-val" id="chip-tax-val" style="color:var(--red)">-$0</div>
         </div>
         <div class="pay-chip">
           <div class="pay-chip-label">Take-Home</div>
-          <div class="pay-chip-val" style="color:var(--gold)">$616</div>
+          <div class="pay-chip-val" id="chip-income-val" style="color:var(--gold)">$0</div>
         </div>
       </div>
       <div class="hero-number-wrap">
         <div class="hero-dollar">$</div>
         <div class="hero-number" id="hero-num">0</div>
-        <div class="hero-denom">/ $5,000</div>
+        <div class="hero-denom" id="hero-denom">/ $0</div>
       </div>
       <div class="prog-header">
         <span class="prog-label">Progress to car</span>
@@ -258,11 +264,11 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
         <div class="stat-card gold-top">
           <div class="stat-label">Saved</div>
           <div class="stat-value" id="stat-saved">$0</div>
-          <div class="stat-sub">of $5K goal</div>
+          <div class="stat-sub" id="stat-saved-sub">of $0 goal</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Wks Left</div>
-          <div class="stat-value" id="stat-weeks">20</div>
+          <div class="stat-value" id="stat-weeks">0</div>
           <div class="stat-sub" id="stat-weeks-sub">0 saved</div>
         </div>
         <div class="stat-card">
@@ -278,6 +284,7 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
     <button class="tab-btn active" data-tab="tracker" onclick="switchTab('tracker')">⬜ TRACK</button>
     <button class="tab-btn" data-tab="breakdown" onclick="switchTab('breakdown')">💰 MONEY</button>
     <button class="tab-btn" data-tab="milestones" onclick="switchTab('milestones')">🏁 GOALS</button>
+    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">⚙ SETUP</button>
   </div>
 
   <div id="content"></div>
@@ -286,107 +293,178 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 <div id="toast"></div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────
-const GROSS     = 770;
-const TAX_RATE  = 0.20;
-const TAX       = Math.round(GROSS * TAX_RATE);   // 154
-const INCOME    = GROSS - TAX;                     // 616
-const SAVINGS   = 250;
-const BILLS     = 200;
-const RIDES     = 80;
-const FOOD      = 70;
-const LEFT      = INCOME - SAVINGS - BILLS - RIDES - FOOD;  // 16
-const GOAL      = 5000;
-const DEBT_AMT  = 410;
+// ── DEFAULTS / SETTINGS ─────────────────────────────────
+// Every number on this page is editable from the Setup tab. Nothing here is
+// hardcoded into the render functions — they all read from STATE.D, which
+// recompute() rebuilds from STATE.S (the user's saved settings) any time a
+// field changes. Defaults match the original plan so existing users see no
+// change until they actually edit something.
+const DEFAULTS = {
+  gross: 770,
+  taxRate: 20,     // percent
+  savings: 250,
+  bills: 200,
+  rides: 80,
+  food: 70,
+  goal: 5000,
+  debtAmt: 410,
+  startDate: "2026-06-17",
+};
 
-// Week 0 = Jun 17 (debt payoff), Weeks 1-20 = savings (Jun 24 → Nov 4)
-const TOTAL_WEEKS = 21; // 1 debt + 20 saving
-const SAVE_WEEKS  = 20;
-const DEBT_WEEK   = 0;
-const SAVE_START  = 1;
+const STATE = { S: loadSettings(), D: null };
 
-const WEDNESDAYS = (() => {
-  const dates = [];
-  let d = new Date("2026-06-17T12:00:00");
-  for (let i = 0; i < TOTAL_WEEKS; i++) {
-    dates.push(new Date(d));
-    d.setDate(d.getDate() + 7);
-  }
-  return dates;
-})();
-
-const BREAKDOWN = [
-  { label:"Car Savings", amount:SAVINGS, color:"#F5C842", icon:"🚗", desc:"locked away" },
-  { label:"Bills",       amount:BILLS,   color:"#FF5757", icon:"🏠", desc:"non-negotiable" },
-  { label:"Rides",       amount:RIDES,   color:"#60A5FA", icon:"🚕", desc:"until you drive" },
-  { label:"Food",        amount:FOOD,    color:"#4ADE80", icon:"🍗", desc:"groceries only" },
-  { label:"Left Over",   amount:LEFT,    color:"#FB923C", icon:"💵", desc:"buffer" },
-];
-
-// Dates are derived from WEDNESDAYS (target / SAVINGS = week index) instead of
-// being hand-typed, so they can never drift from the actual Wednesday schedule.
-const MILESTONES = [
-  { label:"Debt Gone",      target:0,    emoji:"💳", color:"#FF5757", isDebt:true },
-  { label:"First Month",    target:1000, emoji:"🌱", color:"#4ADE80" },
-  { label:"Halfway",        target:2500, emoji:"⚡", color:"#FB923C" },
-  { label:"Start Shopping", target:4500, emoji:"🔍", color:"#60A5FA" },
-  { label:"Car Budget",     target:5000, emoji:"🎯", color:"#F5C842" },
-];
-
-const RULES = [
-  { text:"<strong>Zero eating out</strong> — 5 months straight", icon:"🚫" },
-  { text:"Move <strong>$250 every Wednesday</strong> — no skipping", icon:"📅" },
-  { text:"Car fund is <strong>untouchable</strong>", icon:"🔒" },
-  { text:"Start shopping at <strong>$4,500</strong>", icon:"🔍" },
-  { text:"After the car: <strong>$80/wk rides freed up</strong> → apartment fund", icon:"🏠" },
-];
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("cf_settings"));
+    return { ...DEFAULTS, ...(saved && typeof saved === "object" ? saved : {}) };
+  } catch (e) { return { ...DEFAULTS }; }
+}
+function saveSettings() {
+  try { localStorage.setItem("cf_settings", JSON.stringify(STATE.S)); } catch (e) {}
+}
 
 const fmt = d => d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
-const fmtMoney = n => "$" + n.toLocaleString();
+const fmtMoney = n => (n < 0 ? "-$" : "$") + Math.abs(Math.round(n)).toLocaleString();
 
-// ── STATE ─────────────────────────────────────────────
+// ── DERIVE EVERYTHING FROM SETTINGS ─────────────────────
+function buildMilestones({ HAS_DEBT, DEBT_AMT, DEBT_WEEK, GOAL, SAVINGS, SAVE_WEEKS, SAVE_START }) {
+  const list = [];
+  if (HAS_DEBT) list.push({ label:"Debt Gone", target:DEBT_AMT, weekIdx:DEBT_WEEK, emoji:"💳", color:"#FF5757", isDebt:true });
+  if (SAVINGS > 0 && SAVE_WEEKS > 0) {
+    const fracs = [
+      { label:"First Month",    frac:0.20, emoji:"🌱", color:"#4ADE80" },
+      { label:"Halfway",        frac:0.50, emoji:"⚡", color:"#FB923C" },
+      { label:"Start Shopping", frac:0.90, emoji:"🔍", color:"#60A5FA" },
+      { label:"Car Budget",     frac:1.00, emoji:"🎯", color:"#F5C842" },
+    ];
+    const seenWeeks = new Set();
+    fracs.forEach(f => {
+      let wk = Math.ceil((GOAL * f.frac) / SAVINGS);
+      wk = Math.min(Math.max(wk, 1), SAVE_WEEKS);
+      const weekIdx = SAVE_START + wk - 1;
+      if (seenWeeks.has(weekIdx)) return; // dedupe when weeks are too few to space fractions apart
+      seenWeeks.add(weekIdx);
+      list.push({ label:f.label, target: wk * SAVINGS, weekIdx, emoji:f.emoji, color:f.color });
+    });
+  }
+  return list;
+}
+
+function buildRules({ SAVINGS, WEEKDAY_NAME, RIDES, MILESTONES }) {
+  const rules = [
+    { text:"<strong>Zero eating out</strong> — until the car is funded", icon:"🚫" },
+    { text:`Move <strong>${fmtMoney(SAVINGS)} every ${WEEKDAY_NAME}</strong> — no skipping`, icon:"📅" },
+    { text:"Car fund is <strong>untouchable</strong>", icon:"🔒" },
+  ];
+  const shopping = MILESTONES.find(m => m.label === "Start Shopping");
+  if (shopping) rules.push({ text:`Start shopping at <strong>${fmtMoney(shopping.target)}</strong>`, icon:"🔍" });
+  rules.push({ text:`After the car: <strong>${fmtMoney(RIDES)}/wk rides freed up</strong> → apartment fund`, icon:"🏠" });
+  return rules;
+}
+
+function recompute() {
+  const S = STATE.S;
+  const GROSS    = Math.max(0, Number(S.gross) || 0);
+  const TAX_RATE = Math.min(100, Math.max(0, Number(S.taxRate) || 0)) / 100;
+  const TAX      = Math.round(GROSS * TAX_RATE);
+  const INCOME   = GROSS - TAX;
+  const SAVINGS  = Math.max(0, Number(S.savings) || 0);
+  const BILLS    = Math.max(0, Number(S.bills) || 0);
+  const RIDES    = Math.max(0, Number(S.rides) || 0);
+  const FOOD     = Math.max(0, Number(S.food) || 0);
+  const LEFT     = INCOME - SAVINGS - BILLS - RIDES - FOOD;
+  const GOAL     = Math.max(0, Number(S.goal) || 0);
+  const DEBT_AMT = Math.max(0, Number(S.debtAmt) || 0);
+  const HAS_DEBT = DEBT_AMT > 0;
+
+  const SAVE_WEEKS = SAVINGS > 0 ? Math.max(1, Math.ceil(GOAL / SAVINGS)) : 0;
+  const DEBT_WEEK  = 0;
+  const SAVE_START = HAS_DEBT ? 1 : 0;
+  const TOTAL_WEEKS = SAVE_START + SAVE_WEEKS;
+
+  let startDate = new Date((S.startDate || DEFAULTS.startDate) + "T12:00:00");
+  if (isNaN(startDate.getTime())) startDate = new Date(DEFAULTS.startDate + "T12:00:00");
+  const WEEKDAY_NAME = startDate.toLocaleDateString("en-US", { weekday: "long" });
+
+  const WEDNESDAYS = [];
+  { let d = new Date(startDate);
+    const count = Math.max(TOTAL_WEEKS, 1);
+    for (let i = 0; i < count; i++) { WEDNESDAYS.push(new Date(d)); d.setDate(d.getDate() + 7); } }
+
+  const BREAKDOWN = [
+    { label:"Car Savings", amount:SAVINGS, color:"#F5C842", icon:"🚗", desc:"locked away" },
+    { label:"Bills",       amount:BILLS,   color:"#FF5757", icon:"🏠", desc:"non-negotiable" },
+    { label:"Rides",       amount:RIDES,   color:"#60A5FA", icon:"🚕", desc:"until you drive" },
+    { label:"Food",        amount:FOOD,    color:"#4ADE80", icon:"🍗", desc:"groceries only" },
+    { label:"Left Over",   amount:LEFT,    color:LEFT < 0 ? "#FF5757" : "#FB923C", icon:"💵", desc:LEFT < 0 ? "over budget" : "buffer" },
+  ];
+
+  const MILESTONES = buildMilestones({ HAS_DEBT, DEBT_AMT, DEBT_WEEK, GOAL, SAVINGS, SAVE_WEEKS, SAVE_START });
+  const RULES = buildRules({ SAVINGS, WEEKDAY_NAME, RIDES, MILESTONES });
+  const totalWeeksSpan = TOTAL_WEEKS || 1;
+  const months = Math.max(1, Math.round(totalWeeksSpan / 4.345));
+
+  STATE.D = {
+    GROSS, TAX_RATE, TAX, INCOME, SAVINGS, BILLS, RIDES, FOOD, LEFT, GOAL, DEBT_AMT, HAS_DEBT,
+    SAVE_WEEKS, DEBT_WEEK, SAVE_START, TOTAL_WEEKS, WEDNESDAYS, WEEKDAY_NAME, BREAKDOWN, MILESTONES, RULES, months,
+  };
+}
+
+// ── STATE (checked weeks) ───────────────────────────────
 let checkedWeeks = {}, currentTab = "tracker";
 try { checkedWeeks = JSON.parse(localStorage.getItem("cf_weeks2") || "{}"); } catch(e){}
 function save() { try { localStorage.setItem("cf_weeks2", JSON.stringify(checkedWeeks)); } catch(e){} }
 
 // ── STATS ─────────────────────────────────────────────
 function getStats() {
+  const D = STATE.D;
   const allChecked = Object.entries(checkedWeeks).filter(([,v])=>v);
-  const savingsDone = allChecked.filter(([k])=>parseInt(k)>=SAVE_START).length;
-  const saved = savingsDone * SAVINGS;
-  const debtCleared = !!checkedWeeks[DEBT_WEEK];
-  const pct = Math.min((saved/GOAL)*100, 100);
+  const savingsDone = allChecked.filter(([k])=>parseInt(k)>=D.SAVE_START).length;
+  const saved = savingsDone * D.SAVINGS;
+  const debtCleared = D.HAS_DEBT ? !!checkedWeeks[D.DEBT_WEEK] : true;
+  const pct = D.GOAL > 0 ? Math.min((saved/D.GOAL)*100, 100) : 0;
   const today = new Date();
-  const cwi = WEDNESDAYS.findIndex((d,i) => {
-    const next = WEDNESDAYS[i+1];
+  const cwi = D.WEDNESDAYS.findIndex((d,i) => {
+    const next = D.WEDNESDAYS[i+1];
     return today >= d && (!next || today < next);
   });
-  const expectedDone = cwi >= SAVE_START ? cwi - SAVE_START + 1 : 0;
+  const expectedDone = cwi >= D.SAVE_START ? cwi - D.SAVE_START + 1 : 0;
   const onTrack = savingsDone >= expectedDone;
-  return { savingsDone, saved, pct, left: SAVE_WEEKS - savingsDone, onTrack, cwi, debtCleared };
+  return { savingsDone, saved, pct, left: Math.max(0, D.SAVE_WEEKS - savingsDone), onTrack, cwi, debtCleared };
 }
 
 function getCurrentWeekIdx() {
+  const D = STATE.D;
   const today = new Date();
-  for (let i = TOTAL_WEEKS-1; i >= 0; i--) {
-    if (today >= WEDNESDAYS[i]) return i;
+  for (let i = D.WEDNESDAYS.length-1; i >= 0; i--) {
+    if (today >= D.WEDNESDAYS[i]) return i;
   }
   return -1;
 }
 
 // ── HEADER ────────────────────────────────────────────
 function updateHeader() {
+  const D = STATE.D;
   const { savingsDone, saved, pct, left, onTrack, debtCleared } = getStats();
+
+  document.getElementById("eyebrow-text").textContent = `Every ${D.WEEKDAY_NAME} · ${fmtMoney(D.GROSS)}/wk`;
+  document.getElementById("chip-gross-val").textContent = fmtMoney(D.GROSS);
+  document.getElementById("chip-tax-label").textContent = `Tax ${Math.round(D.TAX_RATE*100)}%`;
+  document.getElementById("chip-tax-val").textContent = "-" + fmtMoney(D.TAX);
+  document.getElementById("chip-income-val").textContent = fmtMoney(D.INCOME);
+  document.getElementById("hero-denom").textContent = "/ " + fmtMoney(D.GOAL);
+  document.getElementById("stat-saved-sub").textContent = "of " + fmtMoney(D.GOAL) + " goal";
+
   animateNumber("hero-num", saved);
   document.getElementById("stat-saved").textContent = fmtMoney(saved);
   document.getElementById("stat-weeks").textContent = left;
   document.getElementById("stat-weeks-sub").textContent = savingsDone + " saved";
   const trackEl = document.getElementById("stat-track");
   const sub2El  = document.getElementById("stat-sub2");
-  if (savingsDone === 0 && !debtCleared) {
+  if (D.HAS_DEBT && !debtCleared && savingsDone === 0) {
     trackEl.textContent = "—"; trackEl.className = "stat-value";
     sub2El.textContent = "clear debt first";
-  } else if (savingsDone === 0) {
+  } else if (D.HAS_DEBT && debtCleared && savingsDone === 0) {
     trackEl.textContent = "READY"; trackEl.className = "stat-value stat-on-track";
     sub2El.textContent = "debt cleared!";
   } else if (onTrack) {
@@ -398,7 +476,7 @@ function updateHeader() {
   }
   document.getElementById("prog-fill").style.width = pct + "%";
   document.getElementById("prog-pct-label").textContent = Math.round(pct) + "%";
-  updateTicker(savingsDone, saved, left);
+  updateTicker(D, savingsDone, saved, left);
 }
 
 // Tracks one in-flight interval per element id so rapid toggles don't spawn
@@ -421,22 +499,16 @@ function animateNumber(id, target) {
   }, 25);
 }
 
-function updateTicker(done, saved, left) {
-  const pct = Math.round((saved/GOAL)*100);
-  const texts = [
-    "🚗 CAR FUND 2026","·","AMAZON ONLY","·",
-    `$${saved.toLocaleString()} SAVED`,"·",
+function updateTicker(D, done, saved, left) {
+  const pct = D.GOAL > 0 ? Math.round((saved/D.GOAL)*100) : 0;
+  const parts = [
+    "🚗 CAR FUND TRACKER","·",
+    `${fmtMoney(saved)} SAVED`,"·",
     `${pct}% TO GOAL`,"·",
     `${left} WEEKS LEFT`,"·",
-    "NO EATING OUT","·",
-    "$250 EVERY WEDNESDAY","·",
-    "🚗 CAR FUND 2026","·","AMAZON ONLY","·",
-    `$${saved.toLocaleString()} SAVED`,"·",
-    `${pct}% TO GOAL`,"·",
-    `${left} WEEKS LEFT`,"·",
-    "NO EATING OUT","·",
-    "$250 EVERY WEDNESDAY","·",
+    D.SAVINGS > 0 ? `${fmtMoney(D.SAVINGS)} EVERY ${D.WEEKDAY_NAME.toUpperCase()}` : "SET YOUR PLAN IN SETUP","·",
   ];
+  const texts = parts.concat(parts);
   const t = document.getElementById("ticker");
   if(t) t.innerHTML = texts.map(x=>`<span class="ticker-text">${x}</span>`).join("");
 }
@@ -465,6 +537,7 @@ function showToast(msg) {
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll(".tab-btn").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  document.getElementById("content").scrollTop = 0;
   renderContent();
 }
 
@@ -485,17 +558,18 @@ function toggleWeek(i, event) {
   card.querySelector(".week-sub").classList.toggle("checked", checked);
   const wtEl = card.querySelector(".week-total");
   if (wtEl) wtEl.classList.toggle("checked", checked);
+  const D = STATE.D;
   if (checked) {
     const rect = card.getBoundingClientRect();
     spawnConfetti(rect.left+rect.width/2, rect.top+20);
-    if (i === DEBT_WEEK) {
-      showToast(`🎉 ${fmtMoney(DEBT_AMT)} debt cleared! Savings start now!`);
+    if (D.HAS_DEBT && i === D.DEBT_WEEK) {
+      showToast(`🎉 ${fmtMoney(D.DEBT_AMT)} debt cleared! Savings start now!`);
     } else {
       const {saved} = getStats();
       showToast("💰 " + fmtMoney(saved) + " saved so far!");
     }
   } else {
-    showToast("Week " + (i===DEBT_WEEK?"1 (debt)":i) + " unchecked");
+    showToast((D.HAS_DEBT && i === D.DEBT_WEEK ? "Debt week" : "Week " + i) + " unchecked");
   }
 }
 
@@ -509,57 +583,63 @@ window.onWeekKeydown = onWeekKeydown;
 
 // ── RENDER TRACKER ────────────────────────────────────
 function renderTracker() {
+  const D = STATE.D;
   const cwi = getCurrentWeekIdx();
-  const debtChecked = !!checkedWeeks[0];
-  const isCurrDebt  = cwi === 0;
 
-  let html = `<div class="section-label">Tap each Wednesday when done</div>`;
+  let html = `<div class="section-label">Tap each ${D.WEEKDAY_NAME} when done</div>`;
 
-  // ── Debt week
-  html += `
-    <div class="goal-divider" style="color:var(--red);border-color:rgba(255,87,87,0.2);background:rgba(255,87,87,0.03)">
-      🔴 ${fmt(WEDNESDAYS[DEBT_WEEK])} — Pay Off ${fmtMoney(DEBT_AMT)} Credit Card
-    </div>
-    <div class="week-card ${debtChecked?"checked":""} ${isCurrDebt&&!debtChecked?"current-week":""}"
-         data-week="0" tabindex="0" role="checkbox" aria-checked="${debtChecked}" aria-label="Debt payoff week"
-         onclick="toggleWeek(0,event)" onkeydown="onWeekKeydown(event,0)"
-         style="border-color:${debtChecked?"rgba(74,222,128,0.3)":"rgba(255,87,87,0.25)"}">
-      <div class="week-left">
-        <div class="checkbox ${debtChecked?"checked":""}" style="${!debtChecked?"border-color:var(--red)":""}">${debtChecked?"✓":""}</div>
-        <div class="week-num ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">00</div>
-        <div class="week-info">
-          <div class="week-title ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">${fmt(WEDNESDAYS[DEBT_WEEK])} · Debt Cleared</div>
-          <div class="week-sub ${debtChecked?"checked":""}">${fmtMoney(DEBT_AMT)} credit card → gone</div>
+  if (D.HAS_DEBT) {
+    const debtChecked = !!checkedWeeks[D.DEBT_WEEK];
+    const isCurrDebt = cwi === D.DEBT_WEEK;
+    html += `
+      <div class="goal-divider" style="color:var(--red);border-color:rgba(255,87,87,0.2);background:rgba(255,87,87,0.03)">
+        🔴 ${fmt(D.WEDNESDAYS[D.DEBT_WEEK])} — Pay Off ${fmtMoney(D.DEBT_AMT)} Credit Card
+      </div>
+      <div class="week-card ${debtChecked?"checked":""} ${isCurrDebt&&!debtChecked?"current-week":""}"
+           data-week="0" tabindex="0" role="checkbox" aria-checked="${debtChecked}" aria-label="Debt payoff week"
+           onclick="toggleWeek(0,event)" onkeydown="onWeekKeydown(event,0)"
+           style="border-color:${debtChecked?"rgba(74,222,128,0.3)":"rgba(255,87,87,0.25)"}">
+        <div class="week-left">
+          <div class="checkbox ${debtChecked?"checked":""}" style="${!debtChecked?"border-color:var(--red)":""}">${debtChecked?"✓":""}</div>
+          <div class="week-num ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">00</div>
+          <div class="week-info">
+            <div class="week-title ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">${fmt(D.WEDNESDAYS[D.DEBT_WEEK])} · Debt Cleared</div>
+            <div class="week-sub ${debtChecked?"checked":""}">${fmtMoney(D.DEBT_AMT)} credit card → gone</div>
+          </div>
+        </div>
+        <div class="week-right">
+          <div class="week-total" style="color:${debtChecked?"var(--green)":"var(--red)"}">${debtChecked?"CLEAR ✓":"-"+fmtMoney(D.DEBT_AMT)}</div>
+          <div class="week-total-label">debt payoff</div>
         </div>
       </div>
-      <div class="week-right">
-        <div class="week-total" style="color:${debtChecked?"var(--green)":"var(--red)"}">${debtChecked?"CLEAR ✓":"-"+fmtMoney(DEBT_AMT)}</div>
-        <div class="week-total-label">debt payoff</div>
-      </div>
-    </div>
-    <div class="goal-divider" style="margin-top:10px">💰 ${fmt(WEDNESDAYS[SAVE_START])} — Savings Begin (${fmtMoney(SAVINGS)}/wk)</div>`;
+      <div class="goal-divider" style="margin-top:10px">💰 ${fmt(D.WEDNESDAYS[D.SAVE_START])} — Savings Begin (${fmtMoney(D.SAVINGS)}/wk)</div>`;
+  }
 
-  // ── Saving weeks 1–20
-  for (let i = 1; i < TOTAL_WEEKS; i++) {
-    const sn = i; // saving number
-    const running = sn * SAVINGS;
+  if (D.SAVINGS <= 0 || D.GOAL <= 0) {
+    html += `<div class="empty-hint">Head to the <strong style="color:var(--gold)">Setup</strong> tab and enter a weekly savings amount and a goal to build your plan.</div>`;
+    return html;
+  }
+
+  for (let i = D.SAVE_START; i < D.TOTAL_WEEKS; i++) {
+    const sn = i - D.SAVE_START + 1;
+    const running = sn * D.SAVINGS;
     const checked = !!checkedWeeks[i];
     const isCurr   = i === cwi;
     const isFuture = i > cwi + 1 && !checked;
-    const isGoal   = running >= GOAL && (sn-1)*SAVINGS < GOAL;
+    const isGoal   = running >= D.GOAL && (sn-1)*D.SAVINGS < D.GOAL;
 
-    if (isGoal) html += `<div class="goal-divider">🎯 ${fmtMoney(GOAL)} Hit — Time to Buy</div>`;
+    if (isGoal) html += `<div class="goal-divider">🎯 ${fmtMoney(D.GOAL)} Hit — Time to Buy</div>`;
 
     html += `
       <div class="week-card ${checked?"checked":""} ${isCurr&&!checked?"current-week":""} ${isFuture?"future":""}"
-           data-week="${i}" tabindex="0" role="checkbox" aria-checked="${checked}" aria-label="Week ${sn}, ${fmt(WEDNESDAYS[i])}"
-           onclick="toggleWeek(${i},event)" onkeydown="onWeekKeydown(event,${i})" style="animation-delay:${i*12}ms">
+           data-week="${i}" tabindex="0" role="checkbox" aria-checked="${checked}" aria-label="Week ${sn}, ${fmt(D.WEDNESDAYS[i])}"
+           onclick="toggleWeek(${i},event)" onkeydown="onWeekKeydown(event,${i})" style="animation-delay:${Math.min(i,20)*12}ms">
         <div class="week-left">
           <div class="checkbox ${checked?"checked":""}">${checked?"✓":""}</div>
           <div class="week-num ${checked?"checked":""}">${String(sn).padStart(2,"0")}</div>
           <div class="week-info">
-            <div class="week-title ${checked?"checked":""}">${fmt(WEDNESDAYS[i])}</div>
-            <div class="week-sub ${checked?"checked":""}">+${fmtMoney(SAVINGS)} → fund</div>
+            <div class="week-title ${checked?"checked":""}">${fmt(D.WEDNESDAYS[i])}</div>
+            <div class="week-sub ${checked?"checked":""}">+${fmtMoney(D.SAVINGS)} → fund</div>
           </div>
         </div>
         <div class="week-right">
@@ -573,48 +653,49 @@ function renderTracker() {
 
 // ── RENDER BREAKDOWN ──────────────────────────────────
 function renderBreakdown() {
-  const taxPct = Math.round((TAX/GROSS)*100);
+  const D = STATE.D;
+  const taxPct = Math.round(D.TAX_RATE*100);
   let html = `
     <div class="income-hero">
       <div class="income-label">Weekly Gross Pay</div>
-      <div class="income-amount">${fmtMoney(GROSS)}</div>
-      <div class="income-sub">40 hrs × $19.25/hr</div>
-      <div class="income-tag">Amazon · Every Wednesday</div>
+      <div class="income-amount">${fmtMoney(D.GROSS)}</div>
+      <div class="income-sub">edit this anytime in Setup</div>
+      <div class="income-tag">Every ${D.WEEKDAY_NAME}</div>
     </div>
     <div class="section-label">Tax breakdown</div>
     <div class="tax-row">
       <span class="tax-label">Gross pay</span>
-      <span class="tax-val" style="color:var(--muted)">${fmtMoney(GROSS)}</span>
+      <span class="tax-val" style="color:var(--muted)">${fmtMoney(D.GROSS)}</span>
     </div>
     <div class="tax-row">
-      <span class="tax-label">Federal + state tax (~${taxPct}%)</span>
-      <span class="tax-val" style="color:var(--red)">-${fmtMoney(TAX)}</span>
+      <span class="tax-label">Tax (${taxPct}%)</span>
+      <span class="tax-val" style="color:var(--red)">-${fmtMoney(D.TAX)}</span>
     </div>
     <div class="tax-row" style="border-color:rgba(245,200,66,0.3)">
       <span class="tax-label" style="color:var(--gold)">Take-home</span>
-      <span class="tax-val" style="color:var(--gold)">${fmtMoney(INCOME)}</span>
+      <span class="tax-val" style="color:var(--gold)">${fmtMoney(D.INCOME)}</span>
     </div>
-    <div class="section-label" style="margin-top:16px">Where ${fmtMoney(INCOME)} goes</div>
+    <div class="section-label" style="margin-top:16px">Where ${fmtMoney(D.INCOME)} goes</div>
     <div class="breakdown-grid">`;
 
-  BREAKDOWN.forEach(({label,amount,color,icon,desc}) => {
-    const pct = Math.round((amount/INCOME)*100);
+  D.BREAKDOWN.forEach(({label,amount,color,icon,desc}) => {
+    const pct = D.INCOME !== 0 ? Math.round((amount/D.INCOME)*100) : 0;
     html += `
       <div class="breakdown-card" style="border-top:2px solid ${color}20">
         <div class="breakdown-icon">${icon}</div>
         <div class="breakdown-name">${label}</div>
         <div class="breakdown-amount" style="color:${color}">${fmtMoney(amount)}</div>
         <div class="breakdown-pct">${pct}% · ${desc}</div>
-        <div class="bar-mini"><div class="bar-mini-fill" style="width:${pct}%;background:${color};box-shadow:0 0 6px ${color}60"></div></div>
+        <div class="bar-mini"><div class="bar-mini-fill" style="width:${Math.min(Math.abs(pct),100)}%;background:${color};box-shadow:0 0 6px ${color}60"></div></div>
       </div>`;
   });
 
   html += `</div>
     <div class="after-car-card">
       <div class="after-car-title">After Car Purchase</div>
-      <div class="after-car-row"><span class="after-car-label">Cut rides budget</span><span class="after-car-val" style="color:var(--blue)">-${fmtMoney(RIDES)}/wk</span></div>
-      <div class="after-car-row"><span class="after-car-label">Extra per week</span><span class="after-car-val" style="color:var(--green)">+${fmtMoney(RIDES)}/wk</span></div>
-      <div class="after-car-row"><span class="after-car-label">Extra per month</span><span class="after-car-val" style="color:var(--gold)">+${fmtMoney(RIDES*4)}/mo</span></div>
+      <div class="after-car-row"><span class="after-car-label">Cut rides budget</span><span class="after-car-val" style="color:var(--blue)">-${fmtMoney(D.RIDES)}/wk</span></div>
+      <div class="after-car-row"><span class="after-car-label">Extra per week</span><span class="after-car-val" style="color:var(--green)">+${fmtMoney(D.RIDES)}/wk</span></div>
+      <div class="after-car-row"><span class="after-car-label">Extra per month</span><span class="after-car-val" style="color:var(--gold)">+${fmtMoney(D.RIDES*4)}/mo</span></div>
       <div class="after-car-row"><span class="after-car-label">Redirect to</span><span class="after-car-val" style="color:var(--purple)">Apartment fund</span></div>
     </div>`;
   return html;
@@ -622,29 +703,33 @@ function renderBreakdown() {
 
 // ── RENDER MILESTONES ─────────────────────────────────
 function renderMilestones() {
+  const D = STATE.D;
   const { saved, savingsDone, left, debtCleared } = getStats();
-  const weeksToGoal = Math.ceil(Math.max(0, GOAL - saved) / SAVINGS);
-  const goalDateIdx = Math.min(SAVE_START + savingsDone + weeksToGoal - 1, TOTAL_WEEKS-1);
-  const projDate = saved >= GOAL ? "DONE 🎉" : (weeksToGoal <= left ? fmt(WEDNESDAYS[goalDateIdx]) : "—");
+  const weeksToGoal = D.SAVINGS > 0 ? Math.ceil(Math.max(0, D.GOAL - saved) / D.SAVINGS) : 0;
+  const goalDateIdx = Math.min(D.SAVE_START + savingsDone + weeksToGoal - 1, D.TOTAL_WEEKS-1);
+  const projDate = D.GOAL>0 && saved >= D.GOAL ? "DONE 🎉" : (D.SAVINGS>0 && weeksToGoal <= left ? fmt(D.WEDNESDAYS[Math.max(goalDateIdx,0)]) : "—");
 
   let html = `
     <div class="pace-card">
       <div class="pace-title">Pace Calculator</div>
-      <div class="pace-row"><span class="pace-label">Debt cleared</span><span class="pace-val" style="color:${debtCleared?"var(--green)":"var(--red)"}">${debtCleared?"YES ✓":fmt(WEDNESDAYS[DEBT_WEEK])}</span></div>
-      <div class="pace-row"><span class="pace-label">Savings weeks done</span><span class="pace-val" style="color:var(--gold)">${savingsDone} of ${SAVE_WEEKS}</span></div>
+      ${D.HAS_DEBT ? `<div class="pace-row"><span class="pace-label">Debt cleared</span><span class="pace-val" style="color:${debtCleared?"var(--green)":"var(--red)"}">${debtCleared?"YES ✓":fmt(D.WEDNESDAYS[D.DEBT_WEEK])}</span></div>` : ""}
+      <div class="pace-row"><span class="pace-label">Savings weeks done</span><span class="pace-val" style="color:var(--gold)">${savingsDone} of ${D.SAVE_WEEKS}</span></div>
       <div class="pace-row"><span class="pace-label">Total saved</span><span class="pace-val" style="color:var(--gold)">${fmtMoney(saved)}</span></div>
-      <div class="pace-row"><span class="pace-label">Weeks to ${fmtMoney(GOAL)}</span><span class="pace-val" style="color:var(--blue)">${saved>=GOAL?"DONE":weeksToGoal+" more"}</span></div>
+      <div class="pace-row"><span class="pace-label">Weeks to ${fmtMoney(D.GOAL)}</span><span class="pace-val" style="color:var(--blue)">${D.GOAL>0 && saved>=D.GOAL?"DONE":weeksToGoal+" more"}</span></div>
       <div class="pace-row"><span class="pace-label">Projected goal date</span><span class="pace-val" style="color:var(--green)">${projDate}</span></div>
-      <div class="pace-row"><span class="pace-label">Full plan total (${SAVE_WEEKS} wks)</span><span class="pace-val" style="color:var(--purple)">${fmtMoney(SAVE_WEEKS*SAVINGS)}</span></div>
+      <div class="pace-row"><span class="pace-label">Full plan total (${D.SAVE_WEEKS} wks)</span><span class="pace-val" style="color:var(--purple)">${fmtMoney(D.SAVE_WEEKS*D.SAVINGS)}</span></div>
     </div>
     <div class="section-label">Milestones</div>`;
 
-  MILESTONES.forEach(({label,target,emoji,color,isDebt},idx) => {
+  if (D.MILESTONES.length === 0) {
+    html += `<div class="empty-hint">Set a weekly savings amount and a goal in <strong style="color:var(--gold)">Setup</strong> to see milestones here.</div>`;
+  }
+
+  D.MILESTONES.forEach(({label,target,emoji,color,isDebt,weekIdx},idx) => {
     const reached = isDebt ? debtCleared : saved >= target;
-    const isNext  = !reached && (idx===0 || (MILESTONES[idx-1].isDebt ? debtCleared : saved >= MILESTONES[idx-1].target));
+    const isNext  = !reached && (idx===0 || (D.MILESTONES[idx-1].isDebt ? debtCleared : saved >= D.MILESTONES[idx-1].target));
     const pct     = isDebt ? (debtCleared?100:0) : Math.min((saved/target)*100,100);
-    const weekIdx = isDebt ? DEBT_WEEK : target / SAVINGS;
-    const dateLabel = fmt(WEDNESDAYS[weekIdx]);
+    const dateLabel = fmt(D.WEDNESDAYS[weekIdx]);
     html += `
       <div class="milestone-card ${reached?"reached":""} ${isNext?"next":""}" style="animation-delay:${idx*60}ms">
         <div class="milestone-top">
@@ -656,7 +741,7 @@ function renderMilestones() {
             </div>
           </div>
           <div class="milestone-right">
-            <div class="milestone-amount ${reached?"reached":""}">${isDebt?fmtMoney(DEBT_AMT):fmtMoney(target)}</div>
+            <div class="milestone-amount ${reached?"reached":""}">${fmtMoney(target)}</div>
             ${reached?`<div class="milestone-badge">✓ Done</div>`:""}
           </div>
         </div>
@@ -670,25 +755,118 @@ function renderMilestones() {
   html += `
     <div class="section-label">The Rules</div>
     <div class="rules-wrap">
-      ${RULES.map((r,i)=>`<div class="rule-item" style="animation-delay:${i*50}ms"><span class="rule-icon">${r.icon}</span><span class="rule-text">${r.text}</span></div>`).join("")}
+      ${D.RULES.map((r,i)=>`<div class="rule-item" style="animation-delay:${i*50}ms"><span class="rule-icon">${r.icon}</span><span class="rule-text">${r.text}</span></div>`).join("")}
     </div>
     <div class="footer-wrap">
-      <div class="footer-line1"><span class="gold-text">5 MONTHS.</span></div>
+      <div class="footer-line1"><span class="gold-text">${D.months} MONTH${D.months===1?"":"S"}.</span></div>
       <div class="footer-line2">THEN YOUR CAR.</div>
-      <div class="footer-date">Debt: ${fmt(WEDNESDAYS[DEBT_WEEK])} · Save: ${fmt(WEDNESDAYS[SAVE_START])} → ${fmt(WEDNESDAYS[TOTAL_WEEKS-1])}, 2026</div>
+      <div class="footer-date">${D.HAS_DEBT ? "Debt: "+fmt(D.WEDNESDAYS[D.DEBT_WEEK])+" · " : ""}Save: ${D.TOTAL_WEEKS>0?fmt(D.WEDNESDAYS[D.SAVE_START]):"—"} → ${D.TOTAL_WEEKS>0?fmt(D.WEDNESDAYS[D.TOTAL_WEEKS-1]):"—"}</div>
     </div>`;
   return html;
 }
 
+// ── RENDER SETTINGS ────────────────────────────────────
+// Same format as REBORN's Budget/Goal editors: a titled panel per group,
+// each field a small uppercase label sitting above a bordered input, saved
+// automatically as you type — no separate save button.
+function renderSettings() {
+  const S = STATE.S, D = STATE.D;
+  return `
+    <div class="section-label">Make it yours</div>
+    <div class="panel">
+      <div class="panel-head">Pay &amp; weekly budget</div>
+      <div class="panel-body">
+        <div class="field-grid">
+          <div class="field"><label class="field-label">Gross pay / wk ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.gross}" oninput="onSettingInput('gross', this.value)"></div>
+          <div class="field"><label class="field-label">Tax rate (%)</label><input class="field-input" type="number" inputmode="decimal" min="0" max="100" step="1" value="${S.taxRate}" oninput="onSettingInput('taxRate', this.value)"></div>
+          <div class="field"><label class="field-label">Save / wk ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.savings}" oninput="onSettingInput('savings', this.value)"></div>
+          <div class="field"><label class="field-label">Bills / wk ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.bills}" oninput="onSettingInput('bills', this.value)"></div>
+          <div class="field"><label class="field-label">Rides / wk ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.rides}" oninput="onSettingInput('rides', this.value)"></div>
+          <div class="field"><label class="field-label">Food / wk ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.food}" oninput="onSettingInput('food', this.value)"></div>
+        </div>
+        <div class="field-hint" id="pay-hint">${payHintHtml(D)}</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">Goal</div>
+      <div class="panel-body">
+        <div class="field-grid">
+          <div class="field"><label class="field-label">Goal amount ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.goal}" oninput="onSettingInput('goal', this.value)"></div>
+          <div class="field"><label class="field-label">Start date</label><input class="field-input" type="date" value="${S.startDate}" oninput="onSettingInput('startDate', this.value)"></div>
+        </div>
+        <div class="field-hint" id="goal-hint">${goalHintHtml(D)}</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">Debt payoff (optional, runs before savings)</div>
+      <div class="panel-body">
+        <div class="field-grid">
+          <div class="field"><label class="field-label">Amount owed ($)</label><input class="field-input" type="number" inputmode="decimal" min="0" step="1" value="${S.debtAmt}" oninput="onSettingInput('debtAmt', this.value)"></div>
+        </div>
+        <div class="field-hint" id="debt-hint">${debtHintHtml(D)}</div>
+      </div>
+    </div>
+    <button class="reset-btn" onclick="resetProgress()">Reset checked weeks</button>
+    <div class="field-hint autosave-note">Everything above saves automatically on this device.</div>
+  `;
+}
+
+function payHintHtml(D) {
+  return `${fmtMoney(D.INCOME)} take-home − ${fmtMoney(D.SAVINGS)} save − ${fmtMoney(D.BILLS)} bills − ${fmtMoney(D.RIDES)} rides − ${fmtMoney(D.FOOD)} food = <strong style="color:${D.LEFT<0?'var(--red)':'var(--gold)'}">${fmtMoney(D.LEFT)}</strong> left over.`;
+}
+function goalHintHtml(D) {
+  return `Weeks run every <strong style="color:var(--gold)">${D.WEEKDAY_NAME}</strong> starting from that date — ${D.SAVE_WEEKS} deposit${D.SAVE_WEEKS===1?"":"s"} of ${fmtMoney(D.SAVINGS)} to reach ${fmtMoney(D.GOAL)}.`;
+}
+function debtHintHtml(D) {
+  return D.HAS_DEBT ? "The first week pays this off before any savings weeks start." : "Leave at 0 if you have no debt — the payoff week is skipped automatically.";
+}
+
+function onSettingInput(key, rawValue) {
+  if (key === "startDate") {
+    STATE.S[key] = rawValue || DEFAULTS.startDate;
+  } else {
+    STATE.S[key] = rawValue === "" ? 0 : Number(rawValue);
+  }
+  saveSettings();
+  recompute();
+  updateHeader();
+  // Deliberately not calling renderContent() here: the Setup tab is what's
+  // on screen while the user is typing, and re-rendering it would blow away
+  // input focus and cursor position on every keystroke. Instead, patch just
+  // the three hint lines in place — they're plain text, not inputs, so
+  // there's no focus to lose. Other tabs pick up the new numbers normally
+  // the next time they're switched to.
+  const D = STATE.D;
+  const payHint = document.getElementById("pay-hint");
+  const goalHint = document.getElementById("goal-hint");
+  const debtHint = document.getElementById("debt-hint");
+  if (payHint) payHint.innerHTML = payHintHtml(D);
+  if (goalHint) goalHint.innerHTML = goalHintHtml(D);
+  if (debtHint) debtHint.innerHTML = debtHintHtml(D);
+}
+
+function resetProgress() {
+  if (!confirm("Clear all checked weeks? This can't be undone.")) return;
+  checkedWeeks = {};
+  save();
+  updateHeader();
+  renderContent();
+  showToast("Progress reset");
+}
+window.onSettingInput = onSettingInput;
+window.resetProgress = resetProgress;
+
 // ── RENDER ────────────────────────────────────────────
 function renderContent() {
   const el = document.getElementById("content");
-  if (currentTab==="tracker")    el.innerHTML = renderTracker();
-  else if (currentTab==="breakdown") el.innerHTML = renderBreakdown();
-  else                           el.innerHTML = renderMilestones();
+  if (currentTab==="tracker")         el.innerHTML = renderTracker();
+  else if (currentTab==="breakdown")  el.innerHTML = renderBreakdown();
+  else if (currentTab==="settings")   el.innerHTML = renderSettings();
+  else                                el.innerHTML = renderMilestones();
 }
 
 // ── INIT ──────────────────────────────────────────────
+recompute();
 updateHeader();
 renderContent();
 document.getElementById("corner-date").textContent =

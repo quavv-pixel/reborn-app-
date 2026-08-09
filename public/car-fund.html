@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Car Fund">
+<title>Car Fund</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --gold: #F5C842; --gold2: #FFE97A; --gold3: #C49A1A;
+  --bg: #07090F; --bg2: #0C0F1A; --bg3: #0F1320;
+  --surface: #111827; --surface2: #161D2E;
+  --border: #1C2640; --border2: #141B2B;
+  --text: #E8EDF5; --muted: #8896B0; --dim: #4A5670; --dead: #2A3350;
+  --red: #FF5757; --green: #4ADE80; --blue: #60A5FA; --purple: #C084FC; --orange: #FB923C;
+}
+html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Space Mono',monospace; overflow-x:hidden; }
+::-webkit-scrollbar { display:none; }
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.06)} 70%{transform:scale(0.97)} 100%{transform:scale(1)} }
+@keyframes shimmer { 0%{background-position:-300% center} 100%{background-position:300% center} }
+@keyframes pulse-gold { 0%,100%{box-shadow:0 0 0 0 rgba(245,200,66,0.4)} 50%{box-shadow:0 0 0 10px rgba(245,200,66,0)} }
+@keyframes scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(400%)} }
+@keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+@keyframes celebrate { 0%{opacity:0;transform:translateY(0) scale(0.5)} 60%{opacity:1;transform:translateY(-40px) scale(1.1)} 100%{opacity:0;transform:translateY(-70px) scale(0.9)} }
+
+.gold-text {
+  background: linear-gradient(90deg,#C49A1A 0%,#F5C842 30%,#FFE97A 50%,#F5C842 70%,#C49A1A 100%);
+  background-size:300% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text; animation:shimmer 4s linear infinite;
+}
+.confetti { position:fixed; pointer-events:none; z-index:9999; font-size:22px; animation:celebrate 1s ease forwards; }
+
+#app { display:flex; flex-direction:column; min-height:100vh; max-width:430px; margin:0 auto; }
+
+/* TICKER */
+.ticker-wrap { background:var(--gold); padding:5px 0; overflow:hidden; flex-shrink:0; }
+.ticker-inner { display:flex; white-space:nowrap; animation:ticker 20s linear infinite; }
+.ticker-text { font-family:'Bebas Neue'; font-size:11px; letter-spacing:3px; color:#000; padding:0 20px; }
+
+/* HEADER */
+#header {
+  background:var(--bg2); border-bottom:1px solid var(--border);
+  padding:max(env(safe-area-inset-top),28px) 18px 20px;
+  position:relative; overflow:hidden; flex-shrink:0;
+}
+.scan-line { position:absolute; left:0; right:0; height:60px; pointer-events:none; background:linear-gradient(to bottom,transparent,rgba(245,200,66,0.04),transparent); animation:scan 6s linear infinite; }
+.corner-mark { position:absolute; top:max(env(safe-area-inset-top),28px); right:18px; font-family:'Bebas Neue'; font-size:11px; letter-spacing:2px; color:rgba(245,200,66,0.3); }
+.header-inner { position:relative; }
+.eyebrow { display:flex; align-items:center; gap:8px; font-size:9px; letter-spacing:4px; color:rgba(245,200,66,0.45); text-transform:uppercase; margin-bottom:8px; }
+.eyebrow::before { content:''; width:20px; height:1px; background:rgba(245,200,66,0.3); }
+.title-line1 { font-family:'Bebas Neue'; font-size:44px; letter-spacing:3px; line-height:1; color:var(--text); }
+.title-line2 { font-family:'Bebas Neue'; font-size:44px; letter-spacing:3px; line-height:1; }
+.hero-number-wrap { display:flex; align-items:baseline; gap:6px; margin:14px 0 16px; }
+.hero-dollar { font-family:'Bebas Neue'; font-size:20px; color:var(--gold); opacity:0.6; margin-top:4px; }
+.hero-number { font-family:'Bebas Neue'; font-size:64px; letter-spacing:-1px; line-height:1; color:var(--gold); }
+.hero-denom { font-size:10px; color:var(--dim); align-self:flex-end; padding-bottom:10px; letter-spacing:2px; }
+
+/* PAY CHIP */
+.pay-chips { display:flex; gap:6px; margin-bottom:14px; }
+.pay-chip { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px; text-align:center; }
+.pay-chip-label { font-size:7px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:3px; }
+.pay-chip-val { font-family:'Bebas Neue'; font-size:18px; letter-spacing:1px; }
+
+/* PROGRESS */
+.prog-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+.prog-label { font-size:9px; letter-spacing:3px; color:var(--dim); text-transform:uppercase; }
+.prog-pct { font-size:13px; font-weight:700; color:var(--gold); }
+.prog-track { height:6px; background:var(--border); border-radius:3px; overflow:hidden; margin-bottom:14px; }
+.prog-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--gold3),var(--gold),var(--gold2)); box-shadow:0 0 12px rgba(245,200,66,0.5); transition:width 1s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* STATS */
+.stats-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 8px; text-align:center; position:relative; overflow:hidden; }
+.stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--border); }
+.stat-card.gold-top::before { background:linear-gradient(90deg,var(--gold3),var(--gold)); }
+.stat-label { font-size:8px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
+.stat-value { font-family:'Bebas Neue'; font-size:22px; color:var(--gold); letter-spacing:1px; line-height:1; }
+.stat-sub { font-size:8px; color:var(--dead); margin-top:2px; }
+.stat-on-track { color:var(--green) !important; }
+.stat-off-track { color:var(--red) !important; }
+
+/* TABS */
+#tabs { display:flex; background:var(--bg); border-bottom:1px solid var(--border); flex-shrink:0; position:sticky; top:0; z-index:10; }
+.tab-btn { flex:1; padding:13px 0; background:none; border:none; cursor:pointer; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); border-bottom:2px solid transparent; transition:color 0.2s,border-color 0.2s; }
+.tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+
+/* CONTENT */
+#content { flex:1; padding:16px 14px 80px; overflow-y:auto; }
+.section-label { font-size:8px; color:var(--dim); letter-spacing:4px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.section-label::after { content:''; flex:1; height:1px; background:var(--border2); }
+
+/* WEEK CARDS */
+.week-card {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 14px; margin-bottom:5px; border-radius:10px; cursor:pointer;
+  background:var(--surface); border:1px solid var(--border);
+  transition:background 0.2s,border-color 0.2s,transform 0.15s;
+  user-select:none; -webkit-user-select:none;
+  animation:fadeUp 0.2s ease both; position:relative; overflow:hidden;
+}
+.week-card.current-week { border-color:rgba(245,200,66,0.35); background:var(--surface2); }
+.week-card.current-week::before { content:'NOW'; position:absolute; top:0; right:0; background:var(--gold); color:#000; font-size:7px; font-weight:700; letter-spacing:2px; padding:2px 6px; border-radius:0 10px 0 6px; font-family:'Syne',sans-serif; }
+.week-card.checked { background:linear-gradient(135deg,rgba(245,200,66,0.08),rgba(255,233,122,0.03)); border-color:rgba(245,200,66,0.25); }
+.week-card.future { opacity:0.4; }
+.week-card:active { transform:scale(0.98); }
+.week-card.popping { animation:pop 0.35s ease; }
+.week-left { display:flex; align-items:center; gap:12px; }
+.checkbox { width:24px; height:24px; border-radius:6px; flex-shrink:0; border:2px solid var(--border); background:transparent; display:flex; align-items:center; justify-content:center; font-size:12px; color:#000; transition:all 0.2s ease; }
+.checkbox.checked { background:var(--gold); border-color:var(--gold); box-shadow:0 0 12px rgba(245,200,66,0.4); animation:pulse-gold 0.5s ease; }
+.week-num { font-family:'Bebas Neue'; font-size:28px; color:var(--dead); line-height:1; width:32px; text-align:center; flex-shrink:0; transition:color 0.2s; }
+.week-num.checked { color:var(--gold); }
+.week-info .week-title { font-size:11px; color:var(--muted); font-weight:700; transition:color 0.2s; letter-spacing:0.5px; }
+.week-info .week-title.checked { color:var(--text); }
+.week-info .week-sub { font-size:9px; color:var(--dead); margin-top:2px; transition:color 0.2s; }
+.week-info .week-sub.checked { color:rgba(245,200,66,0.5); }
+.week-right { text-align:right; }
+.week-total { font-family:'Bebas Neue'; font-size:20px; color:var(--dead); transition:color 0.2s; }
+.week-total.checked { color:var(--gold); }
+.week-total-label { font-size:7px; color:var(--dead); text-transform:uppercase; letter-spacing:1px; margin-top:1px; }
+.goal-divider { text-align:center; padding:9px 0; margin:8px 0; font-family:'Bebas Neue'; font-size:12px; letter-spacing:5px; color:var(--gold); text-transform:uppercase; border-top:1px dashed rgba(245,200,66,0.2); border-bottom:1px dashed rgba(245,200,66,0.2); background:rgba(245,200,66,0.03); border-radius:4px; }
+
+/* BREAKDOWN */
+.income-hero { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px 18px; margin-bottom:16px; position:relative; overflow:hidden; text-align:center; }
+.income-hero::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 0%,rgba(245,200,66,0.06) 0%,transparent 65%); }
+.income-label { font-size:9px; color:var(--dim); letter-spacing:4px; text-transform:uppercase; margin-bottom:4px; position:relative; }
+.income-amount { font-family:'Bebas Neue'; font-size:64px; color:var(--gold); letter-spacing:2px; line-height:1; position:relative; }
+.income-sub { font-size:9px; color:var(--dim); margin-top:4px; letter-spacing:1px; position:relative; }
+.income-tag { display:inline-block; margin-top:8px; background:rgba(245,200,66,0.1); border:1px solid rgba(245,200,66,0.2); border-radius:20px; padding:3px 10px; font-size:9px; color:var(--gold); letter-spacing:1px; position:relative; }
+
+.tax-row { display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:11px 14px; margin-bottom:7px; }
+.tax-label { font-size:10px; color:var(--muted); }
+.tax-val { font-size:13px; font-weight:700; }
+
+.breakdown-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.breakdown-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 13px; position:relative; overflow:hidden; }
+.breakdown-icon { font-size:22px; margin-bottom:8px; }
+.breakdown-name { font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:4px; text-transform:uppercase; }
+.breakdown-amount { font-family:'Bebas Neue'; font-size:28px; letter-spacing:1px; line-height:1; }
+.breakdown-pct { font-size:8px; color:var(--dead); margin-top:2px; }
+.bar-mini { height:3px; background:var(--border); border-radius:2px; margin-top:8px; overflow:hidden; }
+.bar-mini-fill { height:100%; border-radius:2px; transition:width 1s cubic-bezier(0.34,1.56,0.64,1); }
+
+.after-car-card { background:var(--surface2); border:1px dashed rgba(74,222,128,0.25); border-radius:12px; padding:16px 14px; margin-top:4px; }
+.after-car-title { font-size:9px; letter-spacing:3px; color:var(--green); text-transform:uppercase; margin-bottom:10px; }
+.after-car-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border2); }
+.after-car-row:last-child { border-bottom:none; }
+.after-car-label { font-size:10px; color:var(--muted); }
+.after-car-val { font-size:13px; font-weight:700; }
+
+/* MILESTONES */
+.milestone-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 14px; margin-bottom:9px; transition:all 0.3s ease; animation:fadeUp 0.25s ease both; }
+.milestone-card.reached { background:linear-gradient(135deg,rgba(245,200,66,0.09),rgba(255,233,122,0.03)); border-color:rgba(245,200,66,0.3); }
+.milestone-card.next { border-color:rgba(245,200,66,0.2); }
+.milestone-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+.milestone-emoji { font-size:26px; margin-right:10px; }
+.milestone-name { font-family:'Syne',sans-serif; font-size:14px; color:var(--text); font-weight:700; }
+.milestone-name.reached { color:var(--gold); }
+.milestone-date { font-size:9px; color:var(--dead); margin-top:3px; letter-spacing:1px; }
+.milestone-right { text-align:right; flex-shrink:0; }
+.milestone-amount { font-family:'Bebas Neue'; font-size:26px; color:var(--dead); letter-spacing:1px; }
+.milestone-amount.reached { color:var(--gold); }
+.milestone-badge { display:inline-block; background:rgba(74,222,128,0.15); border:1px solid rgba(74,222,128,0.3); color:var(--green); font-size:8px; letter-spacing:2px; padding:2px 7px; border-radius:20px; margin-top:3px; text-transform:uppercase; }
+.milestone-togo { font-size:9px; color:var(--dim); margin-top:8px; }
+.milestone-bar { height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+.milestone-bar-fill { height:100%; border-radius:2px; transition:width 1s cubic-bezier(0.34,1.56,0.64,1); }
+
+.pace-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:14px; }
+.pace-title { font-size:9px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; margin-bottom:12px; }
+.pace-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; }
+.pace-row + .pace-row { border-top:1px solid var(--border2); }
+.pace-label { font-size:10px; color:var(--muted); }
+.pace-val { font-size:12px; font-weight:700; }
+
+.rules-wrap { margin-top:4px; }
+.rule-item { display:flex; gap:12px; padding:13px 0; align-items:flex-start; border-bottom:1px solid var(--border2); animation:fadeUp 0.2s ease both; }
+.rule-item:last-child { border-bottom:none; }
+.rule-icon { font-size:18px; flex-shrink:0; }
+.rule-text { font-size:11px; color:var(--muted); line-height:1.6; }
+.rule-text strong { color:var(--gold); font-weight:700; }
+
+.footer-wrap { margin-top:20px; padding:20px 14px; text-align:center; background:var(--surface); border-radius:14px; border:1px solid var(--border); position:relative; overflow:hidden; }
+.footer-wrap::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 100%,rgba(245,200,66,0.06) 0%,transparent 60%); }
+.footer-line1 { font-family:'Bebas Neue'; font-size:32px; letter-spacing:4px; position:relative; }
+.footer-line2 { font-family:'Bebas Neue'; font-size:28px; letter-spacing:3px; color:var(--dead); margin-top:-4px; position:relative; }
+.footer-date { font-size:9px; color:var(--dead); margin-top:8px; letter-spacing:2px; position:relative; }
+
+#toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--border); color:var(--text); font-size:11px; padding:9px 18px; border-radius:30px; opacity:0; transition:all 0.3s ease; z-index:1000; white-space:nowrap; pointer-events:none; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.safe-bottom { height:max(env(safe-area-inset-bottom),16px); flex-shrink:0; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="ticker-wrap">
+    <div class="ticker-inner" id="ticker">
+      <span class="ticker-text">🚗 CAR FUND 2026</span><span class="ticker-text">·</span>
+      <span class="ticker-text">AMAZON ONLY</span><span class="ticker-text">·</span>
+      <span class="ticker-text">$616 TAKE-HOME</span><span class="ticker-text">·</span>
+      <span class="ticker-text">$250 EVERY WEDNESDAY</span><span class="ticker-text">·</span>
+      <span class="ticker-text">NO EATING OUT</span><span class="ticker-text">·</span>
+      <span class="ticker-text">20 WEEKS TO $5K</span><span class="ticker-text">·</span>
+      <span class="ticker-text">🚗 CAR FUND 2026</span><span class="ticker-text">·</span>
+      <span class="ticker-text">AMAZON ONLY</span><span class="ticker-text">·</span>
+      <span class="ticker-text">$616 TAKE-HOME</span><span class="ticker-text">·</span>
+      <span class="ticker-text">$250 EVERY WEDNESDAY</span><span class="ticker-text">·</span>
+      <span class="ticker-text">NO EATING OUT</span><span class="ticker-text">·</span>
+      <span class="ticker-text">20 WEEKS TO $5K</span><span class="ticker-text">·</span>
+    </div>
+  </div>
+
+  <div id="header">
+    <div class="scan-line"></div>
+    <div class="corner-mark" id="corner-date">JUN 2026</div>
+    <div class="header-inner">
+      <div class="eyebrow">Amazon · 40hrs · $19.25/hr</div>
+      <div class="title-line1">CAR FUND</div>
+      <div class="title-line2"><span class="gold-text">TRACKER</span></div>
+      <div class="pay-chips">
+        <div class="pay-chip">
+          <div class="pay-chip-label">Gross</div>
+          <div class="pay-chip-val" style="color:var(--muted)">$770</div>
+        </div>
+        <div class="pay-chip">
+          <div class="pay-chip-label">Tax 20%</div>
+          <div class="pay-chip-val" style="color:var(--red)">-$154</div>
+        </div>
+        <div class="pay-chip">
+          <div class="pay-chip-label">Take-Home</div>
+          <div class="pay-chip-val" style="color:var(--gold)">$616</div>
+        </div>
+      </div>
+      <div class="hero-number-wrap">
+        <div class="hero-dollar">$</div>
+        <div class="hero-number" id="hero-num">0</div>
+        <div class="hero-denom">/ $5,000</div>
+      </div>
+      <div class="prog-header">
+        <span class="prog-label">Progress to car</span>
+        <span class="prog-pct" id="prog-pct-label">0%</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="stats-row">
+        <div class="stat-card gold-top">
+          <div class="stat-label">Saved</div>
+          <div class="stat-value" id="stat-saved">$0</div>
+          <div class="stat-sub">of $5K goal</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Wks Left</div>
+          <div class="stat-value" id="stat-weeks">20</div>
+          <div class="stat-sub" id="stat-weeks-sub">0 saved</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Status</div>
+          <div class="stat-value" id="stat-track">—</div>
+          <div class="stat-sub" id="stat-sub2">tap to track</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabs">
+    <button class="tab-btn active" data-tab="tracker" onclick="switchTab('tracker')">⬜ TRACK</button>
+    <button class="tab-btn" data-tab="breakdown" onclick="switchTab('breakdown')">💰 MONEY</button>
+    <button class="tab-btn" data-tab="milestones" onclick="switchTab('milestones')">🏁 GOALS</button>
+  </div>
+
+  <div id="content"></div>
+  <div class="safe-bottom"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const GROSS     = 770;
+const TAX_RATE  = 0.20;
+const TAX       = Math.round(GROSS * TAX_RATE);   // 154
+const INCOME    = GROSS - TAX;                     // 616
+const SAVINGS   = 250;
+const BILLS     = 200;
+const RIDES     = 80;
+const FOOD      = 70;
+const LEFT      = INCOME - SAVINGS - BILLS - RIDES - FOOD;  // 16
+const GOAL      = 5000;
+const DEBT_AMT  = 410;
+
+// Week 0 = Jun 17 (debt payoff), Weeks 1-20 = savings (Jun 24 → Nov 11)
+const TOTAL_WEEKS = 21; // 1 debt + 20 saving
+const SAVE_WEEKS  = 20;
+const DEBT_WEEK   = 0;
+const SAVE_START  = 1;
+
+const WEDNESDAYS = (() => {
+  const dates = [];
+  let d = new Date("2026-06-17T12:00:00");
+  for (let i = 0; i < TOTAL_WEEKS; i++) {
+    dates.push(new Date(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return dates;
+})();
+
+const BREAKDOWN = [
+  { label:"Car Savings", amount:SAVINGS, color:"#F5C842", icon:"🚗", desc:"locked away" },
+  { label:"Bills",       amount:BILLS,   color:"#FF5757", icon:"🏠", desc:"non-negotiable" },
+  { label:"Rides",       amount:RIDES,   color:"#60A5FA", icon:"🚕", desc:"until you drive" },
+  { label:"Food",        amount:FOOD,    color:"#4ADE80", icon:"🍗", desc:"groceries only" },
+  { label:"Left Over",   amount:LEFT,    color:"#FB923C", icon:"💵", desc:"buffer" },
+];
+
+const MILESTONES = [
+  { label:"Debt Gone",    date:"Jun 17", target:0,    emoji:"💳", color:"#FF5757", isDebt:true },
+  { label:"First Month",  date:"Jul 23", target:1000, emoji:"🌱", color:"#4ADE80" },
+  { label:"Halfway",      date:"Sep 3",  target:2500, emoji:"⚡", color:"#FB923C" },
+  { label:"Car Budget",   date:"Nov 12", target:5000, emoji:"🎯", color:"#F5C842" },
+  { label:"Max Stack",    date:"Nov 12", target:SAVE_WEEKS * SAVINGS, emoji:"🏆", color:"#C084FC" },
+];
+
+const RULES = [
+  { text:"<strong>Zero eating out</strong> — 5 months straight", icon:"🚫" },
+  { text:"Move <strong>$250 every Wednesday</strong> — no skipping", icon:"📅" },
+  { text:"Car fund is <strong>untouchable</strong>", icon:"🔒" },
+  { text:"Start shopping at <strong>$4,500</strong>", icon:"🔍" },
+  { text:"After the car: <strong>$80/wk rides freed up</strong> → apartment fund", icon:"🏠" },
+];
+
+const fmt = d => d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+const fmtMoney = n => "$" + n.toLocaleString();
+
+// ── STATE ─────────────────────────────────────────────
+let checkedWeeks = {}, currentTab = "tracker";
+try { checkedWeeks = JSON.parse(localStorage.getItem("cf_weeks2") || "{}"); } catch(e){}
+function save() { try { localStorage.setItem("cf_weeks2", JSON.stringify(checkedWeeks)); } catch(e){} }
+
+// ── STATS ─────────────────────────────────────────────
+function getStats() {
+  const allChecked = Object.entries(checkedWeeks).filter(([,v])=>v);
+  const savingsDone = allChecked.filter(([k])=>parseInt(k)>=SAVE_START).length;
+  const saved = savingsDone * SAVINGS;
+  const debtCleared = !!checkedWeeks[DEBT_WEEK];
+  const pct = Math.min((saved/GOAL)*100, 100);
+  const today = new Date();
+  const cwi = WEDNESDAYS.findIndex((d,i) => {
+    const next = WEDNESDAYS[i+1];
+    return today >= d && (!next || today < next);
+  });
+  const expectedDone = cwi >= SAVE_START ? cwi - SAVE_START + 1 : 0;
+  const onTrack = savingsDone >= expectedDone;
+  return { savingsDone, saved, pct, left: SAVE_WEEKS - savingsDone, onTrack, cwi, debtCleared };
+}
+
+function getCurrentWeekIdx() {
+  const today = new Date();
+  for (let i = TOTAL_WEEKS-1; i >= 0; i--) {
+    if (today >= WEDNESDAYS[i]) return i;
+  }
+  return -1;
+}
+
+// ── HEADER ────────────────────────────────────────────
+function updateHeader() {
+  const { savingsDone, saved, pct, left, onTrack, debtCleared } = getStats();
+  animateNumber("hero-num", saved);
+  document.getElementById("stat-saved").textContent = fmtMoney(saved);
+  document.getElementById("stat-weeks").textContent = left;
+  document.getElementById("stat-weeks-sub").textContent = savingsDone + " saved";
+  const trackEl = document.getElementById("stat-track");
+  const sub2El  = document.getElementById("stat-sub2");
+  if (savingsDone === 0 && !debtCleared) {
+    trackEl.textContent = "—"; trackEl.className = "stat-value";
+    sub2El.textContent = "clear debt first";
+  } else if (savingsDone === 0) {
+    trackEl.textContent = "READY"; trackEl.className = "stat-value stat-on-track";
+    sub2El.textContent = "debt cleared!";
+  } else if (onTrack) {
+    trackEl.textContent = "ON TRACK"; trackEl.className = "stat-value stat-on-track";
+    sub2El.textContent = Math.round(pct) + "% done";
+  } else {
+    trackEl.textContent = "BEHIND"; trackEl.className = "stat-value stat-off-track";
+    sub2El.textContent = "catch up!";
+  }
+  document.getElementById("prog-fill").style.width = pct + "%";
+  document.getElementById("prog-pct-label").textContent = Math.round(pct) + "%";
+  updateTicker(savingsDone, saved, left);
+}
+
+function animateNumber(id, target) {
+  const el = document.getElementById(id); if(!el) return;
+  const current = parseInt(el.textContent.replace(/,/g,"")) || 0;
+  if (current === target) return;
+  const diff = target - current, steps = 20; let step = 0;
+  const iv = setInterval(() => {
+    step++;
+    el.textContent = Math.round(current + diff*step/steps).toLocaleString();
+    if (step >= steps) { el.textContent = target.toLocaleString(); clearInterval(iv); }
+  }, 25);
+}
+
+function updateTicker(done, saved, left) {
+  const pct = Math.round((saved/GOAL)*100);
+  const texts = [
+    "🚗 CAR FUND 2026","·","AMAZON ONLY","·",
+    `$${saved.toLocaleString()} SAVED`,"·",
+    `${pct}% TO GOAL`,"·",
+    `${left} WEEKS LEFT`,"·",
+    "NO EATING OUT","·",
+    "$250 EVERY WEDNESDAY","·",
+    "🚗 CAR FUND 2026","·","AMAZON ONLY","·",
+    `$${saved.toLocaleString()} SAVED`,"·",
+    `${pct}% TO GOAL`,"·",
+    `${left} WEEKS LEFT`,"·",
+    "NO EATING OUT","·",
+    "$250 EVERY WEDNESDAY","·",
+  ];
+  const t = document.getElementById("ticker");
+  if(t) t.innerHTML = texts.map(x=>`<span class="ticker-text">${x}</span>`).join("");
+}
+
+// ── CONFETTI / TOAST ──────────────────────────────────
+function spawnConfetti(x, y) {
+  ["🎉","✨","💰","🚗","⭐","🏆"].forEach((e,i) => {
+    const el = document.createElement("div");
+    el.className = "confetti"; el.textContent = e;
+    el.style.left = (x + Math.random()*60-30)+"px";
+    el.style.top  = (y-10)+"px";
+    el.style.animationDelay = (i*0.06)+"s";
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 1300);
+  });
+}
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2400);
+}
+
+// ── TABS ──────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  renderContent();
+}
+
+// ── TOGGLE ────────────────────────────────────────────
+function toggleWeek(i, event) {
+  checkedWeeks[i] = !checkedWeeks[i];
+  save(); updateHeader();
+  const card = document.querySelector(`[data-week="${i}"]`); if(!card) return;
+  const checked = checkedWeeks[i];
+  card.classList.toggle("checked", checked);
+  card.classList.add("popping");
+  setTimeout(()=>card.classList.remove("popping"), 400);
+  card.querySelector(".checkbox").classList.toggle("checked", checked);
+  card.querySelector(".checkbox").textContent = checked ? "✓" : "";
+  card.querySelector(".week-num").classList.toggle("checked", checked);
+  card.querySelector(".week-title").classList.toggle("checked", checked);
+  card.querySelector(".week-sub").classList.toggle("checked", checked);
+  const wtEl = card.querySelector(".week-total");
+  if (wtEl) wtEl.classList.toggle("checked", checked);
+  if (checked) {
+    const rect = card.getBoundingClientRect();
+    spawnConfetti(rect.left+rect.width/2, rect.top+20);
+    if (i === DEBT_WEEK) {
+      showToast("🎉 $410 debt cleared! Savings start now!");
+    } else {
+      const {saved} = getStats();
+      showToast("💰 " + fmtMoney(saved) + " saved so far!");
+    }
+  } else {
+    showToast("Week " + (i===DEBT_WEEK?"1 (debt)":i) + " unchecked");
+  }
+}
+
+// ── RENDER TRACKER ────────────────────────────────────
+function renderTracker() {
+  const cwi = getCurrentWeekIdx();
+  const debtChecked = !!checkedWeeks[0];
+  const isCurrDebt  = cwi === 0;
+
+  let html = `<div class="section-label">Tap each Wednesday when done</div>`;
+
+  // ── Debt week
+  html += `
+    <div class="goal-divider" style="color:var(--red);border-color:rgba(255,87,87,0.2);background:rgba(255,87,87,0.03)">
+      🔴 Jun 17 — Pay Off $410 Credit Card
+    </div>
+    <div class="week-card ${debtChecked?"checked":""} ${isCurrDebt&&!debtChecked?"current-week":""}"
+         data-week="0" onclick="toggleWeek(0,event)"
+         style="border-color:${debtChecked?"rgba(74,222,128,0.3)":"rgba(255,87,87,0.25)"}">
+      <div class="week-left">
+        <div class="checkbox ${debtChecked?"checked":""}" style="${!debtChecked?"border-color:var(--red)":""}">${debtChecked?"✓":""}</div>
+        <div class="week-num ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">01</div>
+        <div class="week-info">
+          <div class="week-title ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">Jun 17 · Debt Cleared</div>
+          <div class="week-sub ${debtChecked?"checked":""}">$410 credit card → gone</div>
+        </div>
+      </div>
+      <div class="week-right">
+        <div class="week-total" style="color:${debtChecked?"var(--green)":"var(--red)"}">${debtChecked?"CLEAR ✓":"-$410"}</div>
+        <div class="week-total-label">debt payoff</div>
+      </div>
+    </div>
+    <div class="goal-divider" style="margin-top:10px">💰 Jun 24 — Savings Begin ($250/wk)</div>`;
+
+  // ── Saving weeks 1–20
+  for (let i = 1; i < TOTAL_WEEKS; i++) {
+    const sn = i; // saving number
+    const running = sn * SAVINGS;
+    const checked = !!checkedWeeks[i];
+    const isCurr   = i === cwi;
+    const isFuture = i > cwi + 1 && !checked;
+    const isGoal   = running >= GOAL && (sn-1)*SAVINGS < GOAL;
+
+    if (isGoal) html += `<div class="goal-divider">🎯 $5,000 Hit — Time to Buy</div>`;
+
+    html += `
+      <div class="week-card ${checked?"checked":""} ${isCurr&&!checked?"current-week":""} ${isFuture?"future":""}"
+           data-week="${i}" onclick="toggleWeek(${i},event)" style="animation-delay:${i*12}ms">
+        <div class="week-left">
+          <div class="checkbox ${checked?"checked":""}">${checked?"✓":""}</div>
+          <div class="week-num ${checked?"checked":""}">${String(sn).padStart(2,"0")}</div>
+          <div class="week-info">
+            <div class="week-title ${checked?"checked":""}">${fmt(WEDNESDAYS[i])}</div>
+            <div class="week-sub ${checked?"checked":""}">+$250 → fund</div>
+          </div>
+        </div>
+        <div class="week-right">
+          <div class="week-total ${checked?"checked":""}">${fmtMoney(running)}</div>
+          <div class="week-total-label">running total</div>
+        </div>
+      </div>`;
+  }
+  return html;
+}
+
+// ── RENDER BREAKDOWN ──────────────────────────────────
+function renderBreakdown() {
+  const taxPct = Math.round((TAX/GROSS)*100);
+  let html = `
+    <div class="income-hero">
+      <div class="income-label">Weekly Gross Pay</div>
+      <div class="income-amount">$770</div>
+      <div class="income-sub">40 hrs × $19.25/hr</div>
+      <div class="income-tag">Amazon · Every Wednesday</div>
+    </div>
+    <div class="section-label">Tax breakdown</div>
+    <div class="tax-row">
+      <span class="tax-label">Gross pay</span>
+      <span class="tax-val" style="color:var(--muted)">$770</span>
+    </div>
+    <div class="tax-row">
+      <span class="tax-label">Federal + state tax (~20%)</span>
+      <span class="tax-val" style="color:var(--red)">-$154</span>
+    </div>
+    <div class="tax-row" style="border-color:rgba(245,200,66,0.3)">
+      <span class="tax-label" style="color:var(--gold)">Take-home</span>
+      <span class="tax-val" style="color:var(--gold)">$616</span>
+    </div>
+    <div class="section-label" style="margin-top:16px">Where $616 goes</div>
+    <div class="breakdown-grid">`;
+
+  BREAKDOWN.forEach(({label,amount,color,icon,desc}) => {
+    const pct = Math.round((amount/INCOME)*100);
+    html += `
+      <div class="breakdown-card" style="border-top:2px solid ${color}20">
+        <div class="breakdown-icon">${icon}</div>
+        <div class="breakdown-name">${label}</div>
+        <div class="breakdown-amount" style="color:${color}">${fmtMoney(amount)}</div>
+        <div class="breakdown-pct">${pct}% · ${desc}</div>
+        <div class="bar-mini"><div class="bar-mini-fill" style="width:${pct}%;background:${color};box-shadow:0 0 6px ${color}60"></div></div>
+      </div>`;
+  });
+
+  html += `</div>
+    <div class="after-car-card">
+      <div class="after-car-title">After Car Purchase</div>
+      <div class="after-car-row"><span class="after-car-label">Cut rides budget</span><span class="after-car-val" style="color:var(--blue)">-$80/wk</span></div>
+      <div class="after-car-row"><span class="after-car-label">Extra per week</span><span class="after-car-val" style="color:var(--green)">+$80/wk</span></div>
+      <div class="after-car-row"><span class="after-car-label">Extra per month</span><span class="after-car-val" style="color:var(--gold)">+$320/mo</span></div>
+      <div class="after-car-row"><span class="after-car-label">Redirect to</span><span class="after-car-val" style="color:var(--purple)">Apartment fund</span></div>
+    </div>`;
+  return html;
+}
+
+// ── RENDER MILESTONES ─────────────────────────────────
+function renderMilestones() {
+  const { saved, savingsDone, left, debtCleared } = getStats();
+  const weeksToGoal = Math.ceil(Math.max(0, GOAL - saved) / SAVINGS);
+  const goalDateIdx = Math.min(SAVE_START + savingsDone + weeksToGoal - 1, TOTAL_WEEKS-1);
+  const projDate = saved >= GOAL ? "DONE 🎉" : (weeksToGoal <= left ? fmt(WEDNESDAYS[goalDateIdx]) : "—");
+
+  let html = `
+    <div class="pace-card">
+      <div class="pace-title">Pace Calculator</div>
+      <div class="pace-row"><span class="pace-label">Debt cleared</span><span class="pace-val" style="color:${debtCleared?"var(--green)":"var(--red)"}">${debtCleared?"YES ✓":"Jun 17"}</span></div>
+      <div class="pace-row"><span class="pace-label">Savings weeks done</span><span class="pace-val" style="color:var(--gold)">${savingsDone} of 20</span></div>
+      <div class="pace-row"><span class="pace-label">Total saved</span><span class="pace-val" style="color:var(--gold)">${fmtMoney(saved)}</span></div>
+      <div class="pace-row"><span class="pace-label">Weeks to $5K</span><span class="pace-val" style="color:var(--blue)">${saved>=GOAL?"DONE":weeksToGoal+" more"}</span></div>
+      <div class="pace-row"><span class="pace-label">Projected goal date</span><span class="pace-val" style="color:var(--green)">${projDate}</span></div>
+      <div class="pace-row"><span class="pace-label">Full plan total (20 wks)</span><span class="pace-val" style="color:var(--purple)">${fmtMoney(SAVE_WEEKS*SAVINGS)}</span></div>
+    </div>
+    <div class="section-label">Milestones</div>`;
+
+  MILESTONES.forEach(({label,date,target,emoji,color,isDebt},idx) => {
+    const reached = isDebt ? debtCleared : saved >= target;
+    const isNext  = !reached && (idx===0 || (MILESTONES[idx-1].isDebt ? debtCleared : saved >= MILESTONES[idx-1].target));
+    const pct     = isDebt ? (debtCleared?100:0) : Math.min((saved/target)*100,100);
+    html += `
+      <div class="milestone-card ${reached?"reached":""} ${isNext?"next":""}" style="animation-delay:${idx*60}ms">
+        <div class="milestone-top">
+          <div style="display:flex;align-items:center">
+            <span class="milestone-emoji">${emoji}</span>
+            <div>
+              <div class="milestone-name ${reached?"reached":""}">${label}</div>
+              <div class="milestone-date">~${date}</div>
+            </div>
+          </div>
+          <div class="milestone-right">
+            <div class="milestone-amount ${reached?"reached":""}">${isDebt?"$410":fmtMoney(target)}</div>
+            ${reached?`<div class="milestone-badge">✓ Done</div>`:""}
+          </div>
+        </div>
+        <div class="milestone-bar">
+          <div class="milestone-bar-fill" style="width:${pct}%;background:${reached?`linear-gradient(90deg,${color}80,${color})`:color+"40"};${reached?`box-shadow:0 0 8px ${color}50`:""}"></div>
+        </div>
+        ${!reached?`<div class="milestone-togo">${isDebt?"Clear on Jun 17":fmtMoney(target-saved)+" to go · "+Math.round(pct)+"% there"}</div>`:""}
+      </div>`;
+  });
+
+  html += `
+    <div class="section-label">The Rules</div>
+    <div class="rules-wrap">
+      ${RULES.map((r,i)=>`<div class="rule-item" style="animation-delay:${i*50}ms"><span class="rule-icon">${r.icon}</span><span class="rule-text">${r.text}</span></div>`).join("")}
+    </div>
+    <div class="footer-wrap">
+      <div class="footer-line1"><span class="gold-text">5 MONTHS.</span></div>
+      <div class="footer-line2">THEN YOUR CAR.</div>
+      <div class="footer-date">Debt: Jun 17 · Save: Jun 24 → Nov 12, 2026</div>
+    </div>`;
+  return html;
+}
+
+// ── RENDER ────────────────────────────────────────────
+function renderContent() {
+  const el = document.getElementById("content");
+  if (currentTab==="tracker")    el.innerHTML = renderTracker();
+  else if (currentTab==="breakdown") el.innerHTML = renderBreakdown();
+  else                           el.innerHTML = renderMilestones();
+}
+
+// ── INIT ──────────────────────────────────────────────
+updateHeader();
+renderContent();
+document.getElementById("corner-date").textContent =
+  new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}).toUpperCase();
+</script>
+</body>
+</html>

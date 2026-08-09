@@ -46,18 +46,22 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 #app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width:430px; margin:0 auto; overflow:hidden; }
 
 /* TICKER */
-.ticker-wrap { background:var(--gold); padding:5px 0; overflow:hidden; flex-shrink:0; }
+/* This is the first thing in #app, so it — not #header — is what needs to
+   clear the notch/status bar. Previously only #header had top safe-area
+   padding, which left the ticker sitting under the iOS status bar in
+   standalone (home-screen) mode. */
+.ticker-wrap { background:var(--gold); padding:calc(env(safe-area-inset-top,0px) + 5px) 0 5px; overflow:hidden; flex-shrink:0; }
 .ticker-inner { display:flex; white-space:nowrap; animation:ticker 20s linear infinite; }
 .ticker-text { font-family:'Bebas Neue'; font-size:11px; letter-spacing:3px; color:#000; padding:0 20px; }
 
 /* HEADER */
 #header {
   background:var(--bg2); border-bottom:1px solid var(--border);
-  padding:max(env(safe-area-inset-top),28px) 18px 20px;
+  padding:28px 18px 20px;
   position:relative; overflow:hidden; flex-shrink:0;
 }
 .scan-line { position:absolute; left:0; right:0; height:60px; pointer-events:none; background:linear-gradient(to bottom,transparent,rgba(245,200,66,0.04),transparent); animation:scan 6s linear infinite; }
-.corner-mark { position:absolute; top:max(env(safe-area-inset-top),28px); right:18px; font-family:'Bebas Neue'; font-size:11px; letter-spacing:2px; color:rgba(245,200,66,0.3); }
+.corner-mark { position:absolute; top:28px; right:18px; font-family:'Bebas Neue'; font-size:11px; letter-spacing:2px; color:rgba(245,200,66,0.3); }
 .header-inner { position:relative; }
 .eyebrow { display:flex; align-items:center; gap:8px; font-size:9px; letter-spacing:4px; color:rgba(245,200,66,0.45); text-transform:uppercase; margin-bottom:8px; padding-right:96px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .eyebrow::before { content:''; width:20px; height:1px; background:rgba(245,200,66,0.3); }
@@ -864,6 +868,30 @@ function renderContent() {
   else if (currentTab==="settings")   el.innerHTML = renderSettings();
   else                                el.innerHTML = renderMilestones();
 }
+
+// ── VIEWPORT HEIGHT ─────────────────────────────────────
+// iOS Safari (especially installed to the home screen) is unreliable about
+// recomputing 100dvh after the on-screen keyboard closes or the browser
+// chrome resizes — it can leave #app taller than the real visible area,
+// showing as dead black space below the last card. Driving the height from
+// visualViewport (or innerHeight as a fallback) and refreshing it on every
+// resize/orientation change sidesteps that lag instead of trusting the CSS
+// unit alone.
+function setAppHeight() {
+  const vv = window.visualViewport;
+  const h = vv ? vv.height : window.innerHeight;
+  document.getElementById("app").style.height = h + "px";
+}
+setAppHeight();
+window.addEventListener("resize", setAppHeight);
+window.addEventListener("orientationchange", () => setTimeout(setAppHeight, 50));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", setAppHeight);
+  window.visualViewport.addEventListener("scroll", setAppHeight);
+}
+// Also catch the moment the on-screen keyboard closes after editing a
+// Setup field, which is exactly when the stale-height bug tends to show up.
+document.addEventListener("focusout", () => setTimeout(setAppHeight, 100), true);
 
 // ── INIT ──────────────────────────────────────────────
 recompute();

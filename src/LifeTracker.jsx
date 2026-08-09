@@ -1153,6 +1153,7 @@ export default function LifeTracker() {
   const [planCategory, setPlanCategory] = useState('');
   const [planAmount, setPlanAmount] = useState('');
   const [logConfirmed, setLogConfirmed] = useState(false);
+  const [addSavingsAmount, setAddSavingsAmount] = useState('');
   const [editingBillId, setEditingBillId] = useState(null);
   const [editBillName, setEditBillName] = useState('');
   const [editBillAmount, setEditBillAmount] = useState('');
@@ -1562,6 +1563,31 @@ export default function LifeTracker() {
   }
   function updateGoal(field, value) {
     updateBudget({ ...budget, goal: { ...budget.goal, [field]: value } });
+  }
+  // Adds to the running total instead of requiring you to work out and
+  // retype the whole new "Saved so far" number by hand each time. Follows
+  // the same debt-first rule as logWeeklyPlan: an outstanding debt gets paid
+  // down before anything counts toward the savings goal.
+  function addToSavings(amountStr) {
+    const amount = Number(amountStr);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const debtRemaining = budget.goal.debtCleared ? 0 : (Number(budget.goal.debtAmount) || 0);
+    let toDebt = 0, toGoal = amount;
+    if (debtRemaining > 0) {
+      toDebt = Math.min(debtRemaining, amount);
+      toGoal = amount - toDebt;
+    }
+    const newDebtRemaining = Math.max(0, debtRemaining - toDebt);
+    updateBudget({
+      ...budget,
+      goal: {
+        ...budget.goal,
+        saved: (Number(budget.goal.saved) || 0) + toGoal,
+        debtAmount: newDebtRemaining,
+        debtCleared: budget.goal.debtCleared || (newDebtRemaining === 0 && debtRemaining > 0),
+      },
+    });
+    setAddSavingsAmount('');
   }
   function toggleBillPaid(id, monthKey) {
     const current = budget.billPayments[monthKey] || [];
@@ -2369,6 +2395,18 @@ export default function LifeTracker() {
                 displayMax={fmtMoney(goal.target)}
                 accentVar="--accent2" barVar="--accent2"
               />
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="number"
+                  className="flex-1 text-sm px-3 py-2 focus:outline-none"
+                  style={inputStyle}
+                  value={addSavingsAmount}
+                  onChange={e => setAddSavingsAmount(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addToSavings(addSavingsAmount); }}
+                  placeholder="Add an amount…"
+                />
+                <BtnPrimary onClick={() => addToSavings(addSavingsAmount)}>Add to savings</BtnPrimary>
+              </div>
               {Number(goal.weeklySavingsAmount) > 0 ? (
                 (() => {
                   const remaining = Math.max(0, (Number(goal.target) || 0) - (Number(goal.saved) || 0));

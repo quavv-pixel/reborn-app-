@@ -2,11 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07090F">
+<meta name="description" content="Weekly savings tracker toward a $5,000 car fund.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Car Fund">
-<title>Car Fund</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>Car Fund Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -36,7 +43,7 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 }
 .confetti { position:fixed; pointer-events:none; z-index:9999; font-size:22px; animation:celebrate 1s ease forwards; }
 
-#app { display:flex; flex-direction:column; min-height:100vh; max-width:430px; margin:0 auto; }
+#app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width:430px; margin:0 auto; overflow:hidden; }
 
 /* TICKER */
 .ticker-wrap { background:var(--gold); padding:5px 0; overflow:hidden; flex-shrink:0; }
@@ -89,6 +96,7 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 #tabs { display:flex; background:var(--bg); border-bottom:1px solid var(--border); flex-shrink:0; position:sticky; top:0; z-index:10; }
 .tab-btn { flex:1; padding:13px 0; background:none; border:none; cursor:pointer; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--dim); border-bottom:2px solid transparent; transition:color 0.2s,border-color 0.2s; }
 .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+.tab-btn:focus-visible, .week-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 /* CONTENT */
 #content { flex:1; padding:16px 14px 80px; overflow-y:auto; }
@@ -291,7 +299,7 @@ const LEFT      = INCOME - SAVINGS - BILLS - RIDES - FOOD;  // 16
 const GOAL      = 5000;
 const DEBT_AMT  = 410;
 
-// Week 0 = Jun 17 (debt payoff), Weeks 1-20 = savings (Jun 24 → Nov 11)
+// Week 0 = Jun 17 (debt payoff), Weeks 1-20 = savings (Jun 24 → Nov 4)
 const TOTAL_WEEKS = 21; // 1 debt + 20 saving
 const SAVE_WEEKS  = 20;
 const DEBT_WEEK   = 0;
@@ -315,12 +323,14 @@ const BREAKDOWN = [
   { label:"Left Over",   amount:LEFT,    color:"#FB923C", icon:"💵", desc:"buffer" },
 ];
 
+// Dates are derived from WEDNESDAYS (target / SAVINGS = week index) instead of
+// being hand-typed, so they can never drift from the actual Wednesday schedule.
 const MILESTONES = [
-  { label:"Debt Gone",    date:"Jun 17", target:0,    emoji:"💳", color:"#FF5757", isDebt:true },
-  { label:"First Month",  date:"Jul 23", target:1000, emoji:"🌱", color:"#4ADE80" },
-  { label:"Halfway",      date:"Sep 3",  target:2500, emoji:"⚡", color:"#FB923C" },
-  { label:"Car Budget",   date:"Nov 12", target:5000, emoji:"🎯", color:"#F5C842" },
-  { label:"Max Stack",    date:"Nov 12", target:SAVE_WEEKS * SAVINGS, emoji:"🏆", color:"#C084FC" },
+  { label:"Debt Gone",      target:0,    emoji:"💳", color:"#FF5757", isDebt:true },
+  { label:"First Month",    target:1000, emoji:"🌱", color:"#4ADE80" },
+  { label:"Halfway",        target:2500, emoji:"⚡", color:"#FB923C" },
+  { label:"Start Shopping", target:4500, emoji:"🔍", color:"#60A5FA" },
+  { label:"Car Budget",     target:5000, emoji:"🎯", color:"#F5C842" },
 ];
 
 const RULES = [
@@ -391,15 +401,23 @@ function updateHeader() {
   updateTicker(savingsDone, saved, left);
 }
 
+// Tracks one in-flight interval per element id so rapid toggles don't spawn
+// overlapping intervals that race each other and leave the number stuck.
+const numberAnimations = {};
 function animateNumber(id, target) {
   const el = document.getElementById(id); if(!el) return;
+  if (numberAnimations[id]) clearInterval(numberAnimations[id]);
   const current = parseInt(el.textContent.replace(/,/g,"")) || 0;
   if (current === target) return;
   const diff = target - current, steps = 20; let step = 0;
-  const iv = setInterval(() => {
+  numberAnimations[id] = setInterval(() => {
     step++;
     el.textContent = Math.round(current + diff*step/steps).toLocaleString();
-    if (step >= steps) { el.textContent = target.toLocaleString(); clearInterval(iv); }
+    if (step >= steps) {
+      el.textContent = target.toLocaleString();
+      clearInterval(numberAnimations[id]);
+      delete numberAnimations[id];
+    }
   }, 25);
 }
 
@@ -432,7 +450,7 @@ function spawnConfetti(x, y) {
     el.style.top  = (y-10)+"px";
     el.style.animationDelay = (i*0.06)+"s";
     document.body.appendChild(el);
-    setTimeout(()=>el.remove(), 1300);
+    setTimeout(()=>el.remove(), 1500);
   });
 }
 let toastTimer;
@@ -458,6 +476,7 @@ function toggleWeek(i, event) {
   const checked = checkedWeeks[i];
   card.classList.toggle("checked", checked);
   card.classList.add("popping");
+  card.setAttribute("aria-checked", checked ? "true" : "false");
   setTimeout(()=>card.classList.remove("popping"), 400);
   card.querySelector(".checkbox").classList.toggle("checked", checked);
   card.querySelector(".checkbox").textContent = checked ? "✓" : "";
@@ -470,7 +489,7 @@ function toggleWeek(i, event) {
     const rect = card.getBoundingClientRect();
     spawnConfetti(rect.left+rect.width/2, rect.top+20);
     if (i === DEBT_WEEK) {
-      showToast("🎉 $410 debt cleared! Savings start now!");
+      showToast(`🎉 ${fmtMoney(DEBT_AMT)} debt cleared! Savings start now!`);
     } else {
       const {saved} = getStats();
       showToast("💰 " + fmtMoney(saved) + " saved so far!");
@@ -479,6 +498,14 @@ function toggleWeek(i, event) {
     showToast("Week " + (i===DEBT_WEEK?"1 (debt)":i) + " unchecked");
   }
 }
+
+function onWeekKeydown(event, i) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    toggleWeek(i, event);
+  }
+}
+window.onWeekKeydown = onWeekKeydown;
 
 // ── RENDER TRACKER ────────────────────────────────────
 function renderTracker() {
@@ -491,25 +518,26 @@ function renderTracker() {
   // ── Debt week
   html += `
     <div class="goal-divider" style="color:var(--red);border-color:rgba(255,87,87,0.2);background:rgba(255,87,87,0.03)">
-      🔴 Jun 17 — Pay Off $410 Credit Card
+      🔴 ${fmt(WEDNESDAYS[DEBT_WEEK])} — Pay Off ${fmtMoney(DEBT_AMT)} Credit Card
     </div>
     <div class="week-card ${debtChecked?"checked":""} ${isCurrDebt&&!debtChecked?"current-week":""}"
-         data-week="0" onclick="toggleWeek(0,event)"
+         data-week="0" tabindex="0" role="checkbox" aria-checked="${debtChecked}" aria-label="Debt payoff week"
+         onclick="toggleWeek(0,event)" onkeydown="onWeekKeydown(event,0)"
          style="border-color:${debtChecked?"rgba(74,222,128,0.3)":"rgba(255,87,87,0.25)"}">
       <div class="week-left">
         <div class="checkbox ${debtChecked?"checked":""}" style="${!debtChecked?"border-color:var(--red)":""}">${debtChecked?"✓":""}</div>
-        <div class="week-num ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">01</div>
+        <div class="week-num ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">00</div>
         <div class="week-info">
-          <div class="week-title ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">Jun 17 · Debt Cleared</div>
-          <div class="week-sub ${debtChecked?"checked":""}">$410 credit card → gone</div>
+          <div class="week-title ${debtChecked?"checked":""}" style="${!debtChecked?"color:var(--red)":""}">${fmt(WEDNESDAYS[DEBT_WEEK])} · Debt Cleared</div>
+          <div class="week-sub ${debtChecked?"checked":""}">${fmtMoney(DEBT_AMT)} credit card → gone</div>
         </div>
       </div>
       <div class="week-right">
-        <div class="week-total" style="color:${debtChecked?"var(--green)":"var(--red)"}">${debtChecked?"CLEAR ✓":"-$410"}</div>
+        <div class="week-total" style="color:${debtChecked?"var(--green)":"var(--red)"}">${debtChecked?"CLEAR ✓":"-"+fmtMoney(DEBT_AMT)}</div>
         <div class="week-total-label">debt payoff</div>
       </div>
     </div>
-    <div class="goal-divider" style="margin-top:10px">💰 Jun 24 — Savings Begin ($250/wk)</div>`;
+    <div class="goal-divider" style="margin-top:10px">💰 ${fmt(WEDNESDAYS[SAVE_START])} — Savings Begin (${fmtMoney(SAVINGS)}/wk)</div>`;
 
   // ── Saving weeks 1–20
   for (let i = 1; i < TOTAL_WEEKS; i++) {
@@ -520,17 +548,18 @@ function renderTracker() {
     const isFuture = i > cwi + 1 && !checked;
     const isGoal   = running >= GOAL && (sn-1)*SAVINGS < GOAL;
 
-    if (isGoal) html += `<div class="goal-divider">🎯 $5,000 Hit — Time to Buy</div>`;
+    if (isGoal) html += `<div class="goal-divider">🎯 ${fmtMoney(GOAL)} Hit — Time to Buy</div>`;
 
     html += `
       <div class="week-card ${checked?"checked":""} ${isCurr&&!checked?"current-week":""} ${isFuture?"future":""}"
-           data-week="${i}" onclick="toggleWeek(${i},event)" style="animation-delay:${i*12}ms">
+           data-week="${i}" tabindex="0" role="checkbox" aria-checked="${checked}" aria-label="Week ${sn}, ${fmt(WEDNESDAYS[i])}"
+           onclick="toggleWeek(${i},event)" onkeydown="onWeekKeydown(event,${i})" style="animation-delay:${i*12}ms">
         <div class="week-left">
           <div class="checkbox ${checked?"checked":""}">${checked?"✓":""}</div>
           <div class="week-num ${checked?"checked":""}">${String(sn).padStart(2,"0")}</div>
           <div class="week-info">
             <div class="week-title ${checked?"checked":""}">${fmt(WEDNESDAYS[i])}</div>
-            <div class="week-sub ${checked?"checked":""}">+$250 → fund</div>
+            <div class="week-sub ${checked?"checked":""}">+${fmtMoney(SAVINGS)} → fund</div>
           </div>
         </div>
         <div class="week-right">
@@ -548,24 +577,24 @@ function renderBreakdown() {
   let html = `
     <div class="income-hero">
       <div class="income-label">Weekly Gross Pay</div>
-      <div class="income-amount">$770</div>
+      <div class="income-amount">${fmtMoney(GROSS)}</div>
       <div class="income-sub">40 hrs × $19.25/hr</div>
       <div class="income-tag">Amazon · Every Wednesday</div>
     </div>
     <div class="section-label">Tax breakdown</div>
     <div class="tax-row">
       <span class="tax-label">Gross pay</span>
-      <span class="tax-val" style="color:var(--muted)">$770</span>
+      <span class="tax-val" style="color:var(--muted)">${fmtMoney(GROSS)}</span>
     </div>
     <div class="tax-row">
-      <span class="tax-label">Federal + state tax (~20%)</span>
-      <span class="tax-val" style="color:var(--red)">-$154</span>
+      <span class="tax-label">Federal + state tax (~${taxPct}%)</span>
+      <span class="tax-val" style="color:var(--red)">-${fmtMoney(TAX)}</span>
     </div>
     <div class="tax-row" style="border-color:rgba(245,200,66,0.3)">
       <span class="tax-label" style="color:var(--gold)">Take-home</span>
-      <span class="tax-val" style="color:var(--gold)">$616</span>
+      <span class="tax-val" style="color:var(--gold)">${fmtMoney(INCOME)}</span>
     </div>
-    <div class="section-label" style="margin-top:16px">Where $616 goes</div>
+    <div class="section-label" style="margin-top:16px">Where ${fmtMoney(INCOME)} goes</div>
     <div class="breakdown-grid">`;
 
   BREAKDOWN.forEach(({label,amount,color,icon,desc}) => {
@@ -583,9 +612,9 @@ function renderBreakdown() {
   html += `</div>
     <div class="after-car-card">
       <div class="after-car-title">After Car Purchase</div>
-      <div class="after-car-row"><span class="after-car-label">Cut rides budget</span><span class="after-car-val" style="color:var(--blue)">-$80/wk</span></div>
-      <div class="after-car-row"><span class="after-car-label">Extra per week</span><span class="after-car-val" style="color:var(--green)">+$80/wk</span></div>
-      <div class="after-car-row"><span class="after-car-label">Extra per month</span><span class="after-car-val" style="color:var(--gold)">+$320/mo</span></div>
+      <div class="after-car-row"><span class="after-car-label">Cut rides budget</span><span class="after-car-val" style="color:var(--blue)">-${fmtMoney(RIDES)}/wk</span></div>
+      <div class="after-car-row"><span class="after-car-label">Extra per week</span><span class="after-car-val" style="color:var(--green)">+${fmtMoney(RIDES)}/wk</span></div>
+      <div class="after-car-row"><span class="after-car-label">Extra per month</span><span class="after-car-val" style="color:var(--gold)">+${fmtMoney(RIDES*4)}/mo</span></div>
       <div class="after-car-row"><span class="after-car-label">Redirect to</span><span class="after-car-val" style="color:var(--purple)">Apartment fund</span></div>
     </div>`;
   return html;
@@ -601,19 +630,21 @@ function renderMilestones() {
   let html = `
     <div class="pace-card">
       <div class="pace-title">Pace Calculator</div>
-      <div class="pace-row"><span class="pace-label">Debt cleared</span><span class="pace-val" style="color:${debtCleared?"var(--green)":"var(--red)"}">${debtCleared?"YES ✓":"Jun 17"}</span></div>
-      <div class="pace-row"><span class="pace-label">Savings weeks done</span><span class="pace-val" style="color:var(--gold)">${savingsDone} of 20</span></div>
+      <div class="pace-row"><span class="pace-label">Debt cleared</span><span class="pace-val" style="color:${debtCleared?"var(--green)":"var(--red)"}">${debtCleared?"YES ✓":fmt(WEDNESDAYS[DEBT_WEEK])}</span></div>
+      <div class="pace-row"><span class="pace-label">Savings weeks done</span><span class="pace-val" style="color:var(--gold)">${savingsDone} of ${SAVE_WEEKS}</span></div>
       <div class="pace-row"><span class="pace-label">Total saved</span><span class="pace-val" style="color:var(--gold)">${fmtMoney(saved)}</span></div>
-      <div class="pace-row"><span class="pace-label">Weeks to $5K</span><span class="pace-val" style="color:var(--blue)">${saved>=GOAL?"DONE":weeksToGoal+" more"}</span></div>
+      <div class="pace-row"><span class="pace-label">Weeks to ${fmtMoney(GOAL)}</span><span class="pace-val" style="color:var(--blue)">${saved>=GOAL?"DONE":weeksToGoal+" more"}</span></div>
       <div class="pace-row"><span class="pace-label">Projected goal date</span><span class="pace-val" style="color:var(--green)">${projDate}</span></div>
-      <div class="pace-row"><span class="pace-label">Full plan total (20 wks)</span><span class="pace-val" style="color:var(--purple)">${fmtMoney(SAVE_WEEKS*SAVINGS)}</span></div>
+      <div class="pace-row"><span class="pace-label">Full plan total (${SAVE_WEEKS} wks)</span><span class="pace-val" style="color:var(--purple)">${fmtMoney(SAVE_WEEKS*SAVINGS)}</span></div>
     </div>
     <div class="section-label">Milestones</div>`;
 
-  MILESTONES.forEach(({label,date,target,emoji,color,isDebt},idx) => {
+  MILESTONES.forEach(({label,target,emoji,color,isDebt},idx) => {
     const reached = isDebt ? debtCleared : saved >= target;
     const isNext  = !reached && (idx===0 || (MILESTONES[idx-1].isDebt ? debtCleared : saved >= MILESTONES[idx-1].target));
     const pct     = isDebt ? (debtCleared?100:0) : Math.min((saved/target)*100,100);
+    const weekIdx = isDebt ? DEBT_WEEK : target / SAVINGS;
+    const dateLabel = fmt(WEDNESDAYS[weekIdx]);
     html += `
       <div class="milestone-card ${reached?"reached":""} ${isNext?"next":""}" style="animation-delay:${idx*60}ms">
         <div class="milestone-top">
@@ -621,18 +652,18 @@ function renderMilestones() {
             <span class="milestone-emoji">${emoji}</span>
             <div>
               <div class="milestone-name ${reached?"reached":""}">${label}</div>
-              <div class="milestone-date">~${date}</div>
+              <div class="milestone-date">~${dateLabel}</div>
             </div>
           </div>
           <div class="milestone-right">
-            <div class="milestone-amount ${reached?"reached":""}">${isDebt?"$410":fmtMoney(target)}</div>
+            <div class="milestone-amount ${reached?"reached":""}">${isDebt?fmtMoney(DEBT_AMT):fmtMoney(target)}</div>
             ${reached?`<div class="milestone-badge">✓ Done</div>`:""}
           </div>
         </div>
         <div class="milestone-bar">
           <div class="milestone-bar-fill" style="width:${pct}%;background:${reached?`linear-gradient(90deg,${color}80,${color})`:color+"40"};${reached?`box-shadow:0 0 8px ${color}50`:""}"></div>
         </div>
-        ${!reached?`<div class="milestone-togo">${isDebt?"Clear on Jun 17":fmtMoney(target-saved)+" to go · "+Math.round(pct)+"% there"}</div>`:""}
+        ${!reached?`<div class="milestone-togo">${isDebt?"Clear on "+dateLabel:fmtMoney(target-saved)+" to go · "+Math.round(pct)+"% there"}</div>`:""}
       </div>`;
   });
 
@@ -644,7 +675,7 @@ function renderMilestones() {
     <div class="footer-wrap">
       <div class="footer-line1"><span class="gold-text">5 MONTHS.</span></div>
       <div class="footer-line2">THEN YOUR CAR.</div>
-      <div class="footer-date">Debt: Jun 17 · Save: Jun 24 → Nov 12, 2026</div>
+      <div class="footer-date">Debt: ${fmt(WEDNESDAYS[DEBT_WEEK])} · Save: ${fmt(WEDNESDAYS[SAVE_START])} → ${fmt(WEDNESDAYS[TOTAL_WEEKS-1])}, 2026</div>
     </div>`;
   return html;
 }

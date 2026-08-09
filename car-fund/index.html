@@ -36,7 +36,6 @@ body { min-height:100vh; min-height:-webkit-fill-available; }
 @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
 @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.06)} 70%{transform:scale(0.97)} 100%{transform:scale(1)} }
 @keyframes pulse-gold { 0%,100%{box-shadow:0 0 0 0 rgba(184,134,46,0.28)} 50%{box-shadow:0 0 0 6px rgba(184,134,46,0)} }
-@keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 @keyframes celebrate { 0%{opacity:0;transform:translateY(0) scale(0.5)} 60%{opacity:1;transform:translateY(-40px) scale(1.1)} 100%{opacity:0;transform:translateY(-70px) scale(0.9)} }
 
 .gold-text { color:var(--gold); }
@@ -44,51 +43,42 @@ body { min-height:100vh; min-height:-webkit-fill-available; }
 
 #app { display:flex; flex-direction:column; height:100vh; height:-webkit-fill-available; height:100dvh; max-width:430px; margin:0 auto; overflow:hidden; }
 
-/* TICKER */
-/* This is the first thing in #app, so it — not #header — is what needs to
-   clear the notch/status bar. */
-.ticker-wrap { background:#F0E4C8; padding:calc(env(safe-area-inset-top,0px) + 5px) 0 5px; overflow:hidden; flex-shrink:0; border-bottom:1px solid var(--border); }
-.ticker-inner { display:flex; white-space:nowrap; animation:ticker 24s linear infinite; }
-.ticker-text { font-family:'Space Mono',monospace; font-weight:700; font-size:10px; letter-spacing:2px; color:var(--gold3); padding:0 18px; }
-
 /* HEADER */
+/* #header is the first thing in #app now (the ticker banner was dropped —
+   it ate space and read as a cheap marquee effect), so it's what needs to
+   clear the notch/status bar. Kept compact: the old header alone used to
+   run ~380px before the list even started. */
 #header {
   background:var(--bg2); border-bottom:1px solid var(--border);
-  padding:24px 18px 20px;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 14px;
   position:relative; overflow:hidden; flex-shrink:0;
 }
-.corner-mark { position:absolute; top:26px; right:18px; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--dim); }
+.corner-mark { position:absolute; top:calc(env(safe-area-inset-top,0px) + 16px); right:18px; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--dim); }
 .header-inner { position:relative; }
-.eyebrow { display:flex; align-items:center; gap:8px; font-size:9px; letter-spacing:3px; color:var(--gold3); text-transform:uppercase; margin-bottom:10px; padding-right:96px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.eyebrow { display:flex; align-items:center; gap:8px; font-size:9px; letter-spacing:3px; color:var(--gold3); text-transform:uppercase; margin-bottom:8px; padding-right:96px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .eyebrow::before { content:''; width:16px; height:1px; background:var(--gold); }
-.title-line1 { font-family:'Syne',sans-serif; font-weight:800; font-size:32px; letter-spacing:0.5px; line-height:1.05; color:var(--text); }
-.title-line2 { font-family:'Syne',sans-serif; font-weight:800; font-size:32px; letter-spacing:0.5px; line-height:1.05; }
-.hero-number-wrap { display:flex; align-items:baseline; gap:5px; margin:16px 0 16px; }
-.hero-dollar { font-family:'Syne',sans-serif; font-weight:800; font-size:18px; color:var(--gold); opacity:0.75; margin-top:2px; }
-.hero-number { font-family:'Syne',sans-serif; font-weight:800; font-size:52px; letter-spacing:-0.5px; line-height:1; color:var(--gold); }
-.hero-denom { font-size:10px; color:var(--dim); align-self:flex-end; padding-bottom:8px; letter-spacing:1px; }
-
-/* PAY CHIP */
-.pay-chips { display:flex; gap:6px; margin-bottom:14px; }
-.pay-chip { flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:9px 8px; text-align:center; }
-.pay-chip-label { font-size:7px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-.pay-chip-val { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; letter-spacing:0; }
+.title-line1 { font-family:'Syne',sans-serif; font-weight:800; font-size:24px; letter-spacing:0.3px; line-height:1.05; color:var(--text); }
+.title-line2 { font-family:'Syne',sans-serif; font-weight:800; font-size:24px; letter-spacing:0.3px; line-height:1.05; }
+.hero-number-wrap { display:flex; align-items:baseline; gap:5px; margin:10px 0 12px; }
+.hero-dollar { font-family:'Syne',sans-serif; font-weight:800; font-size:15px; color:var(--gold); opacity:0.75; margin-top:2px; }
+.hero-number { font-family:'Syne',sans-serif; font-weight:800; font-size:40px; letter-spacing:-0.5px; line-height:1; color:var(--gold); }
+.hero-denom { font-size:10px; color:var(--dim); align-self:flex-end; padding-bottom:6px; letter-spacing:1px; }
 
 /* PROGRESS */
-.prog-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+.prog-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
 .prog-label { font-size:9px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; }
 .prog-pct { font-size:13px; font-weight:700; color:var(--gold); }
-.prog-track { height:6px; background:var(--border2); border-radius:3px; overflow:hidden; margin-bottom:14px; }
+.prog-track { height:6px; background:var(--border2); border-radius:3px; overflow:hidden; margin-bottom:11px; }
 .prog-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--gold3),var(--gold),var(--gold2)); transition:width 1s cubic-bezier(0.34,1.56,0.64,1); }
 
 /* STATS */
 .stats-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; }
-.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 8px; text-align:center; position:relative; overflow:hidden; box-shadow:var(--shadow-sm); }
+.stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:8px 8px; text-align:center; position:relative; overflow:hidden; box-shadow:var(--shadow-sm); }
 .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--border2); }
 .stat-card.gold-top::before { background:linear-gradient(90deg,var(--gold3),var(--gold)); }
-.stat-label { font-size:8px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-.stat-value { font-family:'Syne',sans-serif; font-weight:700; font-size:17px; color:var(--gold); letter-spacing:0; line-height:1.2; }
-.stat-sub { font-size:8px; color:var(--dim); margin-top:3px; }
+.stat-label { font-size:8px; color:var(--dim); letter-spacing:2px; text-transform:uppercase; margin-bottom:3px; }
+.stat-value { font-family:'Space Mono',monospace; font-weight:700; font-size:15px; color:var(--gold); letter-spacing:0; line-height:1.2; }
+.stat-sub { font-size:8px; color:var(--dim); margin-top:2px; }
 .stat-on-track { color:var(--green) !important; }
 .stat-off-track { color:var(--red) !important; }
 
@@ -121,14 +111,14 @@ body { min-height:100vh; min-height:-webkit-fill-available; }
 .week-left { display:flex; align-items:center; gap:12px; }
 .checkbox { width:24px; height:24px; border-radius:7px; flex-shrink:0; border:2px solid var(--border2); background:transparent; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; transition:all 0.2s ease; }
 .checkbox.checked { background:var(--gold); border-color:var(--gold); animation:pulse-gold 0.5s ease; }
-.week-num { font-family:'Syne',sans-serif; font-weight:800; font-size:19px; color:var(--dead); line-height:1; width:30px; text-align:center; flex-shrink:0; transition:color 0.2s; }
+.week-num { font-family:'Space Mono',monospace; font-weight:700; font-size:16px; color:var(--dead); line-height:1; width:30px; text-align:center; flex-shrink:0; transition:color 0.2s; }
 .week-num.checked { color:var(--gold); }
 .week-info .week-title { font-size:11px; color:var(--muted); font-weight:700; transition:color 0.2s; letter-spacing:0.3px; }
 .week-info .week-title.checked { color:var(--text); }
 .week-info .week-sub { font-size:9px; color:var(--dim); margin-top:2px; transition:color 0.2s; }
 .week-info .week-sub.checked { color:var(--gold3); }
 .week-right { text-align:right; }
-.week-total { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; color:var(--dead); transition:color 0.2s; }
+.week-total { font-family:'Space Mono',monospace; font-weight:700; font-size:14px; color:var(--dead); transition:color 0.2s; }
 .week-total.checked { color:var(--gold); }
 .week-total-label { font-size:7px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
 .goal-divider { text-align:center; padding:9px 0; margin:10px 0; font-family:'Space Mono',monospace; font-weight:700; font-size:10px; letter-spacing:3px; color:var(--gold3); text-transform:uppercase; border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); background:var(--bg3); border-radius:6px; }
@@ -149,7 +139,7 @@ body { min-height:100vh; min-height:-webkit-fill-available; }
 .breakdown-card { background:var(--surface); border:1px solid var(--border); border-radius:13px; padding:14px 13px; position:relative; overflow:hidden; box-shadow:var(--shadow-sm); }
 .breakdown-icon { font-size:20px; margin-bottom:8px; }
 .breakdown-name { font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:5px; text-transform:uppercase; }
-.breakdown-amount { font-family:'Syne',sans-serif; font-weight:800; font-size:22px; letter-spacing:0; line-height:1; }
+.breakdown-amount { font-family:'Space Mono',monospace; font-weight:700; font-size:19px; letter-spacing:0; line-height:1; }
 .breakdown-pct { font-size:8px; color:var(--dim); margin-top:3px; }
 .bar-mini { height:3px; background:var(--border2); border-radius:2px; margin-top:9px; overflow:hidden; }
 .bar-mini-fill { height:100%; border-radius:2px; transition:width 1s cubic-bezier(0.34,1.56,0.64,1); }
@@ -171,7 +161,7 @@ body { min-height:100vh; min-height:-webkit-fill-available; }
 .milestone-name.reached { color:var(--gold3); }
 .milestone-date { font-size:9px; color:var(--dim); margin-top:3px; letter-spacing:1px; }
 .milestone-right { text-align:right; flex-shrink:0; }
-.milestone-amount { font-family:'Syne',sans-serif; font-weight:800; font-size:20px; color:var(--dead); letter-spacing:0; }
+.milestone-amount { font-family:'Space Mono',monospace; font-weight:700; font-size:17px; color:var(--dead); letter-spacing:0; }
 .milestone-amount.reached { color:var(--gold); }
 .milestone-badge { display:inline-block; background:rgba(47,143,91,0.12); border:1px solid rgba(47,143,91,0.35); color:var(--green); font-size:8px; letter-spacing:2px; padding:2px 8px; border-radius:20px; margin-top:4px; text-transform:uppercase; }
 .milestone-togo { font-size:9px; color:var(--dim); margin-top:8px; }
@@ -220,33 +210,12 @@ body { min-height:100vh; min-height:-webkit-fill-available; }
 <body>
 <div id="app">
 
-  <div class="ticker-wrap">
-    <div class="ticker-inner" id="ticker">
-      <span class="ticker-text">🚗 CAR FUND TRACKER</span><span class="ticker-text">·</span>
-      <span class="ticker-text">LOADING…</span><span class="ticker-text">·</span>
-    </div>
-  </div>
-
   <div id="header">
     <div class="corner-mark" id="corner-date">—</div>
     <div class="header-inner">
       <div class="eyebrow" id="eyebrow-text">Loading…</div>
       <div class="title-line1">Car Fund</div>
       <div class="title-line2"><span class="gold-text">Tracker</span></div>
-      <div class="pay-chips">
-        <div class="pay-chip">
-          <div class="pay-chip-label">Gross</div>
-          <div class="pay-chip-val" id="chip-gross-val" style="color:var(--muted)">$0</div>
-        </div>
-        <div class="pay-chip">
-          <div class="pay-chip-label" id="chip-tax-label">Tax</div>
-          <div class="pay-chip-val" id="chip-tax-val" style="color:var(--red)">-$0</div>
-        </div>
-        <div class="pay-chip">
-          <div class="pay-chip-label">Take-Home</div>
-          <div class="pay-chip-val" id="chip-income-val" style="color:var(--gold)">$0</div>
-        </div>
-      </div>
       <div class="hero-number-wrap">
         <div class="hero-dollar">$</div>
         <div class="hero-number" id="hero-num">0</div>
@@ -444,11 +413,7 @@ function updateHeader() {
   const D = STATE.D;
   const { savingsDone, saved, pct, left, onTrack, debtCleared } = getStats();
 
-  document.getElementById("eyebrow-text").textContent = `Every ${D.WEEKDAY_NAME} · ${fmtMoney(D.GROSS)}/wk`;
-  document.getElementById("chip-gross-val").textContent = fmtMoney(D.GROSS);
-  document.getElementById("chip-tax-label").textContent = `Tax ${Math.round(D.TAX_RATE*100)}%`;
-  document.getElementById("chip-tax-val").textContent = "-" + fmtMoney(D.TAX);
-  document.getElementById("chip-income-val").textContent = fmtMoney(D.INCOME);
+  document.getElementById("eyebrow-text").textContent = `Every ${D.WEEKDAY_NAME} · ${fmtMoney(D.GROSS)}/wk gross · ${fmtMoney(D.INCOME)} take-home`;
   document.getElementById("hero-denom").textContent = "/ " + fmtMoney(D.GOAL);
   document.getElementById("stat-saved-sub").textContent = "of " + fmtMoney(D.GOAL) + " goal";
 
@@ -473,7 +438,6 @@ function updateHeader() {
   }
   document.getElementById("prog-fill").style.width = pct + "%";
   document.getElementById("prog-pct-label").textContent = Math.round(pct) + "%";
-  updateTicker(D, savingsDone, saved, left);
 }
 
 // Tracks one in-flight interval per element id so rapid toggles don't spawn
@@ -494,20 +458,6 @@ function animateNumber(id, target) {
       delete numberAnimations[id];
     }
   }, 25);
-}
-
-function updateTicker(D, done, saved, left) {
-  const pct = D.GOAL > 0 ? Math.round((saved/D.GOAL)*100) : 0;
-  const parts = [
-    "🚗 CAR FUND TRACKER","·",
-    `${fmtMoney(saved)} SAVED`,"·",
-    `${pct}% TO GOAL`,"·",
-    `${left} WEEKS LEFT`,"·",
-    D.SAVINGS > 0 ? `${fmtMoney(D.SAVINGS)} EVERY ${D.WEEKDAY_NAME.toUpperCase()}` : "SET YOUR PLAN IN SETUP","·",
-  ];
-  const texts = parts.concat(parts);
-  const t = document.getElementById("ticker");
-  if(t) t.innerHTML = texts.map(x=>`<span class="ticker-text">${x}</span>`).join("");
 }
 
 // ── CONFETTI / TOAST ──────────────────────────────────

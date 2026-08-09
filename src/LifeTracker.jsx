@@ -1198,6 +1198,7 @@ export default function LifeTracker() {
       if (!r.habits || r.habits.length === 0) r.habits = DEFAULT_HABITS;
       if (!r.moodLog) r.moodLog = {};
       if (!b.weeklyPlan) b.weeklyPlan = DEFAULT_WEEKLY_PLAN;
+      b.weeklyPlan = b.weeklyPlan.map(p => (p.done === undefined ? { ...p, done: false } : p));
       if (b.weeklyIncome === undefined) b.weeklyIncome = 0;
       if (!b.bills) b.bills = DEFAULT_BILLS;
       if (!b.billPayments) b.billPayments = {};
@@ -1491,10 +1492,14 @@ export default function LifeTracker() {
   }
   function addPlanLine(category, amount) {
     if (!category.trim()) return;
-    updateBudget({ ...budget, weeklyPlan: [...budget.weeklyPlan, { id: uid(), category: category.trim(), amount: Number(amount) || 0 }] });
+    updateBudget({ ...budget, weeklyPlan: [...budget.weeklyPlan, { id: uid(), category: category.trim(), amount: Number(amount) || 0, done: false }] });
   }
   function deletePlanLine(id) {
     updateBudget({ ...budget, weeklyPlan: budget.weeklyPlan.filter(p => p.id !== id) });
+  }
+  function togglePlanDone(id) {
+    const weeklyPlan = budget.weeklyPlan.map(p => (p.id === id ? { ...p, done: !p.done } : p));
+    updateBudget({ ...budget, weeklyPlan });
   }
   // Deliberately independent from the weekly plan below — the goal's target
   // pace and someone's actual weekly plan don't have to match (they might be
@@ -2445,16 +2450,29 @@ export default function LifeTracker() {
               <div className="space-y-1">
                 {budget.weeklyPlan.map(p => (
                   <div key={p.id} className="flex items-center gap-2 text-sm">
+                    <button
+                      onClick={() => togglePlanDone(p.id)}
+                      title={p.done ? 'Done for this week — tap to undo' : 'Mark done for this week'}
+                      className="flex items-center justify-center shrink-0"
+                      style={{
+                        width: 20, height: 20,
+                        background: p.done ? 'var(--accent)' : 'transparent',
+                        border: `1.5px solid ${p.done ? 'var(--accent)' : 'var(--border)'}`,
+                        borderRadius: RADIUS_SM,
+                      }}
+                    >
+                      {p.done && <Check size={13} color="#fff" strokeWidth={3} />}
+                    </button>
                     <input
                       className="flex-1 text-sm px-2 py-1 focus:outline-none"
-                      style={inputStyle}
+                      style={{ ...inputStyle, opacity: p.done ? 0.55 : 1, textDecoration: p.done ? 'line-through' : 'none' }}
                       value={p.category}
                       onChange={e => updatePlanCategory(p.id, e.target.value)}
                     />
                     <input
                       type="number"
                       className="w-20 text-sm px-2 py-1 text-right"
-                      style={inputStyle}
+                      style={{ ...inputStyle, opacity: p.done ? 0.55 : 1 }}
                       value={p.amount}
                       onChange={e => updatePlanAmount(p.id, e.target.value === '' ? 0 : Number(e.target.value))}
                     />

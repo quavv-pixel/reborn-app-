@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#07090F">
 <meta name="description" content="Weekly savings tracker toward a car fund — pay, budget, and goal are all editable.">
@@ -25,7 +26,9 @@
   --text: #E8EDF5; --muted: #8896B0; --dim: #4A5670; --dead: #2A3350;
   --red: #FF5757; --green: #4ADE80; --blue: #60A5FA; --purple: #C084FC; --orange: #FB923C;
 }
+html { height:-webkit-fill-available; }
 html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Space Mono',monospace; overflow-x:hidden; overscroll-behavior:none; }
+body { min-height:100vh; min-height:-webkit-fill-available; }
 ::-webkit-scrollbar { display:none; }
 
 @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
@@ -43,7 +46,7 @@ html, body { height:100%; background:var(--bg); color:var(--text); font-family:'
 }
 .confetti { position:fixed; pointer-events:none; z-index:9999; font-size:22px; animation:celebrate 1s ease forwards; }
 
-#app { display:flex; flex-direction:column; height:100vh; height:100dvh; max-width:430px; margin:0 auto; overflow:hidden; }
+#app { display:flex; flex-direction:column; height:100vh; height:-webkit-fill-available; height:100dvh; max-width:430px; margin:0 auto; overflow:hidden; }
 
 /* TICKER */
 /* This is the first thing in #app, so it — not #header — is what needs to
@@ -868,30 +871,6 @@ function renderContent() {
   else if (currentTab==="settings")   el.innerHTML = renderSettings();
   else                                el.innerHTML = renderMilestones();
 }
-
-// ── VIEWPORT HEIGHT ─────────────────────────────────────
-// iOS Safari (especially installed to the home screen) is unreliable about
-// recomputing 100dvh after the on-screen keyboard closes or the browser
-// chrome resizes — it can leave #app taller than the real visible area,
-// showing as dead black space below the last card. Driving the height from
-// visualViewport (or innerHeight as a fallback) and refreshing it on every
-// resize/orientation change sidesteps that lag instead of trusting the CSS
-// unit alone.
-function setAppHeight() {
-  const vv = window.visualViewport;
-  const h = vv ? vv.height : window.innerHeight;
-  document.getElementById("app").style.height = h + "px";
-}
-setAppHeight();
-window.addEventListener("resize", setAppHeight);
-window.addEventListener("orientationchange", () => setTimeout(setAppHeight, 50));
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", setAppHeight);
-  window.visualViewport.addEventListener("scroll", setAppHeight);
-}
-// Also catch the moment the on-screen keyboard closes after editing a
-// Setup field, which is exactly when the stale-height bug tends to show up.
-document.addEventListener("focusout", () => setTimeout(setAppHeight, 100), true);
 
 // ── INIT ──────────────────────────────────────────────
 recompute();

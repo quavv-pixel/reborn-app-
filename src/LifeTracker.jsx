@@ -1152,6 +1152,7 @@ export default function LifeTracker() {
   const [billAmount, setBillAmount] = useState('');
   const [planCategory, setPlanCategory] = useState('');
   const [planAmount, setPlanAmount] = useState('');
+  const [logConfirmed, setLogConfirmed] = useState(false);
   const [editingBillId, setEditingBillId] = useState(null);
   const [editBillName, setEditBillName] = useState('');
   const [editBillAmount, setEditBillAmount] = useState('');
@@ -1512,8 +1513,19 @@ export default function LifeTracker() {
   // touched goal.saved, so the car-fund bar and the transaction ledger could
   // silently diverge. Now any weekly-plan line whose category matches the
   // goal name (or contains "saving") also adds to goal.saved here.
+  //
+  // BUG FIX: the button gave zero visible feedback on click — nothing on
+  // screen changed, so a user had no way to tell it worked and would often
+  // click it again "to make sure," silently doubling every transaction each
+  // extra click. Now a same-day re-click asks for confirmation instead of
+  // logging again automatically, and a successful log shows a brief inline
+  // confirmation on the button itself (see logConfirmed state below).
   function logWeeklyPlan() {
     const date = todayStr();
+    if (budget.lastLoggedDate === date) {
+      const ok = window.confirm("You already logged this week's plan today — log it again? This adds a second set of transactions.");
+      if (!ok) return;
+    }
     const incomeTx = { id: uid(), date, type: 'income', amount: budget.weeklyIncome, category: 'Paycheck' };
     const expenseTxs = budget.weeklyPlan.map(p => ({ id: uid(), date, type: 'expense', amount: p.amount, category: p.category }));
     const goalNameLower = (budget.goal.name || '').toLowerCase();
@@ -1537,6 +1549,7 @@ export default function LifeTracker() {
     updateBudget({
       ...budget,
       transactions: [incomeTx, ...expenseTxs, ...budget.transactions],
+      lastLoggedDate: date,
       goal: {
         ...budget.goal,
         saved: (Number(budget.goal.saved) || 0) + toGoal,
@@ -1544,6 +1557,8 @@ export default function LifeTracker() {
         debtCleared: budget.goal.debtCleared || newDebtRemaining === 0 && debtRemaining > 0,
       },
     });
+    setLogConfirmed(true);
+    setTimeout(() => setLogConfirmed(false), 2500);
   }
   function updateGoal(field, value) {
     updateBudget({ ...budget, goal: { ...budget.goal, [field]: value } });
@@ -2430,10 +2445,14 @@ export default function LifeTracker() {
               right={
                 <button
                   onClick={logWeeklyPlan}
-                  className="text-xs px-2 py-1"
-                  style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                  className="flex items-center gap-1 text-xs px-2 py-1"
+                  style={{
+                    border: `1px solid ${logConfirmed ? 'var(--accent2)' : 'var(--accent)'}`,
+                    color: logConfirmed ? 'var(--accent2)' : 'var(--accent)',
+                  }}
                 >
-                  Log this week
+                  {logConfirmed && <Check size={12} />}
+                  {logConfirmed ? 'Logged' : 'Log this week'}
                 </button>
               }
             >

@@ -6,13 +6,14 @@
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-const assets = readdirSync('dist/assets').map(f => `assets/${f}`);
+const out = process.argv[2] || 'dist'; // test builds pass their own folder
+const assets = readdirSync(`${out}/assets`).map(f => `assets/${f}`);
 // Paths are relative ("./", "assets/x.js"), so they resolve against wherever
 // sw.js is served — works on Vercel ("/") and GitHub Pages ("/reborn-app-/").
 const files = ['./', 'manifest.json', ...assets];
 const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 10);
 
-const swPath = 'dist/sw.js';
+const swPath = `${out}/sw.js`;
 let sw = readFileSync(swPath, 'utf8');
 const before = sw;
 sw = sw.replace("const CACHE = 'reborn-dev';", `const CACHE = 'reborn-${version}';`)

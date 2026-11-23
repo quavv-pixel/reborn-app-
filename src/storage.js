@@ -2,10 +2,11 @@
 // the phone/browser's own localStorage. Same method names and shapes as the
 // original, so life-tracker.jsx runs unmodified outside of Claude.
 //
-// NOTE: this is single-device storage — data stays on whichever phone or
-// browser it was entered on. For real cross-device sync, swap this file's
-// internals for a Firebase/Supabase client later; nothing in App.jsx or
-// life-tracker.jsx has to change, since they only ever call window.storage.
+// localStorage stays the main copy (instant, works offline). When cloud sync
+// is configured, every write/delete is also reported to src/sync/cloud.js,
+// which uploads it in the background. Nothing in the tabs had to change,
+// since they only ever call window.storage.
+import { noteLocalChange } from './sync/cloud.js';
 
 const PREFIX = 'ops-log:';
 
@@ -36,6 +37,7 @@ window.storage = {
     const all = readAll();
     all[key] = value;
     writeAll(all);
+    noteLocalChange(key);
     return { key, value };
   },
   async delete(key) {
@@ -43,6 +45,7 @@ window.storage = {
     const existed = key in all;
     delete all[key];
     writeAll(all);
+    if (existed) noteLocalChange(key);
     return { key, deleted: existed };
   },
   async list(prefix) {

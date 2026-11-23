@@ -4,6 +4,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import LifeTracker from './LifeTracker.jsx';
 import { ErrorBoundary, initMonitoring } from './monitoring.jsx';
+import { cloudConfigured, startCloud } from './sync/cloud.js';
+import { CloudOverlay } from './components/AccountPanel.jsx';
 
 initMonitoring();
 
@@ -16,10 +18,23 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <LifeTracker />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+function render() {
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <LifeTracker />
+        <CloudOverlay />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}
+
+// With cloud sync on, fetch the latest data BEFORE the first screen draws,
+// so you never see yesterday's numbers flash and then change. Capped at
+// 3.5 seconds: on a bad connection the app opens with what's on the phone
+// and syncs in the background.
+if (cloudConfigured) {
+  Promise.race([startCloud().catch(() => {}), new Promise(r => setTimeout(r, 3500))]).then(render);
+} else {
+  render();
+}

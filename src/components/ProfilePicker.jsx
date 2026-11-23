@@ -1,6 +1,8 @@
 // The "Who's this?" screen: create, unlock, rename, delete, export and import profiles.
 import { DISPLAY, MONO, RADIUS_SM, SANS, THEMES } from '../lib/constants.js';
 import { BtnPrimary, DotCloud, dimText, glassCard } from './ui.jsx';
+import AccountPanel from './AccountPanel.jsx';
+import { cloudConfigured } from '../sync/cloud.js';
 
 export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfile, confirmNewProfile, confirmRenameProfile, confirmUnlock, handleImportFile, importFileRef, newProfileName, openUnlock, pickerError, pickerMode, pickerPassword, pickerPassword2, pickerTarget, pickerTheme, profileList, profileListLoading, setNewProfileName, setPickerError, setPickerMode, setPickerPassword, setPickerPassword2, setPickerTheme }) {
     const pth = THEMES[pickerTheme] || THEMES.noir;
@@ -47,7 +49,9 @@ export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfi
             <>
               <div className="text-2xl font-medium mb-1">Who's this?</div>
               <p className="text-xs mb-5" style={dimText}>
-                Password-protected per profile, hashed on this device — real, but not a hosted account system. No backend to check it against, so Google/Apple sign-in isn't possible until this is a real hosted app.
+                {cloudConfigured
+                  ? 'Each profile has its own password. Sign in below to back everything up and use it on your other devices.'
+                  : 'Password-protected per profile, hashed on this device. Your data stays on this device — use Export backup to move it.'}
               </p>
               {profileListLoading ? (
                 <p className="text-sm" style={dimText}>Loading profiles…</p>
@@ -77,6 +81,7 @@ export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfi
                   <input ref={importFileRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
                     onChange={e => { const f = e.target.files && e.target.files[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
                   {pickerError && <p className="text-xs mt-2 text-center" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
+                  <AccountPanel />
                 </>
               )}
             </>

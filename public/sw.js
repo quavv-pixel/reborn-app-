@@ -2,11 +2,35 @@
    This exists because the in-page Notification API only fires while the
    tab is alive; a service worker is what lets the OS/browser wake this app
    for a push event even when nothing is open. */
-const CACHE = 'reborn-v1';
+// Both lines below are rewritten by scripts/build-sw.js at build time:
+// CACHE gets a per-build version (so old files are cleared out after an
+// update) and PRECACHE gets the full list of files Vite produced. In dev
+// they stay as-is and the worker just caches what it sees.
+const CACHE = 'reborn-dev';
+const PRECACHE = [];
 const AUTH_CACHE = 'reborn-auth'; // token store — survives every cache version bump
 
+// Only keep responses that are safe to replay offline: same site, real 200s.
+// Never cache 401 "sign in" pages, redirects, or other sites (e.g. the cloud
+// sync API) — replaying those offline would show errors or stale data.
+function cacheable(req, res) {
+  return res && res.ok && res.type === 'basic' && !res.redirected
+    && new URL(req.url).origin === self.location.origin;
+}
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(self.skipWaiting());
+  // Download every app file up front so the very first visit already works
+  // offline. One file failing (e.g. the page itself returns 401 because the
+  // sign-in cookie isn't set yet) must not abort the whole install.
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => Promise.all(PRECACHE.map((url) =>
+        fetch(url, { credentials: 'same-origin', cache: 'reload' })
+          .then((res) => (cacheable(new Request(new URL(url, self.location)), res) ? c.put(url, res) : null))
+          .catch(() => null)
+      )))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {
@@ -21,21 +45,32 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return; // other sites: browser handles it
   if (url.pathname.startsWith('/api/')) return; // API is always network
   if (e.request.method !== 'GET') return;
   // The first load arrives as /?token=… — never let that URL become a cache key.
   if (url.searchParams.has('token')) return;
-  // network-first: updates always land; cache only as offline fallback. There's
-  // no fixed precache list here (Vite's build hashes filenames per build), so
-  // the cache fills in as pages/assets are actually visited.
+  // Network-first: when online you always get the newest version. The cache
+  // is only the offline fallback. For page navigations with no exact match,
+  // fall back to the app shell (the app is one page, so any route works).
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        if (cacheable(e.request, res)) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(async () => {
+        const hit = await caches.match(e.request);
+        if (hit) return hit;
+        if (e.request.mode === 'navigate') {
+          const shell = await caches.match(new URL('./', self.registration.scope).href);
+          if (shell) return shell;
+        }
+        return Response.error();
+      })
   );
 });
 

@@ -1,5 +1,10 @@
 # REBORN — standalone app
 
+> **New:** accounts + cross-device sync, payments, crash reports, offline mode
+> and privacy/terms pages are built in and switched off until you add their
+> keys. **Start with [SETUP_GUIDE.md](SETUP_GUIDE.md).** Part 1 must be done
+> before merging, because the login gate no longer has a default password.
+
 This is your REBORN tracker pulled out of Claude into a real, ordinary
 website project. Once deployed it runs on a real server 24/7 — your phone
 and your computer are never involved in keeping it "on."

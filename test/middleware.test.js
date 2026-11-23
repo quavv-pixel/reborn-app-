@@ -5,8 +5,10 @@ import assert from 'assert';
 import {
   parseBasicAuth, timingSafeEqual, isMaster, hourlyCode, isAuthorized,
   makeSessionCookie, verifySessionCookie, cookieFromHeader,
-  makeFailCookie, verifyFailCookie, isStaticAsset, LOCKOUT_LIMIT, LOCKOUT_WINDOW_MS,
+  makeFailCookie, verifyFailCookie, isStaticAsset, isPublicPage, LOCKOUT_LIMIT, LOCKOUT_WINDOW_MS,
 } from '../middleware.js';
+import middleware from '../middleware.js';
+import discordPost from '../api/discord-post.js';
 
 let passed = 0, failed = 0;
 const test = async (name, fn) => {
@@ -175,6 +177,57 @@ await test('pages do NOT bypass', () => {
     assert.strictEqual(isStaticAsset(p), false, p);
   }
 });
+
+console.log('\nisPublicPage (legal pages skip the gate)');
+await test('privacy and terms are public', () => {
+  for (const p of ['/privacy', '/privacy.html', '/terms', '/terms.html']) assert.strictEqual(isPublicPage(p), true, p);
+});
+await test('the app itself is not', () => {
+  for (const p of ['/', '/code', '/privacy-ish']) assert.strictEqual(isPublicPage(p), false, p);
+});
+
+console.log('\nthe gate as a whole (no default passwords, fails closed)');
+const req = (path, headers = {}) => new Request('https://reborn.test' + path, { headers });
+async function withEnv(vars, fn) {
+  const saved = {};
+  for (const k of ['REBORN_USER', 'REBORN_PASS', 'REBORN_ROTATE_SECRET', 'REBORN_GATE']) { saved[k] = process.env[k]; delete process.env[k]; }
+  Object.assign(process.env, vars);
+  try { return await fn(); } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+}
+await test('no secrets set -> "finish setup" page (503), never open', () => withEnv({}, async () => {
+  const res = await middleware(req('/'));
+  assert.strictEqual(res.status, 503);
+}));
+await test('no secrets set -> the old default password does NOT work', () => withEnv({}, async () => {
+  const res = await middleware(req('/', { authorization: basic('reborn', 'reborn123') }));
+  assert.notStrictEqual(res && res.status, 302);
+}));
+await test('only the password set (no rotate secret) -> still fails closed', () => withEnv({ REBORN_PASS: 'p' }, async () => {
+  assert.strictEqual((await middleware(req('/'))).status, 503);
+}));
+await test('secrets set -> sign-in box (401)', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, async () => {
+  assert.strictEqual((await middleware(req('/'))).status, 401);
+}));
+await test('secrets set + right password -> signed in (302 with cookie)', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, async () => {
+  const res = await middleware(req('/', { authorization: basic('reborn', 'p') }));
+  assert.strictEqual(res.status, 302);
+  assert.match(res.headers.get('set-cookie'), /reborn_session=/);
+}));
+await test('REBORN_GATE=off -> site is open (accounts protect data instead)', () => withEnv({ REBORN_GATE: 'off' }, async () => {
+  assert.strictEqual(await middleware(req('/')), undefined);
+}));
+await test('legal pages open even when the gate is on', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, async () => {
+  assert.strictEqual(await middleware(req('/privacy.html')), undefined);
+}));
+await test('Discord poster refuses to post a code made without a secret', () => withEnv({}, async () => {
+  process.env.DISCORD_WEBHOOK_URL = 'https://discord.test/hook'; process.env.CRON_KEY = 'k';
+  try {
+    const res = await discordPost(req('/api/discord-post?key=k'));
+    assert.strictEqual(res.status, 500);
+  } finally { delete process.env.DISCORD_WEBHOOK_URL; delete process.env.CRON_KEY; }
+}));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

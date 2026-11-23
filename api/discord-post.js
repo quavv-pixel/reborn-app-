@@ -20,7 +20,6 @@ import { hourlyCode, timingSafeEqual } from '../middleware.js';
 
 export const config = { runtime: 'edge' };
 
-const DEFAULT_ROTATE_SECRET = 'reborn-rotate-default';
 const HOUR_MS = 3600000;
 
 export default async function handler(request) {
@@ -35,7 +34,8 @@ export default async function handler(request) {
   try { key = new URL(request.url).searchParams.get('key') || ''; } catch {}
   if (!timingSafeEqual(key, cronKey)) return new Response('forbidden', { status: 403 });
 
-  const secret = env.REBORN_ROTATE_SECRET || DEFAULT_ROTATE_SECRET;
+  const secret = env.REBORN_ROTATE_SECRET;
+  if (!secret) return new Response('REBORN_ROTATE_SECRET is not set — no guest code to post.', { status: 500 });
   const now = Date.now();
   const code = await hourlyCode(secret, now, 0);
   const minsLeft = Math.max(1, 60 - Math.floor((now % HOUR_MS) / 60000));

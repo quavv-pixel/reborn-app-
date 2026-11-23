@@ -14,15 +14,22 @@
 // The owner reads the current code at /code — that page itself requires
 // the MASTER login, so guests can never see upcoming codes.
 //
-// Set the real secrets in Vercel: Project → Settings → Environment
-// Variables → REBORN_USER, REBORN_PASS, REBORN_ROTATE_SECRET — then
-// redeploy. The in-repo defaults below exist so everything works before
-// that's done; anyone who can read this repo can read them, so treat
-// them as placeholders, not secrets.
+// Set these in Vercel: Project → Settings → Environment Variables, then
+// redeploy:
+//   REBORN_PASS            your master password (required)
+//   REBORN_ROTATE_SECRET   a long random string the guest codes and sign-in
+//                          cookies are made from (required)
+//   REBORN_USER            master username (optional, default "reborn")
+//   REBORN_GATE            set to "off" to remove this password gate
+//                          entirely (for when customers sign in with their
+//                          own accounts — see SETUP_GUIDE.md)
+//
+// There are deliberately NO default passwords in this file any more: this
+// repo can be read by others, so a default would be a public password. If
+// the required variables are missing, the site shows a "finish setup" page
+// instead of opening up — it fails closed.
 
 const DEFAULT_USER = 'reborn';
-const DEFAULT_PASS = 'reborn123';
-const DEFAULT_ROTATE_SECRET = 'reborn-rotate-default';
 
 // No I/L/O/0/1/U — every character is unambiguous when read aloud or
 // copied from a phone notification.
@@ -190,6 +197,13 @@ export async function verifyFailCookie(secret, value, nowMs = Date.now()) {
 // Static files carry no personal data (all app data lives on the device),
 // so they skip the gate entirely — this is the perf fix: no auth round-trip
 // on every JS/CSS/image request, only on the page itself.
+// Legal pages must be readable by anyone (app stores, payment providers and
+// visitors deciding whether to sign up all need them), so they skip the gate.
+export function isPublicPage(pathname) {
+  return pathname === '/privacy' || pathname === '/privacy.html'
+    || pathname === '/terms' || pathname === '/terms.html';
+}
+
 export function isStaticAsset(pathname) {
   if (pathname.startsWith('/assets/')) return true;
   return /\.(js|mjs|css|map|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)
@@ -272,21 +286,42 @@ export async function codePage(rotateSecret, nowMs) {
   });
 }
 
+function setupRequiredPage() {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0B0B0D"><title>REBORN — setup needed</title>
+<style>html,body{margin:0;background:#0B0B0D;color:#EAE6DF;font-family:ui-monospace,Menlo,monospace;
+min-height:100vh;display:grid;place-items:center;text-align:center;padding:0 16px}
+.dim{color:#8A857C;font-size:12px;line-height:1.7}.big{font-size:18px;color:#D9B36C;margin:10px 0}</style></head><body><div>
+<div class="big">Almost there — finish setup</div>
+<div class="dim">The site owner needs to set REBORN_PASS and REBORN_ROTATE_SECRET<br>
+in Vercel → Settings → Environment Variables, then redeploy.<br>
+(Or set REBORN_GATE=off to run without the shared password.)</div>
+</div></body></html>`;
+  return new Response(html, { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+}
+
 export default async function middleware(request) {
   const env = (typeof process !== 'undefined' && process.env) || {};
-  const user = env.REBORN_USER || DEFAULT_USER;
-  const pass = env.REBORN_PASS || DEFAULT_PASS;
-  const rotateSecret = env.REBORN_ROTATE_SECRET || DEFAULT_ROTATE_SECRET;
   const nowMs = Date.now();
 
   let pathname = '/';
   try { pathname = new URL(request.url).pathname; } catch {}
 
-  // API routes authenticate themselves (Telegram secret token, cron key) —
-  // the door must not swallow their webhooks. Static assets skip the gate
-  // for speed; they contain no personal data.
+  // API routes authenticate themselves (Telegram secret token, cron key,
+  // Stripe signature) — the door must not swallow their webhooks. Static
+  // assets skip the gate for speed; they contain no personal data.
   if (pathname.startsWith('/api/')) return undefined;
-  if (isStaticAsset(pathname)) return undefined;
+  if (isStaticAsset(pathname) || isPublicPage(pathname)) return undefined;
+
+  // Gate switched off: the site is public and each customer's data is
+  // protected by their own account instead.
+  if (String(env.REBORN_GATE || '').toLowerCase() === 'off') return undefined;
+
+  const user = env.REBORN_USER || DEFAULT_USER;
+  const pass = env.REBORN_PASS;
+  const rotateSecret = env.REBORN_ROTATE_SECRET;
+  if (!pass || !rotateSecret) return setupRequiredPage();
 
   const header = request.headers.get('authorization');
   const cookieHeader = request.headers.get('cookie');

@@ -30,7 +30,7 @@ profiles on the same device. It tracks:
 | Fonts | Inter (UI), JetBrains Mono (labels/numbers), Cormorant Garamond (REBORN wordmark) |
 | PWA | `public/manifest.json` + `public/sw.js` service worker |
 | Optional push backend | Node/Express + web-push in `server/` (only when self-hosted; NOT used on Vercel) |
-| Tests | `test/security.test.js` — 27 tests for the backend's auth + SSRF guards |
+| Tests | unit (`npm test`), browser (`npm run test:e2e`, `test:e2e:sync`), database (`npm run test:db`); all run on GitHub |
 | Hosting | Vercel, auto-deploys from `main` → https://reborn-app-nine.vercel.app |
 
 ## 3. Architecture facts that matter
@@ -61,28 +61,24 @@ profiles on the same device. It tracks:
   (`.github/workflows/deploy-pages.yml` + `npm run build:pages`) but needs a one-time manual
   toggle: repo **Settings → Pages → Source → GitHub Actions**.
 
-## 4. What's weak or missing today (ranked)
+## 4. Status of the old weak spots (updated 2026-11-23)
 
-1. **No backup or export.** localStorage is fragile: if Safari clears website data (which iOS
-   does to rarely-used sites), or the user deletes the app icon and Safari data, **everything
-   is gone forever**. Biggest real risk in the whole app. Fix: a "Download my data" / "Restore
-   from file" JSON export-import button — no backend needed, ~an afternoon of work.
-2. **No cross-device sync.** A profile lives only on the phone that created it. The
-   `storage.js` wrapper was designed so its internals can be swapped for Firebase/Supabase
-   without touching app code — that was intentional, and it's the upgrade path.
-3. **No password reset.** Forget a profile password and that profile's data is unreachable
-   (by design, but users will hate it). A recovery phrase shown once at creation would fix it.
-4. **One giant component.** `LifeTracker.jsx` is ~2,600 lines. It works, but splitting it
-   into files per tab would make future changes faster and safer.
-5. **No error monitoring.** If the app crashes on someone's phone you will never know.
-   Sentry's free tier is enough.
-6. **No UI tests.** The 27 tests cover only the push backend. The Playwright scripts used
-   during development (fresh-profile blankness, rename/delete, theme persistence) could be
-   committed and run in CI.
-7. **Offline behavior is untested.** The service worker exists for push, but there's no
-   offline asset caching — the installed app may fail to open without internet.
-8. **Meal book / exercise library are hardcoded** in the component; fine for now, but they
-   belong in a JSON file users could eventually edit.
+| Was | Now |
+|---|---|
+| No backup | Export/import backup file per profile |
+| No accounts or sync | Supabase accounts + sync (`src/sync/`, `supabase/schema.sql`), on once keys are set |
+| Shared login with public default password | No defaults; fails closed; `REBORN_GATE=off` once accounts are live |
+| No payments | Stripe Payment Link + webhook (`api/stripe-webhook.js`) unlock Pro |
+| No legal pages | `public/privacy.html`, `public/terms.html` (fill in placeholders) |
+| One 2,600-line component | Split into `src/tabs/`, `src/components/`, `src/lib/` |
+| No error monitoring | Crash screen + optional Sentry (`src/monitoring.jsx`) |
+| No UI tests | Browser tests for every tab, offline and two-phone sync, plus database tests, all in CI |
+| Partial offline | Every file precached on first visit |
+
+Still open: password reset for *profile* passwords (account passwords can be
+reset); no custom domain yet (you need to buy one); sync is last-write-wins per
+tab, so editing the same tab on two offline phones keeps the newer edit.
+See SETUP_GUIDE.md for every step that needs your accounts.
 
 ## 5. Can it handle selling to 100+ people?
 

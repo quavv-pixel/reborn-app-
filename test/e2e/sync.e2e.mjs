@@ -33,9 +33,14 @@ async function newDevice() {
 }
 const panel = page => page.getByTestId('account-panel');
 // The Home screen's habit tile reads e.g. "0/1" above "habits done today".
-const habitTile = page => page.locator('button').filter({ has: page.getByText('habits done today', { exact: true }) });
-const habitCount = async page => ((await habitTile(page).innerText().catch(() => '')).split('\n')[0] || '').trim();
-const nav = (page, label) => page.locator('button', { hasText: label }).last().click();
+// Home's "Jump to → Routine" row reads e.g. "0/1 habits done today".
+const habitTile = page => page.getByText(/^\d+\/\d+ habits done today$/);
+const habitCount = async page => (((await habitTile(page).innerText().catch(() => '')).match(/^(\d+\/\d+)/) || [])[1] || '');
+// Tabs load on demand now, so wait for the "Loading…" placeholder to go.
+const nav = async (page, label) => {
+  await page.locator('button', { hasText: label }).last().click();
+  await page.locator('main').getByText('Loading…').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+};
 const pendingUploads = page => page.evaluate(() =>
   Object.values(JSON.parse(localStorage.getItem('ops-log:__sync_meta__') || '{}')).filter(x => x.dirty).length);
 const waitSynced = page => page.waitForFunction(() =>

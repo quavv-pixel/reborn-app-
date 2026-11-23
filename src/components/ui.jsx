@@ -1,7 +1,7 @@
 // Shared building blocks: Panel, Stat, ProgressBar, buttons, Header, BottomNav.
 // All colors come from the CSS variables in src/index.css (one palette,
 // light or dark following the phone's setting).
-import { Bell, BellOff, Dumbbell, Home, ListChecks, ShoppingCart, StickyNote, Wallet } from 'lucide-react';
+import { Bell, BellOff, ChevronRight, Dumbbell, Home, ListChecks, StickyNote, Wallet } from 'lucide-react';
 
 export const inputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
 export const dimText = { color: 'var(--dim)' };
@@ -38,6 +38,48 @@ export function Stat({ label, value, tone }) {
       <div className="text-xl font-semibold" style={{ color: tone === 'danger' ? 'var(--danger)' : 'var(--text)' }}>{value}</div>
       <div className="text-xs mt-0.5" style={dimText}>{label}</div>
     </div>
+  );
+}
+
+// Small ring + number tile (Home). Always the single accent color.
+export function Meter({ label, value, max, displayValue, displayMax }) {
+  const safeMax = max > 0 ? max : 1;
+  const pct = Math.min(100, Math.max(0, (value / safeMax) * 100));
+  const size = 26, stroke = 3.5, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  // Stacked (label + ring, then the number, then "of …") so three tiles fit
+  // side by side on any phone without cutting the numbers off.
+  return (
+    <div className="p-3 min-w-0" style={glassCard(14)}>
+      <div className="flex items-center justify-between gap-1 mb-1">
+        <span className="text-[11px] truncate" style={dimText}>{label}</span>
+        <svg width={size} height={size} className="flex-shrink-0" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--field)" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--accent)" strokeWidth={stroke}
+            strokeDasharray={`${(pct / 100) * c} ${c}`} strokeLinecap="round" />
+        </svg>
+      </div>
+      <div className="text-lg font-semibold leading-tight truncate">{displayValue !== undefined ? displayValue : value}</div>
+      <div className="text-[11px] truncate" style={dimText}>of {displayMax !== undefined ? displayMax : max}</div>
+    </div>
+  );
+}
+
+// One row of the grouped "Jump to" list on Home.
+export function NavCard({ icon: Icon, title, subtitle, onClick, divider }) {
+  return (
+    <button onClick={onClick} className="w-full flex items-center justify-between px-3 py-3 text-left"
+      style={{ borderRadius: 0, borderTop: divider ? '1px solid var(--border)' : 'none' }}>
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 10 }}>
+          <Icon size={16} />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-medium">{title}</div>
+          <div className="text-xs truncate" style={dimText}>{subtitle}</div>
+        </div>
+      </div>
+      <ChevronRight size={16} style={dimText} className="flex-shrink-0" />
+    </button>
   );
 }
 
@@ -98,7 +140,6 @@ const NAV_ITEMS = [
   { id: 'gym', label: 'Gym', Icon: Dumbbell },
   { id: 'routine', label: 'Routine', Icon: ListChecks },
   { id: 'budget', label: 'Budget', Icon: Wallet },
-  { id: 'week', label: 'Weekly', Icon: ShoppingCart },
   { id: 'notes', label: 'Notes', Icon: StickyNote },
 ];
 
@@ -141,7 +182,7 @@ export function BottomNav({ tab, setTab }) {
   return (
     <nav className="md:hidden fixed left-0 right-0 bottom-0 z-10"
       style={{ background: 'var(--panel)', borderTop: '1px solid var(--border)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-      <div className="grid grid-cols-6 max-w-md mx-auto">
+      <div className="grid grid-cols-5 max-w-md mx-auto">
         {NAV_ITEMS.map(({ id, label, Icon }) => (
           <button
             key={id}

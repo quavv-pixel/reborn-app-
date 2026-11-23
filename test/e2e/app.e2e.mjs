@@ -36,9 +36,14 @@ async function newDevice() {
 }
 
 // The Home screen's habit tile reads e.g. "0/1" above "habits done today".
-const habitTile = page => page.locator('button').filter({ has: page.getByText('habits done today', { exact: true }) });
-const habitCount = async page => ((await habitTile(page).innerText().catch(() => '')).split('\n')[0] || '').trim();
-const nav = (page, label) => page.locator('button', { hasText: label }).last().click();
+// Home's "Jump to → Routine" row reads e.g. "0/1 habits done today".
+const habitTile = page => page.getByText(/^\d+\/\d+ habits done today$/);
+const habitCount = async page => (((await habitTile(page).innerText().catch(() => '')).match(/^(\d+\/\d+)/) || [])[1] || '');
+// Tabs load on demand now, so wait for the "Loading…" placeholder to go.
+const nav = async (page, label) => {
+  await page.locator('button', { hasText: label }).last().click();
+  await page.locator('main').getByText('Loading…').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+};
 
 async function createProfile(page, name, pw) {
   await page.getByText('+ New profile').click();
@@ -75,7 +80,7 @@ try {
     (await habitCount(page)) === '0/0');
 
   console.log('\n--- Every tab renders ---');
-  for (const t of ['Gym', 'Routine', 'Budget', 'Weekly', 'Notes', 'Home']) {
+  for (const t of ['Gym', 'Routine', 'Budget', 'Notes', 'Home']) {
     await nav(page, t);
     await page.waitForTimeout(150);
   }
@@ -96,12 +101,28 @@ try {
   await page.getByPlaceholder('New habit').press('Enter');
   check('the new habit is listed', await page.getByText('Drink water').first().isVisible());
 
-  console.log('\n--- Budget: add a bill ---');
+  console.log('\n--- Habits & reminders are one list ---');
+  await page.getByPlaceholder('New habit').fill('Take vitamins');
+  await page.getByLabel('Reminder time (optional)').fill('07:30');
+  await page.getByPlaceholder('New habit').press('Enter');
+  check('a habit can be added with a reminder time',
+    (await page.getByLabel('Reminder time for Take vitamins').inputValue()) === '07:30');
+  check('timed habits can go to the phone calendar', await page.getByRole('button', { name: /Add to calendar/ }).isVisible());
+  await page.getByLabel('Reminder time for Drink water').fill('09:15');
+  check('an existing habit can get a reminder time', (await page.getByLabel('Reminder time for Drink water').inputValue()) === '09:15');
+  await page.getByLabel('Delete Take vitamins').click();
+  check('no separate "Daily reminders" list any more', !(await page.getByText('Daily reminders').isVisible()) && !(await page.getByText('Daily schedule').isVisible()));
+
+  console.log('\n--- Budget: savings, and fixing a mistake ---');
   await nav(page, 'Budget');
-  await page.getByPlaceholder('Bill name').fill('Phone');
-  await page.getByPlaceholder('$', { exact: true }).first().fill('45');
-  await page.getByPlaceholder('Bill name').locator('xpath=..').getByRole('button').click();
-  check('the bill is listed', await page.getByText('Phone').first().isVisible());
+  check('no bills card any more', !(await page.getByText('Bills this month').isVisible()));
+  await page.getByPlaceholder('Amount to add').fill('500');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  check('adding to savings works', await page.getByText('$500', { exact: true }).isVisible());
+  await page.getByLabel('Fix the saved amount').click();
+  await page.getByLabel('Correct saved amount').fill('50');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  check('a wrong saved amount can be fixed', await page.getByText('$50', { exact: true }).isVisible());
 
   console.log('\n--- Notes: save a note ---');
   await nav(page, 'Notes');
@@ -109,10 +130,8 @@ try {
   await page.getByRole('button', { name: 'Save note' }).click();
   check('the note is listed', await page.getByText('Remember the milk').first().isVisible());
 
-  console.log('\n--- Weekly: pick a recipe ---');
-  await nav(page, 'Weekly');
-  await page.locator('button', { hasText: 'PAGE' }).first().click();
-  check('picking a recipe builds the shopping list', await page.getByRole('button', { name: /Mark cooked/ }).isVisible());
+  console.log('\n--- Weekly is gone ---');
+  check('no Weekly tab', (await page.getByRole('button', { name: 'Weekly' }).count()) === 0);
 
   console.log('\n--- Everything survives a reload (stays signed in) ---');
   await settle(page);
@@ -121,8 +140,9 @@ try {
   check('reload reopens the profile without asking for the password',
     !(await page.getByText("Who's this?").isVisible()));
   check('habit count survived the reload', (await habitCount(page)) === '0/1');
+  check('reminder time survived the reload', await (async () => { await nav(page, 'Routine'); return (await page.getByLabel('Reminder time for Drink water').inputValue()) === '09:15'; })());
   await nav(page, 'Budget');
-  check('bill survived the reload', await page.getByText('Phone').first().isVisible());
+  check('fixed savings amount survived the reload', await page.getByText('$50', { exact: true }).isVisible());
 
   console.log('\n--- Profile lock ---');
   await page.getByTitle('Switch profile').click();
@@ -180,7 +200,7 @@ try {
   await sp.goto(BASE);
   await createProfile(sp, 'Small', 'pw');
   const overflow = [];
-  for (const t of ['Home', 'Gym', 'Routine', 'Budget', 'Weekly', 'Notes']) {
+  for (const t of ['Home', 'Gym', 'Routine', 'Budget', 'Notes']) {
     await nav(sp, t);
     await sp.waitForTimeout(150);
     if (await sp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)) overflow.push(t);

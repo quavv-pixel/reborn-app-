@@ -13,11 +13,12 @@ profiles on the same device. It tracks:
 
 - **Gym** — weekly split (7 day cards), lift logging with auto-fill from your last set,
   personal bests, exercise library grouped by muscle group
-- **Routine** — daily schedule blocks (exportable to the phone calendar as .ics), habit
-  checklist grouped by category with streaks, daily mood log
+- **Routine** — "Habits & reminders": one list of habits grouped by category with streaks;
+  any habit can have a time, which makes it a reminder (bell + .ics calendar export);
+  daily mood log; last-7-days grid
 - **Meals** — meal log with calories against a daily goal, plus a "meal book" of reusable foods
-- **Budget** — transactions, monthly budget, weekly income, bills with paid/unpaid tracking per
-  month, savings goal with weekly-pace projection, optional debt payoff that runs before savings
+- **Budget** — one savings goal (add to it, or fix the saved amount with the pencil) and a
+  weekly plan (income, spending lines, what's left over)
 - **Home** — greeting hero with an animated wave (speed + color react to today's progress),
   circular progress rings, daily quote, 7-day calorie sparkline, jump-to cards
 

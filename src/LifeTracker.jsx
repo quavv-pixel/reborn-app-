@@ -1,6 +1,6 @@
 // The app shell: owns all state + storage, then hands each tab what it needs.
 // Tabs live in src/tabs/, shared UI in src/components/, plain helpers in src/lib/.
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useDebouncedStorage } from './lib/useDebouncedStorage.js';
 import { hashPassword, loadProfileList, pKey, saveProfileList } from './lib/profiles.js';
 import { getState as cloudState, verifyAccountPassword } from './sync/cloud.js';
@@ -8,17 +8,14 @@ import { defaultTargetDate, getLast7Days, loadKey, todayStr, uid } from './lib/u
 import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, cheerFor, getDailyQuote, getExercisesForType } from './lib/constants.js';
 import { armRealPush, backendAvailable, bootstrapToken, syncSchedule } from './push';
 import { parseTimeLabel } from './lib/ics.js';
-import { buildList, claudeMessage, instacartTitle, toInstacartLineItems } from './rotation';
-import { BOOK } from './book';
-import { callApi } from './apiClient';
+import { mergeRemindersIntoHabits, scheduleFromHabits } from './lib/habits.js';
 import ProfilePicker from './components/ProfilePicker.jsx';
 import { BottomNav, Header } from './components/ui.jsx';
-import HomeTab from './tabs/HomeTab.jsx';
-import GymTab from './tabs/GymTab.jsx';
-import RoutineTab from './tabs/RoutineTab.jsx';
-import BudgetTab from './tabs/BudgetTab.jsx';
-import WeeklyTab from './tabs/WeeklyTab.jsx';
-import NotesTab from './tabs/NotesTab.jsx';
+const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
+const GymTab = lazy(() => import('./tabs/GymTab.jsx'));
+const RoutineTab = lazy(() => import('./tabs/RoutineTab.jsx'));
+const BudgetTab = lazy(() => import('./tabs/BudgetTab.jsx'));
+const NotesTab = lazy(() => import('./tabs/NotesTab.jsx'));
 
 export default function LifeTracker() {
   const [tab, setTab] = useState('home');
@@ -272,19 +269,6 @@ export default function LifeTracker() {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editNoteText, setEditNoteText] = useState('');
 
-  // Weekly recipe rotation and shopping
-  const [cooked, setCooked] = useState([]);
-  const [picked, setPicked] = useState([]);
-  const [copied, setCopied] = useState(false);
-  const [openedClaude, setOpenedClaude] = useState(false);
-  const [weeklyReady, setWeeklyReady] = useState(false);
-  const [cartBusy, setCartBusy] = useState(false);
-  const [cartMsg, setCartMsg] = useState('');
-  const [cartUrl, setCartUrl] = useState('');
-  const [dealsStore, setDealsStore] = useState('');
-  const [deals, setDeals] = useState([]);
-  const [dealsState, setDealsState] = useState('idle'); // idle | loading | done | empty | error
-  const [dealsMsg, setDealsMsg] = useState('');
 
   // Cheer-up toast shown for 5s after logging today's vibe.
   const [cheer, setCheer] = useState(null);
@@ -402,6 +386,7 @@ export default function LifeTracker() {
 
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitCategory, setNewHabitCategory] = useState('personal');
+  const [newHabitTime, setNewHabitTime] = useState(''); // optional reminder time, "HH:MM"
 
   const [billName, setBillName] = useState('');
   const [billAmount, setBillAmount] = useState('');
@@ -429,7 +414,7 @@ export default function LifeTracker() {
     let mounted = true;
     setLoading(true);
     (async () => {
-      const [g, r, b, th, n, cooked, weeklyStore] = await Promise.all([
+      let [g, r, b, th, n] = await Promise.all([
         loadKey(pKey(profile, 'gym-data'), { workouts: [], split: DEFAULT_SPLIT }),
         loadKey(pKey(profile, 'routine-data'), { habits: DEFAULT_HABITS, logs: {}, schedule: DEFAULT_SCHEDULE, moodLog: {} }),
         loadKey(pKey(profile, 'budget-data'), {
@@ -445,13 +430,12 @@ export default function LifeTracker() {
         // was showing on the "Who's this?" screen rather than always Noir.
         loadKey(pKey(profile, 'theme'), pickerTheme),
         loadKey(pKey(profile, 'notes-data'), { notes: [] }),
-        loadKey(pKey(profile, 'weekly-cooked'), []),
-        loadKey(pKey(profile, 'weekly-store'), ''),
       ]);
       if (!n.notes) n.notes = [];
 
       if (!g.split) g.split = DEFAULT_SPLIT;
       if (!r.schedule) r.schedule = DEFAULT_SCHEDULE;
+      r = mergeRemindersIntoHabits(r);
       if (!r.habits || r.habits.length === 0) r.habits = DEFAULT_HABITS;
       if (!r.moodLog) r.moodLog = {};
       if (!b.weeklyPlan) b.weeklyPlan = DEFAULT_WEEKLY_PLAN;
@@ -484,10 +468,7 @@ export default function LifeTracker() {
         setRoutineState(r);
         setBudgetState(b);
         setNotesState(n);
-        setCooked(Array.isArray(cooked) ? cooked.filter(n => typeof n === 'number') : []);
-        setDealsStore(typeof weeklyStore === 'string' ? weeklyStore : '');
         setThemeState(th);
-        setWeeklyReady(true);
         setLoading(false);
       }
     })();
@@ -528,130 +509,6 @@ export default function LifeTracker() {
     setEditingNoteId(null);
   }
 
-  function updateWeekly(next) {
-    setCooked(next);
-    writeDebounced(pKey(profile, 'weekly-cooked'), next);
-  }
-  function markCooked() {
-    const next = [...new Set([...cooked, ...picked])];
-    updateWeekly(next);
-    setPicked([]);
-  }
-  function resetCooked() {
-    updateWeekly([]);
-    setPicked([]);
-  }
-  async function copyForClaude() {
-    const msg = claudeMessage(BOOK, picked);
-    try {
-      await navigator.clipboard.writeText(msg);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2200);
-    } catch {
-      window.prompt('Copy this and paste it to Claude:', msg);
-    }
-  }
-  async function openInClaude() {
-    const msg = claudeMessage(BOOK, picked);
-    // Open synchronously, before any await, so mobile Safari's popup blocker
-    // doesn't silently eat the tab — same lesson as the Instacart button.
-    const win = window.open('https://claude.ai/new?q=' + encodeURIComponent(msg), '_blank');
-    if (win) win.opener = null;
-    // Best-effort: if the ?q= prefill doesn't take, the text is on the
-    // clipboard either way, so pasting it in still works.
-    try {
-      await navigator.clipboard.writeText(msg);
-      setOpenedClaude(true);
-      setTimeout(() => setOpenedClaude(false), 3000);
-    } catch {
-      /* clipboard blocked — the new tab still opened either way */
-    }
-  }
-  async function shareList() {
-    const items = buildList(BOOK, picked).map(([item]) => item);
-    const text = `Shopping list:\n${items.map(i => `- ${i}`).join('\n')}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'Shopping list', text });
-      } catch {
-        // AbortError when the user cancels the share sheet — nothing to do.
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2200);
-      } catch {
-        window.prompt('Copy this:', text);
-      }
-    }
-  }
-  async function openInInstacart() {
-    if (!picked.length) return;
-    setCartBusy(true);
-    setCartMsg('');
-    setCartUrl('');
-    const win = window.open('', '_blank');
-    if (win) win.opener = null;
-    try {
-      const { ok, data } = await callApi('/api/instacart', {
-        title: instacartTitle(BOOK, picked),
-        line_items: toInstacartLineItems(BOOK, picked),
-      });
-      if (ok && data?.url) {
-        if (win) {
-          win.location.href = data.url;
-        } else {
-          setCartUrl(data.url);
-        }
-      } else {
-        if (win) win.close();
-        setCartMsg(data?.message || data?.error || 'Instacart request failed.');
-      }
-    } catch {
-      if (win) win.close();
-      setCartMsg('Couldn\'t reach Instacart. Are you online?');
-    } finally {
-      setCartBusy(false);
-    }
-  }
-  const toggleRecipe = pg => setPicked(p => (p.includes(pg) ? p.filter(x => x !== pg) : [...p, pg]));
-
-
-  function updateDealsStore(next) {
-    setDealsStore(next);
-    writeDebounced(pKey(profile, 'weekly-store'), next);
-  }
-  async function loadDeals() {
-    setDealsState('loading');
-    setDealsMsg('');
-    try {
-      const { ok, status, data } = await callApi('/api/deals', { store: dealsStore });
-      if (!ok) {
-        setDealsState('error');
-        setDealsMsg(data?.message || data?.error || `Request failed (${status}).`);
-        return;
-      }
-      if (data?.refused) {
-        setDealsState('error');
-        setDealsMsg('That search was declined — try a different phrasing for the area, or try again.');
-        return;
-      }
-      const found = Array.isArray(data?.deals) ? data.deals : [];
-      setDeals(found);
-      if (found.length) {
-        setDealsState('done');
-      } else if (data?.truncated) {
-        setDealsState('error');
-        setDealsMsg('The search ran long and didn\'t finish — try again.');
-      } else {
-        setDealsState('empty');
-      }
-    } catch {
-      setDealsState('error');
-      setDealsMsg('Couldn\'t reach the ad. Try again in a moment.');
-    }
-  }
 
   function updateBudget(next) {
     setBudgetState(next);
@@ -675,17 +532,31 @@ export default function LifeTracker() {
     updateGym({ ...gym, split });
   }
 
-  function addHabit(name, category) {
-    updateRoutine({ ...routine, habits: [...routine.habits, { id: uid(), name, category: category || 'personal' }] });
+  // Habits and reminders are one list: a habit with a `time` is a reminder.
+  // `schedule` is kept as a copy derived from the habits, because the
+  // reminder bell, push server and calendar export all read it.
+  function withSchedule(r) {
+    return { ...r, schedule: scheduleFromHabits(r.habits) };
+  }
+  function addHabit(name, category, time) {
+    const habit = { id: uid(), name, category: category || 'personal' };
+    if (time) habit.time = time;
+    updateRoutine(withSchedule({ ...routine, habits: [...routine.habits, habit] }));
+  }
+  function setHabitTime(id, time) {
+    const habits = routine.habits.map(h => {
+      if (h.id !== id) return h;
+      const next = { ...h };
+      if (time) next.time = time; else delete next.time;
+      return next;
+    });
+    updateRoutine(withSchedule({ ...routine, habits }));
   }
   function deleteHabit(id) {
     const logs = { ...routine.logs };
     Object.keys(logs).forEach(d => { logs[d] = logs[d].filter(h => h !== id); });
-    // BUG FIX: this used to rebuild the routine object from scratch (habits/
-    // logs/schedule only), silently dropping any other field — moodLog in
-    // particular would vanish on the next save. Spread the existing routine
-    // first so only habits/logs actually change.
-    updateRoutine({ ...routine, habits: routine.habits.filter(h => h.id !== id), logs });
+    // Spread the existing routine first so other fields (moodLog) survive.
+    updateRoutine(withSchedule({ ...routine, habits: routine.habits.filter(h => h.id !== id), logs }));
   }
   function toggleHabit(id, date) {
     const current = routine.logs[date] || [];
@@ -700,36 +571,9 @@ export default function LifeTracker() {
   }
   function handleAddHabit() {
     if (!newHabitName.trim()) return;
-    addHabit(newHabitName.trim(), newHabitCategory);
+    addHabit(newHabitName.trim(), newHabitCategory, newHabitTime);
     setNewHabitName('');
-  }
-  // Keeps Today's checklist in step with the Daily schedule: every schedule
-  // block with a label gets a matching habit (id 'hb-s-<blockId>') that is
-  // renamed with the block and removed with it. Hand-added habits are never
-  // touched.
-  function syncHabitsToSchedule(habits, schedule) {
-    const byBlock = new Map(
-      schedule.filter(s => s.label && s.label.trim()).map(s => ['hb-s-' + s.id, s.label.trim()])
-    );
-    const kept = habits
-      .filter(h => !String(h.id).startsWith('hb-s-') || byBlock.has(h.id))
-      .map(h => (byBlock.has(h.id) && h.name !== byBlock.get(h.id) ? { ...h, name: byBlock.get(h.id) } : h));
-    const present = new Set(kept.map(h => h.id));
-    for (const [id, name] of byBlock) {
-      if (!present.has(id)) kept.push({ id, name, category: 'personal' });
-    }
-    return kept;
-  }
-  function updateScheduleRow(id, field, value) {
-    const schedule = routine.schedule.map(s => (s.id === id ? { ...s, [field]: value } : s));
-    updateRoutine({ ...routine, schedule, habits: syncHabitsToSchedule(routine.habits, schedule) });
-  }
-  function addScheduleRow() {
-    updateRoutine({ ...routine, schedule: [...routine.schedule, { id: uid(), time: '', label: '' }] });
-  }
-  function deleteScheduleRow(id) {
-    const schedule = routine.schedule.filter(s => s.id !== id);
-    updateRoutine({ ...routine, schedule, habits: syncHabitsToSchedule(routine.habits, schedule) });
+    setNewHabitTime('');
   }
 
 
@@ -890,6 +734,13 @@ export default function LifeTracker() {
   })();
 
   const todayIdx = (new Date(today + 'T00:00:00').getDay() + 6) % 7;
+  // Home's wave scrolls faster as today's progress goes up (8s idle → 2s).
+  const heroProgress = [
+    Math.min(1, (Number(budget.goal.saved) || 0) / (Number(budget.goal.target) || 1)),
+    Math.min(1, (routine.logs[today] || []).length / (routine.habits.length || 1)),
+    Math.min(1, new Set(gym.workouts.filter(w => getLast7Days().includes(w.date)).map(w => w.date)).size / 7),
+  ].reduce((a, b) => a + b, 0) / 3;
+  const heroWaveDuration = 8 - heroProgress * 6;
 
   const thisMonth = today.slice(0, 7);
   const spentThisMonth = budget.transactions
@@ -927,6 +778,8 @@ export default function LifeTracker() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <style>{`
+        /* Home wave: the SVG is two tiles wide; scrolling it by half its width loops seamlessly. */
+        @keyframes heroWaveScroll { to { transform: translateX(-50%); } }
         /* Mood toast: fade in, hold, fade out — 5s, matching the timer that removes it. */
         @keyframes cheerPop {
           0% { opacity: 0; transform: translateY(-10px); }
@@ -944,9 +797,11 @@ export default function LifeTracker() {
       )}
       <Header tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); window.storage.delete('device:last-profile').catch(() => {}); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
       <main className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 pt-3 pb-28 md:pb-8">
+        {/* Each tab's code downloads the first time you open it (faster start). */}
+        <Suspense fallback={<p className="text-sm py-8 text-center" style={{ color: 'var(--dim)' }}>Loading…</p>}>
 
         {tab === 'home' && (
-          <HomeTab cooked={cooked} goal={goal} gym={gym} habitsToday={habitsToday} isAllEmpty={isAllEmpty} picked={picked} profile={profile} quote={quote} remainingBills={remainingBills} routine={routine} setTab={setTab} today={today} todayIdx={todayIdx} workoutsThisWeek={workoutsThisWeek} />
+          <HomeTab goal={goal} gym={gym} habitsToday={habitsToday} heroWaveDuration={heroWaveDuration} isAllEmpty={isAllEmpty} profile={profile} quote={quote} routine={routine} setTab={setTab} today={today} todayIdx={todayIdx} workoutsThisWeek={workoutsThisWeek} />
         )}
 
         {tab === 'gym' && (
@@ -954,21 +809,18 @@ export default function LifeTracker() {
         )}
 
         {tab === 'routine' && (
-          <RoutineTab addScheduleRow={addScheduleRow} deleteHabit={deleteHabit} deleteScheduleRow={deleteScheduleRow} habitsToday={habitsToday} handleAddHabit={handleAddHabit} last7Days={last7Days} newHabitCategory={newHabitCategory} newHabitName={newHabitName} routine={routine} setMood={setMood} setNewHabitCategory={setNewHabitCategory} setNewHabitName={setNewHabitName} today={today} toggleHabit={toggleHabit} updateScheduleRow={updateScheduleRow} />
+          <RoutineTab deleteHabit={deleteHabit} habitsToday={habitsToday} handleAddHabit={handleAddHabit} last7Days={last7Days} newHabitCategory={newHabitCategory} newHabitName={newHabitName} newHabitTime={newHabitTime} routine={routine} setHabitTime={setHabitTime} setMood={setMood} setNewHabitCategory={setNewHabitCategory} setNewHabitName={setNewHabitName} setNewHabitTime={setNewHabitTime} today={today} toggleHabit={toggleHabit} />
         )}
 
         {tab === 'budget' && (
-          <BudgetTab addPlanLine={addPlanLine} addSavingsAmount={addSavingsAmount} addToSavings={addToSavings} billAmount={billAmount} billName={billName} billsThisMonthPaid={billsThisMonthPaid} budget={budget} budgetOnTrack={budgetOnTrack} budgetPctDone={budgetPctDone} deleteBill={deleteBill} deletePlanLine={deletePlanLine} editBillAmount={editBillAmount} editBillName={editBillName} editingBillId={editingBillId} goal={goal} handleAddBill={handleAddBill} logConfirmed={logConfirmed} logWeeklyPlan={logWeeklyPlan} paidBills={paidBills} planAmount={planAmount} planCategory={planCategory} remainingBills={remainingBills} saveEditBill={saveEditBill} setAddSavingsAmount={setAddSavingsAmount} setBillAmount={setBillAmount} setBillName={setBillName} setEditBillAmount={setEditBillAmount} setEditBillName={setEditBillName} setEditingBillId={setEditingBillId} setMonthlyBudget={setMonthlyBudget} setPlanAmount={setPlanAmount} setPlanCategory={setPlanCategory} setWeeklyIncome={setWeeklyIncome} spentThisMonth={spentThisMonth} startEditBill={startEditBill} thisMonth={thisMonth} today={today} toggleBillPaid={toggleBillPaid} togglePlanDone={togglePlanDone} totalBills={totalBills} updateGoal={updateGoal} updatePlanAmount={updatePlanAmount} updatePlanCategory={updatePlanCategory} updateWeeklySavingsAmount={updateWeeklySavingsAmount} weeklyNeeded={weeklyNeeded} weeklyPlanTotal={weeklyPlanTotal} weeksLeft={weeksLeft} />
-        )}
-
-        {tab === 'week' && (
-          <WeeklyTab cartBusy={cartBusy} cartMsg={cartMsg} cartUrl={cartUrl} cooked={cooked} copied={copied} copyForClaude={copyForClaude} deals={deals} dealsMsg={dealsMsg} dealsState={dealsState} dealsStore={dealsStore} loadDeals={loadDeals} markCooked={markCooked} openInClaude={openInClaude} openInInstacart={openInInstacart} openedClaude={openedClaude} picked={picked} resetCooked={resetCooked} shareList={shareList} toggleRecipe={toggleRecipe} updateDealsStore={updateDealsStore} weeklyReady={weeklyReady} />
+          <BudgetTab addPlanLine={addPlanLine} addSavingsAmount={addSavingsAmount} addToSavings={addToSavings} budget={budget} deletePlanLine={deletePlanLine} goal={goal} planAmount={planAmount} planCategory={planCategory} setAddSavingsAmount={setAddSavingsAmount} setPlanAmount={setPlanAmount} setPlanCategory={setPlanCategory} setWeeklyIncome={setWeeklyIncome} togglePlanDone={togglePlanDone} updateGoal={updateGoal} updatePlanAmount={updatePlanAmount} updatePlanCategory={updatePlanCategory} weeklyPlanTotal={weeklyPlanTotal} />
         )}
 
         {tab === 'notes' && (
           <NotesTab addNote={addNote} deleteNote={deleteNote} editNoteText={editNoteText} editingNoteId={editingNoteId} noteTag={noteTag} noteText={noteText} notesData={notesData} saveNoteEdit={saveNoteEdit} setEditNoteText={setEditNoteText} setEditingNoteId={setEditingNoteId} setNoteTag={setNoteTag} setNoteText={setNoteText} togglePinNote={togglePinNote} />
         )}
 
+        </Suspense>
       </main>
       <BottomNav tab={tab} setTab={setTab} />
     </div>

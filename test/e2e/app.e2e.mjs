@@ -57,6 +57,11 @@ try {
   console.log('\n--- Fresh profile ---');
   await page.goto(BASE);
   check('profile picker shows on first visit', await page.getByText("Who's this?").isVisible());
+  check('privacy and terms links are on the first screen',
+    (await page.getByRole('link', { name: 'Privacy' }).getAttribute('href')) === '/privacy.html'
+    && (await page.getByRole('link', { name: 'Terms' }).getAttribute('href')) === '/terms.html');
+  const legal = await fetch(BASE + '/privacy.html').then(r => r.text());
+  check('privacy page is built into the site', legal.includes('Privacy Policy'));
   await createProfile(page, 'Tester', 'pw1');
   check('home shows 0 habits for a brand-new profile (no seeded data)',
     await page.getByText('0/0 habits done today').isVisible());

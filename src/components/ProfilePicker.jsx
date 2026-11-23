@@ -82,6 +82,11 @@ export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfi
                     onChange={e => { const f = e.target.files && e.target.files[0]; if (f) handleImportFile(f); e.target.value = ''; }} />
                   {pickerError && <p className="text-xs mt-2 text-center" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
                   <AccountPanel />
+                  <p className="text-[10px] mt-6 text-center" style={dimText}>
+                    <a href={`${import.meta.env.BASE_URL}privacy.html`} style={{ textDecoration: 'underline' }}>Privacy</a>
+                    {' · '}
+                    <a href={`${import.meta.env.BASE_URL}terms.html`} style={{ textDecoration: 'underline' }}>Terms</a>
+                  </p>
                 </>
               )}
             </>

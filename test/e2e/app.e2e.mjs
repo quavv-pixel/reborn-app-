@@ -143,6 +143,26 @@ try {
   check('restored profile has the note', await B.page.getByText('Remember the milk').first().isVisible());
   check('no JavaScript errors on the new device', B.errors.length === 0);
 
+  console.log('\n--- Works offline after the first visit ---');
+  const C = await newDevice();
+  await C.page.goto(BASE);
+  // Wait until the service worker has installed and taken control.
+  await C.page.evaluate(() => navigator.serviceWorker.ready.then(() => new Promise(r =>
+    navigator.serviceWorker.controller ? r() : navigator.serviceWorker.addEventListener('controllerchange', r))));
+  const cached = await C.page.evaluate(async () => {
+    const keys = await caches.keys();
+    const c = await caches.open(keys.find(k => k.startsWith('reborn-') && k !== 'reborn-auth'));
+    return (await c.keys()).map(r => new URL(r.url).pathname);
+  });
+  check('every built JS file was saved on the first visit',
+    cached.some(p => p.startsWith('/assets/') && p.endsWith('.js')));
+  await C.ctx.setOffline(true);
+  await C.page.reload();
+  check('app opens with no network', await C.page.getByText("Who's this?").isVisible());
+  await C.page.goto(BASE + '/some/deep/link').catch(() => {});
+  check('any URL falls back to the saved app offline', await C.page.getByText("Who's this?").isVisible());
+  await C.ctx.setOffline(false);
+
   check('no JavaScript errors on the first device', A.errors.length === 0);
   if (A.errors.length || B.errors.length) console.log('errors:', [...A.errors, ...B.errors]);
 } catch (e) {

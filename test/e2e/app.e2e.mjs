@@ -96,12 +96,19 @@ try {
   check('the lift appears under Personal bests', await page.getByText('225 lb').first().isVisible());
 
   console.log('\n--- Gym: muscle group picks the exercises ---');
-  const tag = name => page.getByRole('button', { name, exact: true });
+  // The muscle chips appear twice (Exercises card + Log a set); they share one selection.
+  const tag = name => page.getByRole('button', { name, exact: true }).first();
   const optionValues = () => exerciseSelect.locator('option:not([disabled])').evaluateAll(os => os.map(o => o.value));
   await tag('Legs').click();
   const legs = await optionValues();
   check('tapping Legs shows only leg exercises', legs.length === 14 && legs.includes('Squat') && !legs.includes('Bench Press'));
   check('...and picks the first one for you', (await exerciseSelect.inputValue()) === 'Squat');
+  const chips = await page.getByTestId('exercise-chips').getByRole('button').allInnerTexts();
+  check('the Exercises card shows the same leg exercises as buttons', chips.length === 14 && chips.includes('Hip Thrust'));
+  check('both rows of muscle chips light up together',
+    (await page.getByRole('button', { name: 'Legs', exact: true }).evaluateAll(bs => bs.map(b => b.getAttribute('aria-pressed')))).every(v => v === 'true'));
+  await page.getByTestId('exercise-chips').getByRole('button', { name: 'Hip Thrust' }).click();
+  check('tapping an exercise button picks it in the form', (await exerciseSelect.inputValue()) === 'Hip Thrust');
   await tag('Core').click();
   check('tapping Core switches to core exercises', (await exerciseSelect.inputValue()) === 'Plank');
   await exerciseSelect.selectOption('Russian Twist');

@@ -278,7 +278,30 @@ export const EXERCISE_LIBRARY = {
   'full body': ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-ups', 'Kettlebell Swing', "Farmer's Carry", 'Clean and Press', 'Burpees', 'Thrusters', 'Turkish Get-up'],
   rest: [],
 };
-export const ALL_EXERCISES = [...new Set(Object.values(EXERCISE_LIBRARY).flat())];
+// Exercises for each muscle-group tag on the Gym tab. Tapping a tag narrows
+// the Exercise list to these and picks the first one. Each exercise is listed
+// under the muscle it mainly works (an exercise can appear in more than one).
+export const EXERCISES_BY_MUSCLE = {
+  Chest: ['Bench Press', 'Incline Dumbbell Press', 'Chest Fly', 'Cable Crossover', 'Pec Deck', 'Push-ups', 'Dips', 'Close-Grip Bench Press'],
+  Back: ['Deadlift', 'Pull-ups', 'Chin-ups', 'Barbell Row', 'Lat Pulldown', 'Seated Cable Row', 'T-Bar Row', 'Face Pull', 'Reverse Fly', 'Shrugs'],
+  Shoulders: ['Overhead Press', 'Arnold Press', 'Lateral Raise', 'Landmine Press', 'Face Pull', 'Reverse Fly', 'Shrugs'],
+  Arms: ['Bicep Curl', 'Hammer Curl', 'Preacher Curl', 'Cable Curl', 'Tricep Pushdown', 'Skull Crushers', 'Close-Grip Bench Press', 'Dips'],
+  Legs: ['Squat', 'Front Squat', 'Hack Squat', 'Goblet Squat', 'Leg Press', 'Romanian Deadlift', 'Leg Curl', 'Leg Extension', 'Walking Lunges', 'Bulgarian Split Squat', 'Hip Thrust', 'Glute Bridge', 'Calf Raise', 'Standing Calf Raise'],
+  Core: ['Plank', 'Crunches', 'Hanging Leg Raise', 'Russian Twist', 'Ab Wheel Rollout', 'Cable Crunch', 'Side Plank', 'Mountain Climbers'],
+  Cardio: ['Running', 'Cycling', 'Rowing Machine', 'Jump Rope', 'Stair Climber', 'Elliptical', 'Incline Walk', 'Burpees'],
+  'Full Body': EXERCISE_LIBRARY['full body'],
+};
+
+export const ALL_EXERCISES = [...new Set([...Object.values(EXERCISE_LIBRARY).flat(), ...Object.values(EXERCISES_BY_MUSCLE).flat()])];
+
+// The muscle tag that fits an exercise best (first group that lists it),
+// used to fill in the tag automatically when you pick an exercise first.
+export function muscleForExercise(name) {
+  for (const [muscle, list] of Object.entries(EXERCISES_BY_MUSCLE)) {
+    if (list.includes(name)) return muscle;
+  }
+  return '';
+}
 
 export function getExercisesForType(type) {
   const key = (type || '').trim().toLowerCase();

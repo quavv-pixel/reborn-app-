@@ -95,6 +95,26 @@ try {
   await page.getByRole('button', { name: 'Add lift' }).click();
   check('the lift appears under Personal bests', await page.getByText('225 lb').first().isVisible());
 
+  console.log('\n--- Gym: muscle group picks the exercises ---');
+  const tag = name => page.getByRole('button', { name, exact: true });
+  const optionValues = () => exerciseSelect.locator('option:not([disabled])').evaluateAll(os => os.map(o => o.value));
+  await tag('Legs').click();
+  const legs = await optionValues();
+  check('tapping Legs shows only leg exercises', legs.length === 14 && legs.includes('Squat') && !legs.includes('Bench Press'));
+  check('...and picks the first one for you', (await exerciseSelect.inputValue()) === 'Squat');
+  await tag('Core').click();
+  check('tapping Core switches to core exercises', (await exerciseSelect.inputValue()) === 'Plank');
+  await exerciseSelect.selectOption('Russian Twist');
+  check('you can still choose another exercise from that group', (await exerciseSelect.inputValue()) === 'Russian Twist');
+  await tag('Core').click();
+  check('tapping the same tag again shows every exercise', (await optionValues()).length > 60);
+  await exerciseSelect.selectOption('Lat Pulldown');
+  check('choosing an exercise first fills in its muscle tag', (await tag('Back').getAttribute('aria-pressed')) === 'true');
+  await tag('Chest').click();
+  check('your last numbers fill in for the picked exercise',
+    (await exerciseSelect.inputValue()) === firstExercise || (await page.getByPlaceholder('135').inputValue()) === '');
+  await tag('Chest').click();
+
   console.log('\n--- Routine: add + tick a habit ---');
   await nav(page, 'Routine');
   await page.getByPlaceholder('New habit').fill('Drink water');

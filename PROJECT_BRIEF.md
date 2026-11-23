@@ -75,8 +75,9 @@ profiles on the same device. It tracks:
 | No UI tests | Browser tests for every tab, offline and two-phone sync, plus database tests, all in CI |
 | Partial offline | Every file precached on first visit |
 
-Still open: password reset for *profile* passwords (account passwords can be
-reset); no custom domain yet (you need to buy one); sync is last-write-wins per
+Profile passwords can now be reset with the account password ("Forgot
+password?"), for profiles opened at least once while signed in.
+Still open: no custom domain yet (you need to buy one); sync is last-write-wins per
 tab, so editing the same tab on two offline phones keeps the newer edit.
 See SETUP_GUIDE.md for every step that needs your accounts.
 

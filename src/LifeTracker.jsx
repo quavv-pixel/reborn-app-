@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDebouncedStorage } from './lib/useDebouncedStorage.js';
 import { hashPassword, loadProfileList, pKey, saveProfileList } from './lib/profiles.js';
+import { getState as cloudState, verifyAccountPassword } from './sync/cloud.js';
 import { defaultTargetDate, getLast7Days, heatColor, loadKey, todayStr, uid } from './lib/utils.js';
 import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, MONO, RADIUS_SM, SANS, THEMES, cheerFor, getDailyQuote, getExercisesForType } from './lib/constants.js';
 import { armRealPush, backendAvailable, bootstrapToken, syncSchedule } from './push';
@@ -89,11 +90,49 @@ export default function LifeTracker() {
     setPickerError('');
     setPickerMode('unlock');
   }
+  // Forgotten-password support: a profile opened (password proven) while
+  // signed in is stamped with that account's id. Later, that same account —
+  // after re-entering its account password — may set a new profile password.
+  // Someone who only creates their OWN account on this phone can't reset
+  // your profiles, because they aren't stamped with their id.
+  function linkToAccount(name) {
+    const user = cloudState().user;
+    if (!user) return;
+    setProfileList(list => {
+      const entry = list.find(p => p.name === name);
+      if (!entry || entry.owner === user.id) return list;
+      const next = list.map(p => (p.name === name ? { ...p, owner: user.id } : p));
+      saveProfileList(next);
+      return next;
+    });
+  }
+  async function confirmResetProfilePassword(accountPassword) {
+    const entry = profileList.find(p => p.name === pickerTarget);
+    if (!entry) return;
+    const user = cloudState().user;
+    if (!user) { setPickerError('Sign in to your account first (on the previous screen), then try again.'); return; }
+    if (entry.owner !== user.id) {
+      setPickerError('This profile isn\'t linked to the account you\'re signed in with, so its password can\'t be reset from here. (A profile gets linked the first time you open it while signed in.)');
+      return;
+    }
+    if (!pickerPassword) { setPickerError('Choose a new profile password.'); return; }
+    if (pickerPassword !== pickerPassword2) { setPickerError('New passwords don\'t match.'); return; }
+    if (!(await verifyAccountPassword(accountPassword))) { setPickerError('That account password is wrong.'); return; }
+    const salt = uid();
+    const passHash = await hashPassword(pickerPassword, salt);
+    const next = profileList.map(p => (p.name === entry.name ? { ...p, salt, passHash } : p));
+    setProfileList(next);
+    saveProfileList(next);
+    setPickerError('');
+    setProfile(entry.name);
+    window.storage.set('device:last-profile', JSON.stringify(entry.name)).catch(() => {});
+  }
   async function confirmUnlock() {
     const entry = profileList.find(p => p.name === pickerTarget);
     if (!entry) return;
     const hash = await hashPassword(pickerPassword, entry.salt);
     if (hash === entry.passHash) {
+      linkToAccount(entry.name);
       setProfile(entry.name);
       window.storage.set('device:last-profile', JSON.stringify(entry.name)).catch(() => {});
     } else {
@@ -108,7 +147,8 @@ export default function LifeTracker() {
     if (pickerPassword !== pickerPassword2) { setPickerError('Passwords don\'t match.'); return; }
     const salt = uid();
     const passHash = await hashPassword(pickerPassword, salt);
-    const entry = { name: trimmed, passHash, salt };
+    const owner = cloudState().user && cloudState().user.id;
+    const entry = owner ? { name: trimmed, passHash, salt, owner } : { name: trimmed, passHash, salt };
     const next = [...profileList, entry];
     setProfileList(next);
     saveProfileList(next);
@@ -841,7 +881,7 @@ export default function LifeTracker() {
   };
 
   if (!profile) {
-    return <ProfilePicker confirmDeleteProfile={confirmDeleteProfile} confirmExportProfile={confirmExportProfile} confirmNewProfile={confirmNewProfile} confirmRenameProfile={confirmRenameProfile} confirmUnlock={confirmUnlock} handleImportFile={handleImportFile} importFileRef={importFileRef} newProfileName={newProfileName} openUnlock={openUnlock} pickerError={pickerError} pickerMode={pickerMode} pickerPassword={pickerPassword} pickerPassword2={pickerPassword2} pickerTarget={pickerTarget} pickerTheme={pickerTheme} profileList={profileList} profileListLoading={profileListLoading} setNewProfileName={setNewProfileName} setPickerError={setPickerError} setPickerMode={setPickerMode} setPickerPassword={setPickerPassword} setPickerPassword2={setPickerPassword2} setPickerTheme={setPickerTheme} />;
+    return <ProfilePicker confirmResetProfilePassword={confirmResetProfilePassword} confirmDeleteProfile={confirmDeleteProfile} confirmExportProfile={confirmExportProfile} confirmNewProfile={confirmNewProfile} confirmRenameProfile={confirmRenameProfile} confirmUnlock={confirmUnlock} handleImportFile={handleImportFile} importFileRef={importFileRef} newProfileName={newProfileName} openUnlock={openUnlock} pickerError={pickerError} pickerMode={pickerMode} pickerPassword={pickerPassword} pickerPassword2={pickerPassword2} pickerTarget={pickerTarget} pickerTheme={pickerTheme} profileList={profileList} profileListLoading={profileListLoading} setNewProfileName={setNewProfileName} setPickerError={setPickerError} setPickerMode={setPickerMode} setPickerPassword={setPickerPassword} setPickerPassword2={setPickerPassword2} setPickerTheme={setPickerTheme} />;
   }
 
   if (loading) {

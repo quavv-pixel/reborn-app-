@@ -129,6 +129,10 @@ try {
   await page.getByPlaceholder('Password', { exact: true }).press('Enter');
   await page.getByRole('button', { name: /unlock/i }).click().catch(() => {});
   check('wrong password is refused', await page.getByText('Wrong password.').isVisible());
+  await page.getByText('Forgot password?').click();
+  check('without accounts, "Forgot password?" explains it can\'t be recovered',
+    await page.getByText(/can't be recovered/).isVisible());
+  await page.getByRole('button', { name: 'Back' }).click();
 
   console.log('\n--- Backup file restores on a brand-new device ---');
   await page.getByText('Export backup').click();

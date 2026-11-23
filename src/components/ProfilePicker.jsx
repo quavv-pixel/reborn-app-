@@ -3,8 +3,10 @@ import { DISPLAY, MONO, RADIUS_SM, SANS, THEMES } from '../lib/constants.js';
 import { BtnPrimary, DotCloud, dimText, glassCard } from './ui.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import { cloudConfigured } from '../sync/cloud.js';
+import { useState } from 'react';
 
-export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfile, confirmNewProfile, confirmRenameProfile, confirmUnlock, handleImportFile, importFileRef, newProfileName, openUnlock, pickerError, pickerMode, pickerPassword, pickerPassword2, pickerTarget, pickerTheme, profileList, profileListLoading, setNewProfileName, setPickerError, setPickerMode, setPickerPassword, setPickerPassword2, setPickerTheme }) {
+export default function ProfilePicker({ confirmResetProfilePassword, confirmDeleteProfile, confirmExportProfile, confirmNewProfile, confirmRenameProfile, confirmUnlock, handleImportFile, importFileRef, newProfileName, openUnlock, pickerError, pickerMode, pickerPassword, pickerPassword2, pickerTarget, pickerTheme, profileList, profileListLoading, setNewProfileName, setPickerError, setPickerMode, setPickerPassword, setPickerPassword2, setPickerTheme }) {
+    const [accountPassword, setAccountPassword] = useState('');
     const pth = THEMES[pickerTheme] || THEMES.noir;
     const pickerVars = {
       '--bg': pth.bg, '--panel': pth.panel, '--field': pth.field,
@@ -128,6 +130,8 @@ export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfi
                 <button onClick={() => setPickerMode('list')} className="text-sm px-3 py-2" style={dimText}>Back</button>
               </div>
               <div className="flex gap-4 mt-5 flex-wrap">
+                <button onClick={() => { setPickerPassword(''); setPickerPassword2(''); setAccountPassword(''); setPickerError(''); setPickerMode('forgot'); }}
+                  className="text-xs" style={dimText}>Forgot password?</button>
                 <button onClick={() => { setNewProfileName(pickerTarget); setPickerPassword(''); setPickerError(''); setPickerMode('rename'); }}
                   className="text-xs" style={dimText}>Rename profile</button>
                 <button onClick={() => { setPickerPassword(''); setPickerError(''); setPickerMode('export'); }}
@@ -135,6 +139,40 @@ export default function ProfilePicker({ confirmDeleteProfile, confirmExportProfi
                 <button onClick={() => { setPickerPassword(''); setPickerError(''); setPickerMode('delete'); }}
                   className="text-xs" style={{ color: 'var(--danger, #f87171)' }}>Delete profile</button>
               </div>
+            </>
+          )}
+
+          {pickerMode === 'forgot' && (
+            <>
+              <div className="text-2xl font-medium mb-1">Reset “{pickerTarget}”</div>
+              {cloudConfigured ? (
+                <>
+                  <p className="text-xs mb-4" style={dimText}>
+                    Enter your <b>account</b> password to prove it's you, then choose a new password for this profile. Works for profiles you've opened at least once while signed in.
+                  </p>
+                  <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none mb-2" style={pwInputStyle}
+                    value={accountPassword} onChange={e => setAccountPassword(e.target.value)}
+                    placeholder="Account password" autoComplete="current-password" autoFocus />
+                  <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none mb-2" style={pwInputStyle}
+                    value={pickerPassword} onChange={e => setPickerPassword(e.target.value)}
+                    placeholder="New profile password" autoComplete="new-password" />
+                  <input type="password" className="w-full text-sm px-3 py-2 focus:outline-none mb-2" style={pwInputStyle}
+                    value={pickerPassword2} onChange={e => setPickerPassword2(e.target.value)}
+                    placeholder="Confirm new profile password" autoComplete="new-password" />
+                  {pickerError && <p className="text-xs mb-2" style={{ color: 'var(--danger, #f87171)' }}>{pickerError}</p>}
+                  <div className="flex gap-2">
+                    <BtnPrimary onClick={() => confirmResetProfilePassword(accountPassword)}>Reset password</BtnPrimary>
+                    <button onClick={() => { setPickerError(''); setPickerMode('unlock'); }} className="text-sm px-3 py-2" style={dimText}>Back</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs mb-4" style={dimText}>
+                    Profile passwords are scrambled on this device and never sent anywhere, so they can't be recovered. If you have a backup file you can import it under a different name, or delete this profile and start fresh.
+                  </p>
+                  <button onClick={() => { setPickerError(''); setPickerMode('unlock'); }} className="text-sm px-3 py-2" style={dimText}>Back</button>
+                </>
+              )}
             </>
           )}
 

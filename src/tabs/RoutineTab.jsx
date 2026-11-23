@@ -1,163 +1,98 @@
-// The Routine tab. Pure view: every value and handler it needs arrives as a prop from LifeTracker.jsx, which owns all state.
-import { BtnPrimary, Panel, dimText, inputStyle } from '../components/ui.jsx';
+// The Routine tab: today's habits, how you feel, and daily reminders.
+// Every value and handler arrives as a prop from LifeTracker.jsx.
+import { BtnPrimary, CheckCircle, Panel, dimText, inputStyle } from '../components/ui.jsx';
 import { downloadICS } from '../lib/ics.js';
-import { CATEGORIES, MONO, MOODS, MOOD_LABELS, RADIUS_SM } from '../lib/constants.js';
-import { CalendarDays, Download, Plus, Trash2 } from 'lucide-react';
+import { MOODS, MOOD_LABELS } from '../lib/constants.js';
+import { Plus, Trash2 } from 'lucide-react';
 import { streakFor } from '../lib/utils.js';
 
-export default function RoutineTab({ addScheduleRow, deleteHabit, deleteScheduleRow, habitsToday, handleAddHabit, last7Days, newHabitCategory, newHabitName, routine, setMood, setNewHabitCategory, setNewHabitName, today, toggleHabit, updateScheduleRow }) {
+export default function RoutineTab({ addScheduleRow, deleteHabit, deleteScheduleRow, habitsToday, handleAddHabit, newHabitName, routine, setMood, setNewHabitName, today, toggleHabit, updateScheduleRow }) {
   return (
-        <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
-          <div>
-            <Panel
-              title="Daily schedule"
-              right={
-                <button onClick={() => downloadICS(routine.schedule)} className="flex items-center gap-1 text-[11px] px-2 py-1" style={{ fontFamily: MONO, border: '1px solid var(--accent)', color: 'var(--accent)' }}>
-                  <Download size={12} /> Export to calendar
-                </button>
-              }
-            >
-              <div className="space-y-1 mb-2 max-h-96 overflow-y-auto">
-                {routine.schedule.map(s => (
-                  <div key={s.id} className="flex items-center gap-2 px-2 py-1.5" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
-                    <input
-                      className="w-20 bg-transparent text-xs focus:outline-none flex-shrink-0"
-                      style={{ fontFamily: MONO, color: 'var(--accent)' }}
-                      value={s.time}
-                      onChange={e => updateScheduleRow(s.id, 'time', e.target.value)}
-                      placeholder="8:00 AM"
-                    />
-                    <input
-                      className="flex-1 bg-transparent text-sm focus:outline-none"
-                      style={{ color: 'var(--text)' }}
-                      value={s.label}
-                      onChange={e => updateScheduleRow(s.id, 'label', e.target.value)}
-                    />
-                    <button onClick={() => deleteScheduleRow(s.id)} className="flex-shrink-0" style={dimText}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <BtnPrimary onClick={addScheduleRow}>Add block</BtnPrimary>
-                <span className="text-xs flex items-center gap-1" style={dimText}>
-                  <CalendarDays size={12} /> Export makes each block a daily repeating reminder — re-export after edits.
-                </span>
-              </div>
-            </Panel>
-          </div>
-
-          <div>
-            <Panel title="Today's vibe">
-              <div className="flex gap-1.5">
-                {MOODS.map((m, i) => (
-                  <button key={i} onClick={() => setMood(today, i)}
-                    className="flex-1 py-2 text-center"
-                    style={{
-                      background: routine.moodLog[today] === i ? 'var(--field)' : 'transparent',
-                      border: `1px solid ${routine.moodLog[today] === i ? 'var(--accent)' : 'var(--border)'}`,
-                    }}>
-                    <div className="text-lg">{m}</div>
-                    <div className="text-[9px] mt-0.5" style={dimText}>{MOOD_LABELS[i]}</div>
+    <div className="md:grid md:grid-cols-2 md:gap-3 md:items-start">
+      <div>
+        <Panel title="Today's habits" right={<span className="text-sm" style={dimText}>{habitsToday.length}/{routine.habits.length}</span>}>
+          {routine.habits.length === 0 && (
+            <p className="text-sm mb-3" style={dimText}>Add something small you want to do every day, like "Drink water".</p>
+          )}
+          <div className="space-y-1.5 mb-3">
+            {routine.habits.map(h => {
+              const done = habitsToday.includes(h.id);
+              const streak = streakFor(h.id, routine.logs);
+              return (
+                <div key={h.id} className="flex items-center gap-3 px-3 py-2.5" style={{ background: 'var(--field)', borderRadius: 12 }}>
+                  <CheckCircle on={done} onClick={() => toggleHabit(h.id, today)} label={`Done: ${h.name}`} />
+                  <button onClick={() => toggleHabit(h.id, today)} className="flex-1 text-left text-sm"
+                    style={{ color: done ? 'var(--dim)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>
+                    {h.name}
                   </button>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel title="Today's checklist">
-              {routine.habits.length === 0 ? (
-                <p className="text-sm mb-2" style={dimText}>No habits yet. Add one below.</p>
-              ) : (
-                <div className="mb-3">
-                  {CATEGORIES.map(cat => {
-                    const inCat = routine.habits.filter(h => (h.category || 'personal') === cat.id);
-                    if (!inCat.length) return null;
-                    return (
-                      <div key={cat.id} className="mb-3">
-                        <div className="text-[10px] uppercase tracking-widest mb-1" style={{ fontFamily: MONO, color: cat.color }}>{cat.icon} {cat.label}</div>
-                        <div className="space-y-1">
-                          {inCat.map(h => {
-                            const done = habitsToday.includes(h.id);
-                            const streak = streakFor(h.id, routine.logs);
-                            return (
-                              <div key={h.id} className="flex items-center justify-between px-2 py-2" style={{ background: 'var(--field)', border: '1px solid var(--border)', borderRadius: RADIUS_SM }}>
-                                <button onClick={() => toggleHabit(h.id, today)} className="flex items-center gap-2 flex-1 text-left">
-                                  <span className="w-4 h-4 flex-shrink-0" style={{ background: done ? cat.color : 'transparent', border: `1px solid ${done ? cat.color : 'var(--border)'}` }} />
-                                  <span className="text-sm" style={{ color: done ? 'var(--dim)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>{h.name}</span>
-                                </button>
-                                <div className="flex items-center gap-2">
-                                  {streak > 0 && <span className="text-xs" style={{ fontFamily: MONO, color: 'var(--accent)' }}>{streak}d</span>}
-                                  <button onClick={() => deleteHabit(h.id)} style={dimText}>
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {streak > 1 && <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>{streak} days</span>}
+                  <button onClick={() => deleteHabit(h.id)} style={dimText} aria-label={`Delete ${h.name}`}><Trash2 size={15} /></button>
                 </div>
-              )}
-              <div className="flex gap-1 mb-2 flex-wrap">
-                {CATEGORIES.map(cat => (
-                  <button key={cat.id} onClick={() => setNewHabitCategory(cat.id)}
-                    className="text-[10px] px-2 py-1"
-                    style={{
-                      fontFamily: MONO,
-                      border: `1px solid ${newHabitCategory === cat.id ? cat.color : 'var(--border)'}`,
-                      background: newHabitCategory === cat.id ? cat.color : 'transparent',
-                      color: newHabitCategory === cat.id ? '#000' : 'var(--dim)',
-                    }}>{cat.icon} {cat.label}</button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  className="flex-1 text-sm px-3 py-2 focus:outline-none"
-                  style={inputStyle}
-                  value={newHabitName}
-                  onChange={e => setNewHabitName(e.target.value)}
-                  placeholder="New habit"
-                  onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); }}
-                />
-                <BtnPrimary onClick={handleAddHabit}><Plus size={16} /></BtnPrimary>
-              </div>
-            </Panel>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 min-w-0 text-sm px-3 py-2.5 focus:outline-none"
+              style={inputStyle}
+              value={newHabitName}
+              onChange={e => setNewHabitName(e.target.value)}
+              placeholder="New habit"
+              onKeyDown={e => { if (e.key === 'Enter') handleAddHabit(); }}
+            />
+            <BtnPrimary onClick={handleAddHabit} style={{ padding: '0 14px' }}><Plus size={18} /></BtnPrimary>
+          </div>
+        </Panel>
+      </div>
 
-            <Panel title="Last 7 days">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs" style={{ fontFamily: MONO }}>
-                  <thead>
-                    <tr>
-                      <td></td>
-                      {last7Days.map(d => (
-                        <td key={d} className="text-center pb-1" style={dimText}>
-                          {new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'narrow' })}
-                        </td>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {routine.habits.map(h => (
-                      <tr key={h.id}>
-                        <td className="pr-2 py-1 truncate" style={{ maxWidth: '5.5rem', ...dimText }}>{h.name}</td>
-                        {last7Days.map(d => {
-                          const on = (routine.logs[d] || []).includes(h.id);
-                          return (
-                            <td key={d} className="text-center py-1">
-                              <span className="inline-block w-3 h-3" style={{ background: on ? 'var(--accent2)' : 'var(--field)', border: on ? 'none' : '1px solid var(--border)', borderRadius: 3 }} />
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      <div>
+        <Panel title="How do you feel today?">
+          <div className="flex gap-1.5">
+            {MOODS.map((m, i) => {
+              const on = routine.moodLog[today] === i;
+              return (
+                <button key={i} onClick={() => setMood(today, i)} aria-pressed={on}
+                  className="flex-1 py-2 text-center"
+                  style={{ background: on ? 'var(--accent-soft)' : 'var(--field)', border: `1.5px solid ${on ? 'var(--accent)' : 'transparent'}` }}>
+                  <div className="text-xl">{m}</div>
+                  <div className="text-[10px] mt-0.5" style={dimText}>{MOOD_LABELS[i]}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
+
+        <Panel title="Daily reminders" hint="Turn on the bell at the top to get a nudge at each time.">
+          <div className="space-y-1.5 mb-3">
+            {routine.schedule.map(s => (
+              <div key={s.id} className="flex items-center gap-2 px-3 py-1.5" style={{ background: 'var(--field)', borderRadius: 12 }}>
+                <input
+                  className="w-20 bg-transparent text-sm font-medium focus:outline-none flex-shrink-0"
+                  style={{ color: 'var(--accent)' }}
+                  value={s.time}
+                  onChange={e => updateScheduleRow(s.id, 'time', e.target.value)}
+                  placeholder="8:00 AM"
+                  aria-label="Time"
+                />
+                <input
+                  className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none"
+                  value={s.label}
+                  onChange={e => updateScheduleRow(s.id, 'label', e.target.value)}
+                  placeholder="What to do"
+                  aria-label="Reminder"
+                />
+                <button onClick={() => deleteScheduleRow(s.id)} className="flex-shrink-0" style={dimText} aria-label="Delete reminder"><Trash2 size={15} /></button>
               </div>
-            </Panel>
+            ))}
           </div>
+          <div className="flex items-center justify-between gap-2">
+            <BtnPrimary onClick={addScheduleRow} style={{ background: 'var(--field)', color: 'var(--text)' }}>Add reminder</BtnPrimary>
+            {routine.schedule.length > 0 && (
+              <button onClick={() => downloadICS(routine.schedule)} className="text-sm underline" style={dimText}>Add to phone calendar</button>
+            )}
           </div>
+        </Panel>
+      </div>
+    </div>
   );
 }

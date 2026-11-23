@@ -1,112 +1,44 @@
-// The Home tab. Pure view: every value and handler it needs arrives as a prop from LifeTracker.jsx, which owns all state.
-import { Meter, NavCard, Panel, dimText, glassCard } from '../components/ui.jsx';
-import { MONO, RADIUS } from '../lib/constants.js';
-import { HERO_WAVE_PATH, fmtDate, fmtMoney, greeting } from '../lib/utils.js';
-import { Dumbbell, ListChecks, ShoppingCart, Wallet } from 'lucide-react';
-import { BOOK } from '../book';
+// The Home tab: a greeting, three numbers that matter today, and the quote.
+// Every value it shows arrives as a prop from LifeTracker.jsx.
+import { BtnPrimary, Panel, Stat, dimText } from '../components/ui.jsx';
+import { fmtDate, fmtMoney, greeting } from '../lib/utils.js';
 
-export default function HomeTab({ cooked, goal, gym, habitsToday, heroWaveColor, heroWaveDuration, isAllEmpty, picked, profile, quote, remainingBills, routine, setTab, today, todayIdx, workoutsThisWeek }) {
+export default function HomeTab({ habitsToday, isAllEmpty, profile, quote, remainingBills, routine, setTab, today, workoutsThisWeek }) {
   return (
-        <div>
-            <div className="mb-3 p-4 relative overflow-hidden" style={{
-              ...glassCard(RADIUS),
-              background: 'radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%), color-mix(in srgb, var(--panel) 88%, transparent)',
-            }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{greeting()}</span>
-                <span className="text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>{fmtDate(today)}</span>
-              </div>
-              <div className="text-2xl font-medium mb-1">{profile}</div>
-              <p className="text-sm mb-3" style={dimText}>{isAllEmpty ? "Let's get started." : "You're building momentum."}</p>
-              <div className="w-full h-10 overflow-hidden">
-                <svg
-                  viewBox="0 0 600 40"
-                  preserveAspectRatio="none"
-                  className="hero-wave h-full"
-                  style={{ width: '200%', animation: `heroWaveScroll ${heroWaveDuration}s linear infinite` }}
-                >
-                  <path
-                    d={HERO_WAVE_PATH}
-                    fill="none"
-                    stroke={heroWaveColor}
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    opacity="0.9"
-                    style={{ filter: `drop-shadow(0 0 5px ${heroWaveColor})`, transition: 'stroke 1.5s ease' }}
-                  />
-                </svg>
-              </div>
-            </div>
+    <div>
+      <div className="mb-4 mt-1">
+        <p className="text-sm" style={dimText}>{greeting()} · {fmtDate(today)}</p>
+        <h1 className="text-2xl font-bold mt-0.5">{profile}</h1>
+      </div>
 
-            <Panel title="Daily transmission">
-              <p className="text-sm italic leading-relaxed mb-1">"{quote.text}"</p>
-              <p className="text-xs" style={dimText}>— {quote.author}</p>
-            </Panel>
-
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <Meter
-                label={`${goal.name} fund`}
-                value={Number(goal.saved) || 0}
-                max={Number(goal.target) || 1}
-                displayValue={fmtMoney(goal.saved)}
-                displayMax={fmtMoney(goal.target)}
-                accentVar="--accent2" barVar="--accent2"
-              />
-              <Meter
-                label="Habits today"
-                value={habitsToday.length}
-                max={routine.habits.length || 1}
-                displayMax={routine.habits.length}
-                accentVar="--accent2" barVar="--accent2"
-              />
-              <Meter
-                label="Workouts (7d)"
-                value={workoutsThisWeek}
-                max={7}
-                accentVar="--accent" barVar="--accent"
-              />
-            </div>
-
-            <div className="md:grid md:grid-cols-2 md:gap-2">
-              <div>
-                <div className="mb-2 text-xs uppercase tracking-widest" style={{ fontFamily: MONO, ...dimText }}>Jump to</div>
-                <div className="mb-3" style={{ ...glassCard(RADIUS), overflow: 'hidden' }}>
-                  <NavCard
-                    icon={Dumbbell}
-                    title="Gym"
-                    subtitle={`${workoutsThisWeek}/7 days trained this week · today: ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'}`}
-                    onClick={() => setTab('gym')}
-                  />
-                  <NavCard
-                    icon={ListChecks}
-                    title="Routine"
-                    subtitle={`${habitsToday.length}/${routine.habits.length} habits done today`}
-                    onClick={() => setTab('routine')}
-                    divider
-                  />
-                  <NavCard
-                    icon={Wallet}
-                    title="Budget"
-                    subtitle={`${fmtMoney(remainingBills)} in bills left this month`}
-                    onClick={() => setTab('budget')}
-                    divider
-                  />
-                  <NavCard
-                    icon={ShoppingCart}
-                    title="Weekly"
-                    subtitle={`${picked.length} recipe${picked.length !== 1 ? 's' : ''} picked · ${cooked.length}/${BOOK.length} cooked`}
-                    onClick={() => setTab('week')}
-                  />
-                </div>
-              </div>
-              <div>
-                {isAllEmpty && (
-                  <Panel title="Get started">
-                    <p className="text-sm" style={dimText}>Nothing logged yet. Tap a card to add your first gym session, habit check, or expense.</p>
-                  </Panel>
-                )}
-              </div>
-            </div>
+      {isAllEmpty ? (
+        <Panel title="Start here" hint="Pick one small thing to track. You can add the rest later.">
+          <div className="flex flex-wrap gap-2">
+            <BtnPrimary onClick={() => setTab('routine')}>Add a habit</BtnPrimary>
+            <BtnPrimary onClick={() => setTab('gym')} style={{ background: 'var(--field)', color: 'var(--text)' }}>Log a workout</BtnPrimary>
+            <BtnPrimary onClick={() => setTab('budget')} style={{ background: 'var(--field)', color: 'var(--text)' }}>Add a bill</BtnPrimary>
           </div>
+        </Panel>
+      ) : null}
+
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <button onClick={() => setTab('routine')} className="text-left">
+          <Stat label="habits done today" value={`${habitsToday.length}/${routine.habits.length}`} />
+        </button>
+        <button onClick={() => setTab('gym')} className="text-left">
+          <Stat label="workouts this week" value={workoutsThisWeek} />
+        </button>
+        <button onClick={() => setTab('budget')} className="text-left">
+          <Stat label="bills left this month" value={fmtMoney(remainingBills)} />
+        </button>
+      </div>
+      {/* Plain-text summary kept for screen readers and the UI tests. */}
+      <p className="sr-only">{habitsToday.length}/{routine.habits.length} habits done today</p>
+
+      <Panel title="Today's thought">
+        <p className="text-base leading-relaxed">“{quote.text}”</p>
+        <p className="text-sm mt-2" style={dimText}>{quote.author}</p>
+      </Panel>
+    </div>
   );
 }

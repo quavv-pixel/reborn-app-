@@ -207,6 +207,12 @@ await test('no secrets set -> the old default password does NOT work', () => wit
 await test('only the password set (no rotate secret) -> still fails closed', () => withEnv({ REBORN_PASS: 'p' }, async () => {
   assert.strictEqual((await middleware(req('/'))).status, 503);
 }));
+await test('setup page names exactly which setting is missing, never a value', () => withEnv({ REBORN_PASS: 'hunter2-secret' }, async () => {
+  const html = await (await middleware(req('/'))).text();
+  assert.ok(html.includes('<b>REBORN_ROTATE_SECRET</b>'));
+  assert.ok(!html.includes('<b>REBORN_PASS</b>'), 'REBORN_PASS is set, so it must not be listed');
+  assert.ok(!html.includes('hunter2-secret'), 'a value must never be shown');
+}));
 await test('secrets set -> sign-in box (401)', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, async () => {
   assert.strictEqual((await middleware(req('/'))).status, 401);
 }));

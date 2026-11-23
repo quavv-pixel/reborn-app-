@@ -5,7 +5,7 @@ import { useDebouncedStorage } from './lib/useDebouncedStorage.js';
 import { hashPassword, loadProfileList, pKey, saveProfileList } from './lib/profiles.js';
 import { getState as cloudState, verifyAccountPassword } from './sync/cloud.js';
 import { defaultTargetDate, getLast7Days, loadKey, todayStr, uid } from './lib/utils.js';
-import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, cheerFor, getDailyQuote, getExercisesForType } from './lib/constants.js';
+import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, EXERCISES_BY_MUSCLE, cheerFor, getDailyQuote, getExercisesForType, muscleForExercise } from './lib/constants.js';
 import { armRealPush, backendAvailable, bootstrapToken, syncSchedule } from './push';
 import { parseTimeLabel } from './lib/ics.js';
 import { mergeRemindersIntoHabits, scheduleFromHabits } from './lib/habits.js';
@@ -371,7 +371,23 @@ export default function LifeTracker() {
     if (options.length) setGExercise(options[0]);
   }, [loading, gym.split]);
 
+  // Tapping a muscle-group tag narrows the Exercise list to that muscle and
+  // picks its first exercise (unless the current one already fits). Tapping
+  // the same tag again clears it and shows every exercise.
+  function selectMuscle(mg) {
+    if (gMuscle === mg) { setGMuscle(''); return; }
+    setGMuscle(mg);
+    const list = EXERCISES_BY_MUSCLE[mg] || [];
+    if (list.length && !list.includes(gExercise)) fillExercise(list[0]);
+  }
+  // Choosing an exercise directly fills in its muscle tag when none is set,
+  // or switches the tag if the exercise belongs to a different muscle.
   function handleExerciseChange(name) {
+    fillExercise(name);
+    if (!gMuscle || !(EXERCISES_BY_MUSCLE[gMuscle] || []).includes(name)) setGMuscle(muscleForExercise(name));
+  }
+  // Selects an exercise and fills sets/reps/weight from your last log of it.
+  function fillExercise(name) {
     setGExercise(name);
     const priorLogs = gym.workouts.filter(w => w.exercise.toLowerCase() === name.toLowerCase());
     if (priorLogs.length) {
@@ -805,7 +821,7 @@ export default function LifeTracker() {
         )}
 
         {tab === 'gym' && (
-          <GymTab deleteWorkout={deleteWorkout} gDate={gDate} gExercise={gExercise} gMuscle={gMuscle} gReps={gReps} gSets={gSets} gWeight={gWeight} gym={gym} handleAddWorkout={handleAddWorkout} handleExerciseChange={handleExerciseChange} personalBests={personalBests} setGDate={setGDate} setGMuscle={setGMuscle} setGReps={setGReps} setGSets={setGSets} setGWeight={setGWeight} splitStripRef={splitStripRef} todayIdx={todayIdx} updateSplitDay={updateSplitDay} workoutsByDate={workoutsByDate} />
+          <GymTab deleteWorkout={deleteWorkout} gDate={gDate} gExercise={gExercise} gMuscle={gMuscle} gReps={gReps} gSets={gSets} gWeight={gWeight} gym={gym} handleAddWorkout={handleAddWorkout} handleExerciseChange={handleExerciseChange} personalBests={personalBests} setGDate={setGDate} selectMuscle={selectMuscle} setGReps={setGReps} setGSets={setGSets} setGWeight={setGWeight} splitStripRef={splitStripRef} todayIdx={todayIdx} updateSplitDay={updateSplitDay} workoutsByDate={workoutsByDate} />
         )}
 
         {tab === 'routine' && (

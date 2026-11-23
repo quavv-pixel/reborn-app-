@@ -1,10 +1,10 @@
 // The Gym tab. Pure view: every value and handler it needs arrives as a prop from LifeTracker.jsx, which owns all state.
 import { BtnPrimary, Panel, dimText, inputStyle } from '../components/ui.jsx';
-import { ALL_EXERCISES, MONO, MUSCLE_GROUPS, RADIUS_SM, getExercisesForType } from '../lib/constants.js';
+import { ALL_EXERCISES, EXERCISES_BY_MUSCLE, MONO, MUSCLE_GROUPS, RADIUS_SM, getExercisesForType } from '../lib/constants.js';
 import { fmtDate } from '../lib/utils.js';
 import { Trash2 } from 'lucide-react';
 
-export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps, gSets, gWeight, gym, handleAddWorkout, handleExerciseChange, personalBests, setGDate, setGMuscle, setGReps, setGSets, setGWeight, splitStripRef, todayIdx, updateSplitDay, workoutsByDate }) {
+export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps, gSets, gWeight, gym, handleAddWorkout, handleExerciseChange, personalBests, selectMuscle, setGDate, setGReps, setGSets, setGWeight, splitStripRef, todayIdx, updateSplitDay, workoutsByDate }) {
   return (
         <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
           <div>
@@ -104,11 +104,11 @@ export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps
 
             <Panel title="Log a set">
               <div className="mb-2">
-                <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Muscle group tag (optional)</label>
-                <div className="flex flex-wrap gap-1">
+                <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Muscle group — tap to see its exercises</label>
+                <div className="flex flex-wrap gap-1.5">
                   {MUSCLE_GROUPS.map(mg => (
-                    <button key={mg} onClick={() => setGMuscle(gMuscle === mg ? '' : mg)}
-                      className="text-[10px] px-2 py-1"
+                    <button key={mg} onClick={() => selectMuscle(mg)} aria-pressed={gMuscle === mg}
+                      className="text-xs px-3 py-1.5"
                       style={{
                         fontFamily: MONO,
                         border: `1px solid ${gMuscle === mg ? 'var(--accent)' : 'var(--border)'}`,
@@ -120,18 +120,25 @@ export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps
               </div>
               <div className="grid grid-cols-2 gap-2 mb-2">
                 <div className="col-span-2">
-                  <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Exercise</label>
+                  <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Exercise{gMuscle ? ` · ${gMuscle}` : ''}</label>
                   <select className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={gExercise} onChange={e => handleExerciseChange(e.target.value)}>
                     <option value="" disabled>Select an exercise…</option>
-                    {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
-                    {ALL_EXERCISES.filter(name => !getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').includes(name)).length > 0 && (
-                      <optgroup label="Other days">
-                        {ALL_EXERCISES.filter(name => !getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').includes(name)).map(name => (
+                    {gMuscle && EXERCISES_BY_MUSCLE[gMuscle] ? (
+                      // A muscle is picked: only its exercises.
+                      EXERCISES_BY_MUSCLE[gMuscle].map(name => <option key={name} value={name}>{name}</option>)
+                    ) : (
+                      <>
+                        {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => (
                           <option key={name} value={name}>{name}</option>
                         ))}
-                      </optgroup>
+                        {ALL_EXERCISES.filter(name => !getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').includes(name)).length > 0 && (
+                          <optgroup label="Other days">
+                            {ALL_EXERCISES.filter(name => !getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').includes(name)).map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </>
                     )}
                   </select>
                 </div>

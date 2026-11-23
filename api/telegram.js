@@ -22,7 +22,6 @@ import { hourlyCode, timingSafeEqual } from '../middleware.js';
 
 export const config = { runtime: 'edge' };
 
-const DEFAULT_ROTATE_SECRET = 'reborn-rotate-default';
 const HOUR_MS = 3600000;
 
 async function tg(token, method, payload) {
@@ -34,11 +33,13 @@ async function tg(token, method, payload) {
 }
 
 async function buildReply(text, env, requestUrl) {
-  const secret = env.REBORN_ROTATE_SECRET || DEFAULT_ROTATE_SECRET;
+  const secret = env.REBORN_ROTATE_SECRET;
   const now = Date.now();
+  const noSecret = '⚠️ REBORN_ROTATE_SECRET is not set in Vercel, so there are no guest codes yet.';
   const minsLeft = Math.max(1, 60 - Math.floor((now % HOUR_MS) / 60000));
   const cmd = (text || '').trim().split(/[\s@]/)[0].toLowerCase();
 
+  if ((cmd === '/code' || cmd === '/next') && !secret) return noSecret;
   if (cmd === '/code') {
     const cur = await hourlyCode(secret, now, 0);
     const next = await hourlyCode(secret, now, 1);

@@ -88,8 +88,11 @@ begin
   end if;
 
   insert into kv (user_id, key, value, updated_at_ms)
-  select auth.uid(), r ->> 'key', r ->> 'value', (r ->> 't')::bigint
+  -- distinct on: if the same key appears twice in one upload, keep only its
+  -- newest version (Postgres refuses to update one row twice in one insert).
+  select distinct on (r ->> 'key') auth.uid(), r ->> 'key', r ->> 'value', (r ->> 't')::bigint
   from jsonb_array_elements(rows) as r
+  order by r ->> 'key', (r ->> 't')::bigint desc
   on conflict (user_id, key) do update
     set value = excluded.value,
         updated_at_ms = excluded.updated_at_ms,

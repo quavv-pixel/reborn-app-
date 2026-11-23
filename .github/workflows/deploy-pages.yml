@@ -1,8 +1,11 @@
 name: Deploy to GitHub Pages
 
+# Manual only. The live site is on Vercel; this optional GitHub Pages copy
+# failed on every merge because Pages isn't switched on for this repo (that
+# needs a repo admin: Settings -> Pages -> Source -> GitHub Actions). Once it's
+# on, run this from Actions -> "Deploy to GitHub Pages" -> Run workflow, or
+# add `push: branches: [main]` back under `on:` to deploy on every merge.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,8 +23,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm

@@ -240,6 +240,16 @@ export async function setNewPassword(password) {
 
 export function dismissRecovery() { set({ recovery: false }); }
 
+// Re-checks the signed-in user's ACCOUNT password (used before resetting a
+// forgotten profile password). Returns true/false; never throws for a
+// simple wrong password.
+export async function verifyAccountPassword(password) {
+  if (!state.user || !state.user.email) return false;
+  const sb = await client();
+  const { data, error } = await sb.auth.signInWithPassword({ email: state.user.email, password });
+  return !error && !!data.user && data.user.id === state.user.id;
+}
+
 // ---- payments (Stripe Payment Link — see PAYMENTS in SETUP_GUIDE.md) ----------
 export const paymentsConfigured = !!PAYMENT_LINK;
 export function upgradeUrl() {

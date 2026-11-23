@@ -3,14 +3,15 @@
 // service worker can't hard-code the list. This script reads dist/, writes
 // the real list into dist/sw.js, and stamps a version on the cache name so
 // phones throw away the previous build's files after an update.
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 const out = process.argv[2] || 'dist'; // test builds pass their own folder
 const assets = readdirSync(`${out}/assets`).map(f => `assets/${f}`);
 // Paths are relative ("./", "assets/x.js"), so they resolve against wherever
 // sw.js is served — works on Vercel ("/") and GitHub Pages ("/reborn-app-/").
-const files = ['./', 'manifest.json', ...assets];
+const icons = ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon.png'].filter(f => existsSync(`${out}/${f}`));
+const files = ['./', 'manifest.json', ...icons, ...assets];
 const version = createHash('sha256').update(files.join('\n')).digest('hex').slice(0, 10);
 
 const swPath = `${out}/sw.js`;

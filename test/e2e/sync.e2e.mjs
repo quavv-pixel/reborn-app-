@@ -43,8 +43,11 @@ async function unlock(page, name, pw) {
   await page.getByPlaceholder('Password', { exact: true }).fill(pw);
   await page.getByPlaceholder('Password', { exact: true }).press('Enter');
   await page.getByRole('button', { name: /unlock/i }).click().catch(() => {});
-  await page.getByText('habits done today').waitFor({ timeout: 5000 });
+  await profileOpen(page).waitFor({ timeout: 5000 });
 }
+// "A profile is open" on ANY tab: the header's Switch-profile button shows.
+// (The app reopens on whichever tab you were last on, not always Home.)
+const profileOpen = page => page.getByTitle('Switch profile');
 
 const EMAIL = 'tester@example.com';
 const PASS = 'correct-horse-9';
@@ -112,6 +115,41 @@ try {
   await A.page.getByText('habits done today').waitFor();
   await nav(A.page, 'Notes');
   check('after Refresh, phone A shows phone B\'s note', await A.page.getByText('Written on phone B').isVisible());
+
+  console.log('\n--- Forgot a profile password: reset with the account password ---');
+  await B.page.getByTitle('Switch profile').click();
+  await B.page.getByRole('button', { name: 'Me' }).click();
+  await B.page.getByText('Forgot password?').click();
+  await B.page.getByPlaceholder('Account password').fill('not-my-account-password');
+  await B.page.getByPlaceholder('New profile password', { exact: true }).fill('newpw');
+  await B.page.getByPlaceholder('Confirm new profile password').fill('newpw');
+  await B.page.getByRole('button', { name: 'Reset password' }).click();
+  await B.page.getByText('That account password is wrong.').waitFor({ timeout: 5000 }).catch(() => {});
+  check('a wrong account password cannot reset a profile', await B.page.getByText('That account password is wrong.').isVisible());
+  await B.page.getByPlaceholder('Account password').fill(PASS);
+  await B.page.getByRole('button', { name: 'Reset password' }).click();
+  await profileOpen(B.page).waitFor({ timeout: 5000 }).catch(() => {});
+  check('the right account password resets it and opens the profile', await profileOpen(B.page).isVisible());
+  await B.page.getByTitle('Switch profile').click();
+  await unlock(B.page, 'Me', 'newpw');
+  check('the new profile password works', await profileOpen(B.page).isVisible());
+
+  console.log('\n--- ...but a stranger with their own account cannot ---');
+  await B.page.getByTitle('Switch profile').click();
+  await panel(B.page).getByRole('button', { name: 'Sign out', exact: true }).click();
+  await panel(B.page).getByText('New here? Create an account').click();
+  await B.page.getByPlaceholder('Email').fill('stranger@example.com');
+  await B.page.getByPlaceholder(/Account password/).fill('stranger-pass-1');
+  await B.page.getByRole('button', { name: 'Create account' }).click();
+  await panel(B.page).getByText('stranger@example.com').waitFor({ timeout: 5000 });
+  await B.page.getByRole('button', { name: 'Me' }).click();
+  await B.page.getByText('Forgot password?').click();
+  await B.page.getByPlaceholder('Account password').fill('stranger-pass-1');
+  await B.page.getByPlaceholder('New profile password', { exact: true }).fill('hijack');
+  await B.page.getByPlaceholder('Confirm new profile password').fill('hijack');
+  await B.page.getByRole('button', { name: 'Reset password' }).click();
+  await B.page.getByText(/isn't linked to the account/).waitFor({ timeout: 5000 }).catch(() => {});
+  check('a different account is refused', await B.page.getByText(/isn't linked to the account/).isVisible());
 
   console.log('\n--- Payments switch: sync stops for unpaid accounts ---');
   await control('/__test__/config', { requirePayment: true });

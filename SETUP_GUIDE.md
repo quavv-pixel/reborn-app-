@@ -253,6 +253,13 @@ names, so after each build a script writes the current file list into the
 worker and stamps the cache with a new version. Phones then drop the old
 files automatically.
 
+**Forgotten profile passwords** (`confirmResetProfilePassword` in
+`src/LifeTracker.jsx`). When you open a profile while signed in, it's stamped
+with your account id. "Forgot password?" then lets that same account (after
+re-entering its account password) choose a new profile password. Someone who
+makes their own account on your phone can't, because your profiles aren't
+stamped with their id. The browser test checks both cases.
+
 **The file split.** `LifeTracker.jsx` still owns all the state (the data
 and the functions that change it). Each tab in `src/tabs/` is a plain view
 that receives exactly what it needs as props. That makes each tab readable on

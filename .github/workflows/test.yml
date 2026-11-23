@@ -11,8 +11,8 @@ jobs:
     name: Unit tests (login gate, sync rules, Stripe webhook)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -23,8 +23,8 @@ jobs:
     name: Browser tests (every tab, offline, two-phone sync)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -49,5 +49,26 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: bash test/db/run.sh
+
+  skinny-week:
+    name: Skinny Week app (unit + browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            skinny-week/package-lock.json
+      - run: npm ci            # root: provides Playwright for the browser test
+      - run: npx playwright install --with-deps chromium
+      - run: npm ci
+        working-directory: skinny-week
+      - run: npm test
+        working-directory: skinny-week
+      - run: npm run test:e2e
+        working-directory: skinny-week

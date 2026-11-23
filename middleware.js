@@ -286,17 +286,29 @@ export async function codePage(rotateSecret, nowMs) {
   });
 }
 
-function setupRequiredPage() {
+// Lists WHICH setting is missing (names only — never any values) so the
+// owner can tell "not added" apart from "added but not deployed yet".
+export function setupRequiredPage(missing) {
+  const items = missing.map(n => `<li><b>${n}</b></li>`).join('');
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0B0B0D"><title>REBORN — setup needed</title>
 <style>html,body{margin:0;background:#0B0B0D;color:#EAE6DF;font-family:ui-monospace,Menlo,monospace;
-min-height:100vh;display:grid;place-items:center;text-align:center;padding:0 16px}
-.dim{color:#8A857C;font-size:12px;line-height:1.7}.big{font-size:18px;color:#D9B36C;margin:10px 0}</style></head><body><div>
+min-height:100vh;display:grid;place-items:center;padding:0 16px}
+.wrap{max-width:420px}.dim{color:#8A857C;font-size:12px;line-height:1.7}
+.big{font-size:18px;color:#D9B36C;margin:10px 0;text-align:center}
+ul{color:#f0b25a;font-size:13px;padding-left:20px}ol{color:#8A857C;font-size:12px;line-height:1.7;padding-left:20px}</style></head><body><div class="wrap">
 <div class="big">Almost there — finish setup</div>
-<div class="dim">The site owner needs to set REBORN_PASS and REBORN_ROTATE_SECRET<br>
-in Vercel → Settings → Environment Variables, then redeploy.<br>
-(Or set REBORN_GATE=off to run without the shared password.)</div>
+<div class="dim">This deployment can't see:</div>
+<ul>${items}</ul>
+<div class="dim">In Vercel → this project → Settings → Environment Variables:</div>
+<ol>
+<li>Names must match exactly (capitals, underscores, no spaces).</li>
+<li>Tick <b>Production</b> for each one.</li>
+<li>Check you're in the right project — the one serving this address.</li>
+<li>Then Deployments → ⋯ on the newest → <b>Redeploy</b>. Saved variables do nothing until a redeploy.</li>
+</ol>
+<div class="dim">Or add REBORN_GATE = off to open the app without the shared password.</div>
 </div></body></html>`;
   return new Response(html, { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
@@ -321,7 +333,9 @@ export default async function middleware(request) {
   const user = env.REBORN_USER || DEFAULT_USER;
   const pass = env.REBORN_PASS;
   const rotateSecret = env.REBORN_ROTATE_SECRET;
-  if (!pass || !rotateSecret) return setupRequiredPage();
+  if (!pass || !rotateSecret) {
+    return setupRequiredPage([!pass && 'REBORN_PASS', !rotateSecret && 'REBORN_ROTATE_SECRET'].filter(Boolean));
+  }
 
   const header = request.headers.get('authorization');
   const cookieHeader = request.headers.get('cookie');

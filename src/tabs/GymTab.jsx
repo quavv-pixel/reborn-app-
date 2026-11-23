@@ -80,26 +80,46 @@ export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps
           </div>
 
           <div>
-            <Panel title={`Exercises for today — ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'} day`}>
-              {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').length === 0 ? (
-                <p className="text-sm" style={dimText}>Rest day — nothing scheduled. Pick "Add lift" below manually if you're training anyway.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '').map(name => (
-                    <button
-                      key={name}
-                      onClick={() => handleExerciseChange(name)}
-                      className="text-xs px-2 py-1"
-                      style={{
-                        fontFamily: MONO,
-                        border: `1px solid ${gExercise === name ? 'var(--accent)' : 'var(--border)'}`,
-                        background: gExercise === name ? 'var(--accent)' : 'var(--field)',
-                        color: gExercise === name ? 'var(--on-accent)' : 'var(--text)',
-                      }}
-                    >{name}</button>
-                  ))}
-                </div>
-              )}
+            {/* Exercises card: every muscle group as a chip. Tap one to see its
+                exercises; with none picked it shows today's planned exercises.
+                Shares the same selection as "Log a set" below. */}
+            <Panel title={gMuscle ? `${gMuscle} exercises` : `Exercises for today — ${gym.split[todayIdx] ? gym.split[todayIdx].type : '—'} day`}>
+              <div className="flex flex-wrap gap-1.5 mb-3" role="group" aria-label="Muscle groups">
+                {MUSCLE_GROUPS.map(mg => (
+                  <button key={mg} onClick={() => selectMuscle(mg)} aria-pressed={gMuscle === mg}
+                    className="text-xs px-3 py-1.5"
+                    style={{
+                      border: `1px solid ${gMuscle === mg ? 'var(--accent)' : 'var(--border)'}`,
+                      background: gMuscle === mg ? 'var(--accent-soft)' : 'transparent',
+                      color: gMuscle === mg ? 'var(--accent)' : 'var(--dim)',
+                    }}>{mg}</button>
+                ))}
+              </div>
+              {(() => {
+                const list = gMuscle && EXERCISES_BY_MUSCLE[gMuscle]
+                  ? EXERCISES_BY_MUSCLE[gMuscle]
+                  : getExercisesForType(gym.split[todayIdx] ? gym.split[todayIdx].type : '');
+                if (!list.length) {
+                  return <p className="text-sm" style={dimText}>Rest day — nothing planned. Tap a muscle group above to pick exercises anyway.</p>;
+                }
+                return (
+                  <div className="flex flex-wrap gap-1.5" data-testid="exercise-chips">
+                    {list.map(name => (
+                      <button
+                        key={name}
+                        onClick={() => handleExerciseChange(name)}
+                        aria-pressed={gExercise === name}
+                        className="text-xs px-2.5 py-1.5"
+                        style={{
+                          border: `1px solid ${gExercise === name ? 'var(--accent)' : 'var(--border)'}`,
+                          background: gExercise === name ? 'var(--accent)' : 'var(--field)',
+                          color: gExercise === name ? 'var(--on-accent)' : 'var(--text)',
+                        }}
+                      >{name}</button>
+                    ))}
+                  </div>
+                );
+              })()}
             </Panel>
 
             <Panel title="Log a set">

@@ -1,7 +1,10 @@
 import { chromium } from 'playwright';
+import os from 'node:os';
 
 const BASE = 'http://localhost:4180';
-const out = '/tmp/claude-0/-home-user-reborn-app-/0c89ca3c-41cb-5bcf-89c3-3ab961a7e818/scratchpad';
+// Where the final screenshot goes. Set SCREENSHOT_DIR to choose; defaults to
+// the system temp folder so it works on any machine.
+const out = process.env.SCREENSHOT_DIR || os.tmpdir();
 let failures = 0;
 const check = (label, cond) => {
   console.log((cond ? '  ok   ' : '  FAIL ') + label);
@@ -18,7 +21,10 @@ async function scenario(body) {
 const browser = await chromium.launch(
   process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
 );
-const page = await browser.newPage({ viewport: { width: 430, height: 1200 } });
+// Clipboard permission: without it headless Chromium blocks writeText and the
+// app (correctly) falls back to a copy-by-hand prompt, so grant it here.
+const context = await browser.newContext({ viewport: { width: 430, height: 1200 }, permissions: ['clipboard-read', 'clipboard-write'] });
+const page = await context.newPage();
 const pageErrors = [];
 page.on('pageerror', e => pageErrors.push(e.message));
 
@@ -97,6 +103,8 @@ await page.locator('section >> button:has-text("PAGE")').nth(0).click();
 await page.getByRole('button', { name: /Copy for Claude/ }).click();
 await page.waitForTimeout(300);
 check('button label flips to Copied', await page.getByText('Copied — paste it to Claude').isVisible());
+const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+check('the clipboard really holds the recipe message', clip.startsWith('Load my Instacart cart at ALDI') && /\(p\.\d+\)/.test(clip));
 
 console.log('\n--- Access-key gate: prompt appears, correct answer unlocks and is remembered ---');
 await scenario({ accessKey: 'letmein' });

@@ -62,6 +62,11 @@ try {
     && (await page.getByRole('link', { name: 'Terms' }).getAttribute('href')) === '/terms.html');
   const legal = await fetch(BASE + '/privacy.html').then(r => r.text());
   check('privacy page is built into the site', legal.includes('Privacy Policy'));
+  const manifest = await fetch(BASE + '/manifest.json').then(r => r.json());
+  const iconTypes = await Promise.all(manifest.icons.map(i => fetch(new URL(i.src, BASE + '/').href).then(r => r.headers.get('content-type'))));
+  check('every home-screen icon in the manifest really exists', iconTypes.every(t => t === 'image/png'));
+  const touch = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
+  check('iPhone home-screen icon exists', (await fetch(new URL(touch, BASE + '/').href).then(r => r.headers.get('content-type'))) === 'image/png');
   await createProfile(page, 'Tester', 'pw1');
   check('home shows 0 habits for a brand-new profile (no seeded data)',
     await page.getByText('0/0 habits done today').isVisible());

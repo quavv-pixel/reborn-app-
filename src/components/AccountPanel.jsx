@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import * as cloud from '../sync/cloud.js';
 import { BtnPrimary, dimText, glassCard } from './ui.jsx';
-import { MONO } from '../lib/constants.js';
 
 export function useCloudState() {
   const [s, setS] = useState(cloud.getState());
@@ -52,7 +51,7 @@ export default function AccountPanel() {
     const manage = cloud.manageUrl();
     return (
       <div className="mt-6 p-4" style={glassCard(18, '--panel')} data-testid="account-panel">
-        <div className="text-[10px] uppercase tracking-widest mb-2" style={{ ...dimText, fontFamily: MONO }}>Account</div>
+        <div className="text-sm font-semibold mb-2">Account</div>
         <div className="text-sm mb-1 break-all">{s.user.email}</div>
         <div className="text-xs mb-3" style={s.status === 'error' || s.status === 'needs-payment' ? danger : dimText}>
           {STATUS_TEXT[s.status] || ''}{s.status === 'synced' && s.lastSyncedAt ? ` · ${ago(s.lastSyncedAt)}` : ''}
@@ -131,8 +130,8 @@ export function CloudOverlay() {
   if (!s.configured) return null;
   const box = {
     position: 'fixed', left: 12, right: 12, zIndex: 60, margin: '0 auto', maxWidth: 420, padding: 14,
-    borderRadius: 16, background: '#151517', color: '#EAE6DF', border: '1px solid #2a2a2e',
-    fontFamily: "'Inter', ui-sans-serif, sans-serif", fontSize: 14, boxShadow: '0 10px 30px rgba(0,0,0,.4)',
+    borderRadius: 16, background: 'var(--panel)', color: 'var(--text)', border: '1px solid var(--border)',
+    fontSize: 14, boxShadow: '0 10px 30px rgba(0,0,0,.18)',
   };
   return (
     <>
@@ -140,7 +139,7 @@ export function CloudOverlay() {
         <div style={{ ...box, top: 'calc(env(safe-area-inset-top, 0px) + 12px)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ flex: 1 }}>Updated from your other device.</span>
           <button onClick={() => window.location.reload()}
-            style={{ background: '#D9B36C', color: '#0a0a0a', border: 0, borderRadius: 999, padding: '6px 14px', fontWeight: 600 }}>Refresh</button>
+            style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 0, borderRadius: 999, padding: '6px 14px', fontWeight: 600 }}>Refresh</button>
         </div>
       )}
       {s.recovery && (
@@ -152,12 +151,12 @@ export function CloudOverlay() {
           }}>
             <input type="password" minLength={8} required value={pw} onChange={e => setPw(e.target.value)}
               placeholder="New password (8+ characters)" autoComplete="new-password"
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid #2a2a2e', background: '#0f0f11', color: 'inherit', marginBottom: 8 }} />
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--field)', color: 'inherit', marginBottom: 8 }} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ background: '#D9B36C', color: '#0a0a0a', border: 0, borderRadius: 10, padding: '8px 14px', fontWeight: 600 }}>Save</button>
-              <button type="button" onClick={cloud.dismissRecovery} style={{ background: 'none', border: 0, color: '#8A857C' }}>Cancel</button>
+              <button style={{ background: 'var(--accent)', color: 'var(--on-accent)', border: 0, borderRadius: 10, padding: '8px 14px', fontWeight: 600 }}>Save</button>
+              <button type="button" onClick={cloud.dismissRecovery} style={{ background: 'none', border: 0, color: 'var(--dim)' }}>Cancel</button>
             </div>
-            {err && <div style={{ color: '#f87171', fontSize: 12, marginTop: 6 }}>{err}</div>}
+            {err && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{err}</div>}
           </form>
         </div>
       )}

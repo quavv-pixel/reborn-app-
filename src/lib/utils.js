@@ -57,7 +57,7 @@ export function heatColor(progress) {
 
 export function fmtMoney(n) {
   const v = Math.round(Number(n) || 0);
-  return `$${v.toLocaleString('en-US')}`;
+  return (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-US');
 }
 
 export function getLast7Days() {

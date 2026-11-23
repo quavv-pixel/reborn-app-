@@ -32,6 +32,9 @@ async function newDevice() {
   return { ctx, page, errors };
 }
 const panel = page => page.getByTestId('account-panel');
+// The Home screen's habit tile reads e.g. "0/1" above "habits done today".
+const habitTile = page => page.locator('button').filter({ has: page.getByText('habits done today', { exact: true }) });
+const habitCount = async page => ((await habitTile(page).innerText().catch(() => '')).split('\n')[0] || '').trim();
 const nav = (page, label) => page.locator('button', { hasText: label }).last().click();
 const pendingUploads = page => page.evaluate(() =>
   Object.values(JSON.parse(localStorage.getItem('ops-log:__sync_meta__') || '{}')).filter(x => x.dirty).length);
@@ -94,7 +97,7 @@ try {
   await B.page.getByRole('button', { name: 'Me' }).waitFor({ timeout: 5000 });
   check('the profile from phone A appears on phone B', await B.page.getByRole('button', { name: 'Me' }).isVisible());
   await unlock(B.page, 'Me', 'pw1');
-  check('the habit from phone A is on phone B', await B.page.getByText('/1 habits done today').isVisible());
+  check('the habit from phone A is on phone B', (await habitCount(B.page)) === '0/1');
   await B.page.waitForTimeout(2500);
   check('just opening the app does not re-upload anything', (await pendingUploads(B.page)) === 0);
 
@@ -112,7 +115,7 @@ try {
   check('phone A shows the "updated on another device" banner',
     await A.page.getByText('Updated from your other device.').isVisible());
   await A.page.getByRole('button', { name: 'Refresh' }).click();
-  await A.page.getByText('habits done today').waitFor();
+  await A.page.getByTitle('Switch profile').waitFor();
   await nav(A.page, 'Notes');
   check('after Refresh, phone A shows phone B\'s note', await A.page.getByText('Written on phone B').isVisible());
 

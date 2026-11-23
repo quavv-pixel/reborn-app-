@@ -47,9 +47,9 @@ profiles on the same device. It tracks:
   after real personal data was once baked into defaults and strangers saw it.
 - **Profiles can be renamed and deleted** from the unlock screen; both actions require the
   profile's password. Rename migrates all storage keys; delete wipes them permanently.
-- **14 themes** driven entirely by CSS custom properties (`--bg`, `--panel`, `--field`,
-  `--border`, `--text`, `--dim`, `--accent`, `--accent2`, `--danger`) in a `THEMES` object.
-  The picker screen has its own device-level theme that new profiles inherit.
+- **One natural color palette** (off-white + sage green) defined as CSS variables in
+  `src/index.css`, with a dark version that switches automatically when the phone is in
+  Dark Mode. No theme picker. Plain CSS (no color-mix / blur) so older phones render it.
 - **iOS status bar** is handled: `viewport-fit=cover`, safe-area padding, and a `theme-color`
   meta that JS re-tints to the active theme.
 - **Notifications**: in-browser reminders work while a tab is open. Real push (app closed)

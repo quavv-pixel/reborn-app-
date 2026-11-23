@@ -1,3 +1,73 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ==========================================================================
+   One natural color palette, light and dark.
+
+   The phone decides which one shows: if the person has Dark Mode on, the
+   dark set below is used automatically (prefers-color-scheme). Every
+   component reads these variables — no component picks its own colors.
+
+   Compatibility: plain CSS variables + hex colors only (no color-mix(),
+   no backdrop blur), so it renders the same on older iPhones (iOS 13+)
+   and Android phones (Chrome 76+). Phones too old to report dark mode
+   simply get the light set.
+   ========================================================================== */
+:root {
+  color-scheme: light dark;            /* native date pickers, selects, scrollbars match */
+
+  --bg: #F6F4EF;                       /* warm off-white page */
+  --panel: #FFFFFF;                    /* cards */
+  --field: #F1EEE7;                    /* inputs, list rows */
+  --border: #E4DFD5;
+  --text: #23261F;
+  --dim: #6E7268;                      /* secondary text */
+  --accent: #4E7A57;                   /* sage green — the one accent color */
+  --accent-soft: #E4EDE3;              /* light sage wash behind selected items */
+  --on-accent: #FFFFFF;                /* text on top of the accent */
+  --danger: #B4533A;                   /* only for "delete" and "overdue" */
+
+  /* Older code still reads these; they now point at the same single accent. */
+  --accent2: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121412;
+    --panel: #1A1D1A;
+    --field: #222622;
+    --border: #2F342F;
+    --text: #E9EBE5;
+    --dim: #9A9F96;
+    --accent: #8FBF97;
+    --accent-soft: #223127;
+    --on-accent: #102014;
+    --danger: #E08A72;
+  }
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  font-variant-numeric: tabular-nums;  /* numbers line up in lists */
+}
+
+input, select, textarea, button { border-radius: 10px; }
+input, select, textarea { color: var(--text); }
+input::placeholder, textarea::placeholder { color: var(--dim); opacity: 0.8; }
+
+/* iOS zooms the page when you tap a field with text smaller than 16px.
+   Keeping fields at 16px on phones stops that jump on every iPhone. */
+@media (max-width: 767px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
+/* Tap highlight off (we show our own pressed states), and respect people
+   who've asked their phone for less motion. */
+* { -webkit-tap-highlight-color: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

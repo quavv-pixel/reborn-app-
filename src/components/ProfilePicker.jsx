@@ -1,49 +1,16 @@
 // The "Who's this?" screen: create, unlock, rename, delete, export and import profiles.
-import { DISPLAY, MONO, RADIUS_SM, SANS, THEMES } from '../lib/constants.js';
-import { BtnPrimary, DotCloud, dimText, glassCard } from './ui.jsx';
+import { BtnPrimary, dimText, glassCard } from './ui.jsx';
 import AccountPanel from './AccountPanel.jsx';
 import { cloudConfigured } from '../sync/cloud.js';
 import { useState } from 'react';
 
-export default function ProfilePicker({ confirmResetProfilePassword, confirmDeleteProfile, confirmExportProfile, confirmNewProfile, confirmRenameProfile, confirmUnlock, handleImportFile, importFileRef, newProfileName, openUnlock, pickerError, pickerMode, pickerPassword, pickerPassword2, pickerTarget, pickerTheme, profileList, profileListLoading, setNewProfileName, setPickerError, setPickerMode, setPickerPassword, setPickerPassword2, setPickerTheme }) {
+export default function ProfilePicker({ confirmResetProfilePassword, confirmDeleteProfile, confirmExportProfile, confirmNewProfile, confirmRenameProfile, confirmUnlock, handleImportFile, importFileRef, newProfileName, openUnlock, pickerError, pickerMode, pickerPassword, pickerPassword2, pickerTarget, profileList, profileListLoading, setNewProfileName, setPickerError, setPickerMode, setPickerPassword, setPickerPassword2 }) {
     const [accountPassword, setAccountPassword] = useState('');
-    const pth = THEMES[pickerTheme] || THEMES.noir;
-    const pickerVars = {
-      '--bg': pth.bg, '--panel': pth.panel, '--field': pth.field,
-      '--border': pth.border, '--text': pth.text, '--dim': pth.dim,
-      '--accent': pth.accent, '--accent2': pth.accent2, '--danger': pth.danger,
-    };
     const pwInputStyle = { background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' };
     return (
-      <div className="min-h-screen flex flex-col" style={{ ...pickerVars, background: 'var(--bg)', color: 'var(--text)', fontFamily: SANS }}>
-        <style>{`
-          input, select, button { border-radius: ${RADIUS_SM}px; }
-        `}</style>
-
-        <div className="relative flex flex-col items-center justify-end overflow-hidden px-4 pb-6" style={{
-          minHeight: '38vh',
-          paddingTop: 'max(64px, env(safe-area-inset-top))',
-          background: `radial-gradient(130% 110% at 50% -25%, color-mix(in srgb, var(--accent) 45%, transparent), transparent 68%)`,
-        }}>
-          <DotCloud width={420} height={300} cols={30} rows={17} color="color-mix(in srgb, var(--accent) 65%, white)" />
-          <div className="relative text-center mb-7" style={{
-            fontFamily: DISPLAY, fontSize: 44, fontWeight: 600, letterSpacing: 9, color: 'var(--accent)',
-            textShadow: '0 0 32px color-mix(in srgb, var(--accent) 55%, transparent)',
-          }}>
-            REBORN
-          </div>
-          <div className="relative flex gap-1.5 overflow-x-auto w-full max-w-sm pb-0.5" style={{ scrollbarWidth: 'none' }}>
-            {Object.entries(THEMES).map(([key, t]) => (
-              <button key={key} onClick={() => setPickerTheme(key)} title={t.label}
-                className="text-[10px] uppercase px-3 py-1.5 flex-shrink-0 rounded-full"
-                style={{
-                  fontFamily: MONO,
-                  border: `1px solid ${pickerTheme === key ? 'var(--accent)' : 'var(--border)'}`,
-                  background: pickerTheme === key ? 'var(--accent)' : 'color-mix(in srgb, var(--bg) 55%, transparent)',
-                  color: pickerTheme === key ? 'var(--bg)' : 'var(--dim)',
-                }}>{t.label}</button>
-            ))}
-          </div>
+      <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+        <div className="flex flex-col items-center px-4 pb-2" style={{ paddingTop: 'max(56px, calc(env(safe-area-inset-top) + 32px))' }}>
+          <div className="text-3xl font-bold" style={{ letterSpacing: 6, color: 'var(--accent)' }}>REBORN</div>
         </div>
 
         <div className="flex-1 w-full max-w-sm mx-auto px-4 pt-6" style={{ paddingBottom: 'max(40px, env(safe-area-inset-bottom))' }}>
@@ -52,8 +19,8 @@ export default function ProfilePicker({ confirmResetProfilePassword, confirmDele
               <div className="text-2xl font-medium mb-1">Who's this?</div>
               <p className="text-xs mb-5" style={dimText}>
                 {cloudConfigured
-                  ? 'Each profile has its own password. Sign in below to back everything up and use it on your other devices.'
-                  : 'Password-protected per profile, hashed on this device. Your data stays on this device — use Export backup to move it.'}
+                  ? 'Pick your profile, or make a new one. Sign in below to keep everything backed up.'
+                  : 'Pick your profile, or make a new one. Each profile has its own password.'}
               </p>
               {profileListLoading ? (
                 <p className="text-sm" style={dimText}>Loading profiles…</p>
@@ -73,7 +40,7 @@ export default function ProfilePicker({ confirmResetProfilePassword, confirmDele
                   )}
                   <button onClick={() => { setPickerMode('new'); setNewProfileName(''); setPickerPassword(''); setPickerPassword2(''); setPickerError(''); }}
                     className="w-full text-sm px-4 py-3 rounded-full"
-                    style={{ border: '1px solid var(--accent)', color: 'var(--accent)', background: 'color-mix(in srgb, var(--accent) 12%, transparent)' }}>
+                    style={{ border: '1px solid var(--accent)', color: 'var(--accent)', background: 'var(--accent-soft)' }}>
                     + New profile
                   </button>
                   <button onClick={() => { setPickerError(''); importFileRef.current && importFileRef.current.click(); }}

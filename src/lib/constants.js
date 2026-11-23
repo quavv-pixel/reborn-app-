@@ -1,8 +1,11 @@
 // Fonts, themes, defaults, quotes and the exercise library — plain data, no React.
-export const MONO = "'JetBrains Mono', ui-monospace, monospace";
-export const SANS = "'Inter', ui-sans-serif, sans-serif";
-export const DISPLAY = "'Cormorant Garamond', Georgia, serif"; // luxury wordmark/numbers
-export const WEEK_DISPLAY = "'Archivo Black', 'Arial Black', sans-serif"; // Weekly tab masthead, matches the original skinny-week look
+// One font family everywhere (Inter, falling back to the phone's own system
+// font). The old monospace / serif / poster fonts are gone; these names stay
+// so nothing that imports them breaks.
+export const SANS = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+export const MONO = SANS;
+export const DISPLAY = SANS;
+export const WEEK_DISPLAY = SANS;
 
 // iOS-style shapes: soft rounded corners + a bit more breathing room than the
 // original sharp-edged layout, applied globally regardless of which color
@@ -12,89 +15,7 @@ export const WEEK_DISPLAY = "'Archivo Black', 'Arial Black', sans-serif"; // Wee
 export const RADIUS = 14;
 export const RADIUS_SM = 10;
 
-/* =========================================================================
-   THEMES — applied as CSS custom properties on the root element.
-   Every component below reads var(--bg)/var(--panel)/etc instead of
-   hardcoded Tailwind color classes, so re-theming never touches component
-   code — only the THEMES table.
-   ========================================================================= */
-export const THEMES = {
-  noir: {
-    label: 'Noir',
-    bg: '#0B0B0D', panel: '#141416', field: '#1C1C1F', border: '#26262B',
-    text: '#EDEAE3', dim: '#8F8B82', accent: '#C9A96A', accent2: '#7FA98F', danger: '#C96A6A',
-  },
-  ivory: {
-    label: 'Ivory',
-    bg: '#F7F5F0', panel: '#FFFFFF', field: '#F0EDE6', border: '#E2DDD2',
-    text: '#1E1C18', dim: '#8A857A', accent: '#9A7B3F', accent2: '#4E6E5D', danger: '#A34A4A',
-  },
-  midnight: {
-    label: 'Midnight',
-    bg: '#0A0F1A', panel: '#111827', field: '#18202F', border: '#232D40',
-    text: '#E6EAF2', dim: '#7C8698', accent: '#8FA8D0', accent2: '#C9A96A', danger: '#C96A6A',
-  },
-  webslinger: {
-    label: 'Web-Slinger',
-    bg: '#0A0808', panel: '#150F10', field: '#1F1517', border: '#33191D',
-    text: '#F3E9E6', dim: '#9C7A7E', accent: '#E8232F', accent2: '#FF4FA3', danger: '#FF7A45',
-  },
-  chillzone: {
-    label: 'Chill Zone',
-    bg: '#100C1E', panel: '#1B1730', field: '#241F3D', border: '#322B52',
-    text: '#EDE9F7', dim: '#8D85AC', accent: '#C084FC', accent2: '#FFB86B', danger: '#FF6B81',
-  },
-  arcade: {
-    label: 'Arcade',
-    bg: '#0D0B1A', panel: '#17142B', field: '#201C3B', border: '#2E2850',
-    text: '#ECE9F9', dim: '#8480A8', accent: '#FF2E92', accent2: '#33D9E8', danger: '#FF5A36',
-  },
-  terminal: {
-    label: 'Terminal',
-    bg: '#050806', panel: '#0B120D', field: '#101A12', border: '#1C2E1F',
-    text: '#D6F5DC', dim: '#5E8F68', accent: '#39FF6A', accent2: '#4DD8E8', danger: '#FF5C5C',
-  },
-  sakura: {
-    label: 'Sakura',
-    bg: '#FDF3F6', panel: '#FFFFFF', field: '#FBE8ED', border: '#F3D3DE',
-    text: '#3B2530', dim: '#A98A95', accent: '#B03A5B', accent2: '#5C7A62', danger: '#C1543D',
-  },
-  ember: {
-    label: 'Ember',
-    bg: '#140D08', panel: '#1E140C', field: '#281B10', border: '#3A2716',
-    text: '#F5E6D3', dim: '#A6876B', accent: '#E8792A', accent2: '#F0B429', danger: '#D94F4F',
-  },
-  ios: {
-    label: 'iOS',
-    bg: '#F2F2F7', panel: '#FFFFFF', field: '#E9E9EE', border: '#D1D1D6',
-    text: '#000000', dim: '#8E8E93', accent: '#007AFF', accent2: '#34C759', danger: '#FF3B30',
-  },
-  twitch: {
-    label: 'Twitch',
-    bg: '#18181B', panel: '#1F1F23', field: '#26262C', border: '#35353D',
-    text: '#EFEFF1', dim: '#ADADB8', accent: '#9147FF', accent2: '#FF3D9A', danger: '#FF4747',
-  },
-  aura: {
-    label: 'Aura',
-    bg: '#1A1230', panel: '#241A3D', field: '#2E2150', border: '#40325E',
-    text: '#ECE7F7', dim: '#9A8CBB', accent: '#8B6CFF', accent2: '#C77DFF', danger: '#FF6B6B',
-  },
-  streak: {
-    label: 'Streak',
-    bg: '#0A0A0A', panel: '#151515', field: '#1D1D1D', border: '#2A2A2A',
-    text: '#F2F2F2', dim: '#8A8A8A', accent: '#C6FF3D', accent2: '#FFD54A', danger: '#FF4D4D',
-  },
-  nova: {
-    label: 'Nova',
-    bg: '#060B14', panel: '#0D1524', field: '#131E33', border: '#1C2C46',
-    text: '#E8EEF7', dim: '#7C8CA6', accent: '#3B9EFF', accent2: '#FF8A3D', danger: '#FF5C5C',
-  },
-  aldi: {
-    label: 'Aldi',
-    bg: '#EFEDE6', panel: '#FBFAF6', field: '#E8E3D6', border: '#CFCCC2',
-    text: '#16233A', dim: '#4A5566', accent: '#F0531C', accent2: '#0A72B8', danger: '#CE1B24',
-  },
-};
+// Colors now live in src/index.css: one natural palette, light + dark.
 
 export const CATEGORIES = [
   { id: 'work', label: 'Work', icon: '⚡', color: '#f59e0b' },

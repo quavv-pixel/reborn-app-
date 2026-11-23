@@ -4,15 +4,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useDebouncedStorage } from './lib/useDebouncedStorage.js';
 import { hashPassword, loadProfileList, pKey, saveProfileList } from './lib/profiles.js';
 import { getState as cloudState, verifyAccountPassword } from './sync/cloud.js';
-import { defaultTargetDate, getLast7Days, heatColor, loadKey, todayStr, uid } from './lib/utils.js';
-import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, MONO, RADIUS_SM, SANS, THEMES, cheerFor, getDailyQuote, getExercisesForType } from './lib/constants.js';
+import { defaultTargetDate, getLast7Days, loadKey, todayStr, uid } from './lib/utils.js';
+import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, cheerFor, getDailyQuote, getExercisesForType } from './lib/constants.js';
 import { armRealPush, backendAvailable, bootstrapToken, syncSchedule } from './push';
 import { parseTimeLabel } from './lib/ics.js';
 import { buildList, claudeMessage, instacartTitle, toInstacartLineItems } from './rotation';
 import { BOOK } from './book';
 import { callApi } from './apiClient';
 import ProfilePicker from './components/ProfilePicker.jsx';
-import { BottomNav, Header, glassCard } from './components/ui.jsx';
+import { BottomNav, Header } from './components/ui.jsx';
 import HomeTab from './tabs/HomeTab.jsx';
 import GymTab from './tabs/GymTab.jsx';
 import RoutineTab from './tabs/RoutineTab.jsx';
@@ -61,7 +61,7 @@ export default function LifeTracker() {
       if (mounted) {
         setProfileList(list);
         setProfileListLoading(false);
-        setPickerThemeState(THEMES[deviceTheme] ? deviceTheme : 'noir');
+        setPickerThemeState(deviceTheme);
         // Stay signed in: reopen the profile that was open last time on THIS
         // device, instead of asking for the password on every app launch.
         // Tapping "Switch profile" clears this and brings the gate back.
@@ -73,16 +73,6 @@ export default function LifeTracker() {
     return () => { mounted = false; };
   }, []);
 
-  // Keep the area OUTSIDE the app (iOS status bar, browser toolbar tint,
-  // overscroll edges) matched to the active theme — otherwise iOS paints it
-  // with the page's default background and it reads as a white strip on top.
-  useEffect(() => {
-    const active = profile ? (THEMES[theme] || THEMES.noir) : (THEMES[pickerTheme] || THEMES.noir);
-    document.documentElement.style.background = active.bg;
-    document.body.style.background = active.bg;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', active.bg);
-  }, [profile, theme, pickerTheme]);
 
   function openUnlock(name) {
     setPickerTarget(name);
@@ -496,7 +486,7 @@ export default function LifeTracker() {
         setNotesState(n);
         setCooked(Array.isArray(cooked) ? cooked.filter(n => typeof n === 'number') : []);
         setDealsStore(typeof weeklyStore === 'string' ? weeklyStore : '');
-        setThemeState(THEMES[th] ? th : 'noir');
+        setThemeState(th);
         setWeeklyReady(true);
         setLoading(false);
       }
@@ -833,25 +823,13 @@ export default function LifeTracker() {
   // retype the whole new "Saved so far" number by hand each time. Follows
   // the same debt-first rule as logWeeklyPlan: an outstanding debt gets paid
   // down before anything counts toward the savings goal.
+  // Savings go straight to the goal. (This used to pay down a debt amount
+  // first; that section is no longer on screen, so it would have looked like
+  // savings weren't going up.)
   function addToSavings(amountStr) {
     const amount = Number(amountStr);
     if (!Number.isFinite(amount) || amount <= 0) return;
-    const debtRemaining = budget.goal.debtCleared ? 0 : (Number(budget.goal.debtAmount) || 0);
-    let toDebt = 0, toGoal = amount;
-    if (debtRemaining > 0) {
-      toDebt = Math.min(debtRemaining, amount);
-      toGoal = amount - toDebt;
-    }
-    const newDebtRemaining = Math.max(0, debtRemaining - toDebt);
-    updateBudget({
-      ...budget,
-      goal: {
-        ...budget.goal,
-        saved: (Number(budget.goal.saved) || 0) + toGoal,
-        debtAmount: newDebtRemaining,
-        debtCleared: budget.goal.debtCleared || (newDebtRemaining === 0 && debtRemaining > 0),
-      },
-    });
+    updateBudget({ ...budget, goal: { ...budget.goal, saved: (Number(budget.goal.saved) || 0) + amount } });
     setAddSavingsAmount('');
   }
   function toggleBillPaid(id, monthKey) {
@@ -874,11 +852,7 @@ export default function LifeTracker() {
     setBillName(''); setBillAmount('');
   }
 
-  const th = THEMES[theme] || THEMES.noir;
-  const rootVars = {
-    '--bg': th.bg, '--panel': th.panel, '--field': th.field, '--border': th.border,
-    '--text': th.text, '--dim': th.dim, '--accent': th.accent, '--accent2': th.accent2, '--danger': th.danger,
-  };
+
 
   if (!profile) {
     return <ProfilePicker confirmResetProfilePassword={confirmResetProfilePassword} confirmDeleteProfile={confirmDeleteProfile} confirmExportProfile={confirmExportProfile} confirmNewProfile={confirmNewProfile} confirmRenameProfile={confirmRenameProfile} confirmUnlock={confirmUnlock} handleImportFile={handleImportFile} importFileRef={importFileRef} newProfileName={newProfileName} openUnlock={openUnlock} pickerError={pickerError} pickerMode={pickerMode} pickerPassword={pickerPassword} pickerPassword2={pickerPassword2} pickerTarget={pickerTarget} pickerTheme={pickerTheme} profileList={profileList} profileListLoading={profileListLoading} setNewProfileName={setNewProfileName} setPickerError={setPickerError} setPickerMode={setPickerMode} setPickerPassword={setPickerPassword} setPickerPassword2={setPickerPassword2} setPickerTheme={setPickerTheme} />;
@@ -886,8 +860,8 @@ export default function LifeTracker() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ ...rootVars, background: 'var(--bg)' }}>
-        <span className="text-sm" style={{ fontFamily: MONO, color: 'var(--dim)' }}>Loading...</span>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <span className="text-sm" style={{ color: 'var(--dim)' }}>Loading…</span>
       </div>
     );
   }
@@ -948,42 +922,12 @@ export default function LifeTracker() {
 
   const isAllEmpty = gym.workouts.length === 0 && budget.transactions.length === 0 && Object.keys(routine.logs).length === 0;
 
-  // How full today's three Home stat tiles are on average (0-1) — drives the
-  // hero wave's color (cold→hot) and speed (slower→faster) below. Deliberately
-  // reuses numbers already on screen rather than tracking a separate streak.
-  const heroProgress = [
-    Math.min(1, (Number(goal.saved) || 0) / (Number(goal.target) || 1)),
-    Math.min(1, habitsToday.length / (routine.habits.length || 1)),
-    Math.min(1, workoutsThisWeek / 7),
-  ].reduce((a, b) => a + b, 0) / 3;
-  const heroWaveColor = heatColor(heroProgress);
-  const heroWaveDuration = 8 - heroProgress * 6; // 8s idle → 2s at full progress
-
   const quote = getDailyQuote(today);
 
   return (
-    <div className="min-h-screen" style={{
-      ...rootVars,
-      // Ambient glow behind the glass cards — two soft accent-colored blobs
-      // fading into the flat page color, so the translucent panels above
-      // actually have something to show through.
-      background: 'radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 55%), '
-        + 'radial-gradient(circle at 100% 15%, color-mix(in srgb, var(--accent2) 12%, transparent), transparent 50%), var(--bg)',
-      backgroundAttachment: 'fixed',
-      color: 'var(--text)', fontFamily: SANS,
-    }}>
+    <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <style>{`
-        input, select { color: var(--text); }
-        input::placeholder { color: var(--dim); opacity: 0.7; }
-        input, select, button { border-radius: ${RADIUS_SM}px; }
-        /* Hero wave: the SVG is a 2-tile-wide box (600 units for two 300-wide
-           periods); scrolling it by exactly 50% of its own width loops with
-           no visible seam. Actual speed is set per-render via the inline
-           animation-duration below, driven by today's progress. */
-        @keyframes heroWaveScroll { to { transform: translateX(-50%); } }
-        @media (prefers-reduced-motion: reduce) { .hero-wave { animation: none !important; } }
-        /* Cheer toast: quick fade/slide in, hold, fade out — total 5s, matching
-           the setTimeout that removes it from the DOM. */
+        /* Mood toast: fade in, hold, fade out — 5s, matching the timer that removes it. */
         @keyframes cheerPop {
           0% { opacity: 0; transform: translateY(-10px); }
           6% { opacity: 1; transform: translateY(0); }
@@ -993,16 +937,16 @@ export default function LifeTracker() {
       `}</style>
       {cheer && (
         <div className="fixed inset-x-0 z-50 flex justify-center px-6" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 64px)', pointerEvents: 'none' }}>
-          <div className="px-5 py-3 text-sm text-center" style={{ ...glassCard(18), color: 'var(--text)', maxWidth: 340, animation: 'cheerPop 5s ease forwards' }}>
+          <div className="px-5 py-3 text-sm text-center" style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: '0 6px 24px rgba(0,0,0,.12)', color: 'var(--text)', maxWidth: 340, animation: 'cheerPop 5s ease forwards' }}>
             {cheer}
           </div>
         </div>
       )}
-      <Header theme={theme} setTheme={setTheme} tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); window.storage.delete('device:last-profile').catch(() => {}); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
-      <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-3 pt-2 pb-20 md:pb-8">
+      <Header tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); window.storage.delete('device:last-profile').catch(() => {}); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
+      <main className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 pt-3 pb-28 md:pb-8">
 
         {tab === 'home' && (
-          <HomeTab cooked={cooked} goal={goal} gym={gym} habitsToday={habitsToday} heroWaveColor={heroWaveColor} heroWaveDuration={heroWaveDuration} isAllEmpty={isAllEmpty} picked={picked} profile={profile} quote={quote} remainingBills={remainingBills} routine={routine} setTab={setTab} today={today} todayIdx={todayIdx} workoutsThisWeek={workoutsThisWeek} />
+          <HomeTab cooked={cooked} goal={goal} gym={gym} habitsToday={habitsToday} isAllEmpty={isAllEmpty} picked={picked} profile={profile} quote={quote} remainingBills={remainingBills} routine={routine} setTab={setTab} today={today} todayIdx={todayIdx} workoutsThisWeek={workoutsThisWeek} />
         )}
 
         {tab === 'gym' && (
@@ -1025,7 +969,7 @@ export default function LifeTracker() {
           <NotesTab addNote={addNote} deleteNote={deleteNote} editNoteText={editNoteText} editingNoteId={editingNoteId} noteTag={noteTag} noteText={noteText} notesData={notesData} saveNoteEdit={saveNoteEdit} setEditNoteText={setEditNoteText} setEditingNoteId={setEditingNoteId} setNoteTag={setNoteTag} setNoteText={setNoteText} togglePinNote={togglePinNote} />
         )}
 
-      </div>
+      </main>
       <BottomNav tab={tab} setTab={setTab} />
     </div>
   );

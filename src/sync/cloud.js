@@ -1,7 +1,9 @@
 // Accounts + cloud sync, wired to Supabase.
 //
-// Everything here is OFF unless both VITE_SUPABASE_URL and
-// VITE_SUPABASE_ANON_KEY are set at build time (Vercel -> Settings ->
+// Everything here is OFF unless a Supabase URL and public key are set at
+// build time — either VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY, or the names
+// Supabase's Connect screen shows: NEXT_PUBLIC_SUPABASE_URL +
+// NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (Vercel -> Settings ->
 // Environment Variables). Off means the app behaves exactly as before:
 // local-only, no account UI, and the Supabase library is never downloaded.
 //
@@ -13,8 +15,10 @@
 // UI components subscribe() to get a `state` snapshot whenever it changes.
 import { createSyncEngine, mergeProfileLists } from './engine.js';
 
-const URL_ = import.meta.env.VITE_SUPABASE_URL;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const URL_ = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+  || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const PAYMENT_LINK = import.meta.env.VITE_STRIPE_PAYMENT_LINK;
 const PORTAL_URL = import.meta.env.VITE_STRIPE_PORTAL_URL;
 
@@ -37,7 +41,8 @@ function client() {
   // Written out in full (not via cloudConfigured) so that when the keys are
   // missing, the build sees a constant `true` here and drops the Supabase
   // import entirely — no unused 59 KB file shipped or pre-downloaded.
-  if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  if (!(import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL)
+    || !(import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) {
     return Promise.reject(new Error('Cloud sync is not configured'));
   }
   if (!clientPromise) {

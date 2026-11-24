@@ -10,4 +10,9 @@ export default defineConfig({
   // without that prefix the built index.html would request /assets/...
   // at the domain root and 404.
   base: process.env.VITE_BASE || '/',
+  // Settings starting with these prefixes are baked into the app. NEXT_PUBLIC_
+  // is accepted too, so the Supabase values can be pasted into Vercel exactly
+  // as Supabase's "Connect" screen shows them. Both prefixes mean "public by
+  // design" — never use either for a secret key.
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
 });

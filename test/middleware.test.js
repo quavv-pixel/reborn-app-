@@ -190,7 +190,7 @@ console.log('\nthe gate as a whole (no default passwords, fails closed)');
 const req = (path, headers = {}) => new Request('https://reborn.test' + path, { headers });
 async function withEnv(vars, fn) {
   const saved = {};
-  for (const k of ['REBORN_USER', 'REBORN_PASS', 'REBORN_ROTATE_SECRET', 'REBORN_GATE']) { saved[k] = process.env[k]; delete process.env[k]; }
+  for (const k of ['REBORN_USER', 'REBORN_PASS', 'REBORN_ROTATE_SECRET', 'REBORN_GATE', 'SITE_PASSWORD', 'ROTATING_CODE_SECRET']) { saved[k] = process.env[k]; delete process.env[k]; }
   Object.assign(process.env, vars);
   try { return await fn(); } finally {
     for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
@@ -219,9 +219,18 @@ await test('only the password set (no rotate secret) -> fails closed after deadl
 })));
 await test('setup page names exactly which setting is missing, never a value', () => withEnv({ REBORN_PASS: 'hunter2-secret' }, () => at(AFTER, async () => {
   const html = await (await middleware(req('/'))).text();
-  assert.ok(html.includes('<b>REBORN_ROTATE_SECRET</b>'));
-  assert.ok(!html.includes('<b>REBORN_PASS</b>'), 'REBORN_PASS is set, so it must not be listed');
+  assert.ok(html.includes('<b>REBORN_ROTATE_SECRET (or ROTATING_CODE_SECRET)</b>'));
+  assert.ok(!html.includes('<b>REBORN_PASS'), 'REBORN_PASS is set, so it must not be listed');
   assert.ok(!html.includes('hunter2-secret'), 'a value must never be shown');
+})));
+await test('older names SITE_PASSWORD + ROTATING_CODE_SECRET work too', () => withEnv({ SITE_PASSWORD: 'old-pw', ROTATING_CODE_SECRET: 'old-s' }, () => at(BEFORE, async () => {
+  assert.strictEqual((await middleware(req('/'))).status, 401, 'gate is on (not temporary open mode)');
+  const res = await middleware(req('/', { authorization: basic('reborn', 'old-pw') }));
+  assert.strictEqual(res.status, 302, 'SITE_PASSWORD signs in');
+})));
+await test('the new names win when both are set', () => withEnv({ REBORN_PASS: 'new', SITE_PASSWORD: 'old', REBORN_ROTATE_SECRET: 's' }, () => at(BEFORE, async () => {
+  assert.strictEqual((await middleware(req('/', { authorization: basic('reborn', 'new') }))).status, 302);
+  assert.notStrictEqual((await middleware(req('/', { authorization: basic('reborn', 'old') }))).status, 302);
 })));
 await test('once both secrets are set, the gate is back on even inside the window', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, () => at(BEFORE, async () => {
   assert.strictEqual((await middleware(req('/'))).status, 401);

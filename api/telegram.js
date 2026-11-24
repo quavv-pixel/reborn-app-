@@ -18,7 +18,7 @@
 // The middleware deliberately skips /api/* — Telegram authenticates with
 // its secret_token header instead of the site's password gate.
 
-import { hourlyCode, timingSafeEqual } from '../middleware.js';
+import { hourlyCode, rotateSecretFrom, timingSafeEqual } from '../middleware.js';
 
 export const config = { runtime: 'edge' };
 
@@ -33,7 +33,7 @@ async function tg(token, method, payload) {
 }
 
 async function buildReply(text, env, requestUrl) {
-  const secret = env.REBORN_ROTATE_SECRET;
+  const secret = rotateSecretFrom(env);
   const now = Date.now();
   const noSecret = '⚠️ REBORN_ROTATE_SECRET is not set in Vercel, so there are no guest codes yet.';
   const minsLeft = Math.max(1, 60 - Math.floor((now % HOUR_MS) / 60000));

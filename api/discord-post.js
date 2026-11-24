@@ -16,7 +16,7 @@
 // The middleware deliberately skips /api/*; this endpoint authenticates
 // with CRON_KEY instead so Discord/cron traffic never sees the login box.
 
-import { hourlyCode, timingSafeEqual } from '../middleware.js';
+import { hourlyCode, rotateSecretFrom, timingSafeEqual } from '../middleware.js';
 
 export const config = { runtime: 'edge' };
 
@@ -34,7 +34,7 @@ export default async function handler(request) {
   try { key = new URL(request.url).searchParams.get('key') || ''; } catch {}
   if (!timingSafeEqual(key, cronKey)) return new Response('forbidden', { status: 403 });
 
-  const secret = env.REBORN_ROTATE_SECRET;
+  const secret = rotateSecretFrom(env);
   if (!secret) return new Response('REBORN_ROTATE_SECRET is not set — no guest code to post.', { status: 500 });
   const now = Date.now();
   const code = await hourlyCode(secret, now, 0);

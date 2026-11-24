@@ -31,6 +31,13 @@
 
 const DEFAULT_USER = 'reborn';
 
+// The guest-code / sign-in-cookie secret. Also read under its older name so
+// projects set up before the rename keep working. Shared with the Telegram
+// bot and Discord poster so they always compute the same codes.
+export function rotateSecretFrom(env) {
+  return env.REBORN_ROTATE_SECRET || env.ROTATING_CODE_SECRET;
+}
+
 // No I/L/O/0/1/U — every character is unambiguous when read aloud or
 // copied from a phone notification.
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
@@ -343,12 +350,13 @@ export default async function middleware(request) {
   if (String(env.REBORN_GATE || '').toLowerCase() === 'off') return undefined;
 
   const user = env.REBORN_USER || DEFAULT_USER;
-  const pass = env.REBORN_PASS;
-  const rotateSecret = env.REBORN_ROTATE_SECRET;
+  // Older setups named these SITE_PASSWORD / ROTATING_CODE_SECRET; both work.
+  const pass = env.REBORN_PASS || env.SITE_PASSWORD;
+  const rotateSecret = rotateSecretFrom(env);
   if (!pass || !rotateSecret) {
     const isCodePage = pathname === '/code' || pathname === '/code/';
     if (!isCodePage && nowMs < TEMP_OPEN_UNTIL) return undefined; // temporary open mode
-    return setupRequiredPage([!pass && 'REBORN_PASS', !rotateSecret && 'REBORN_ROTATE_SECRET'].filter(Boolean));
+    return setupRequiredPage([!pass && 'REBORN_PASS (or SITE_PASSWORD)', !rotateSecret && 'REBORN_ROTATE_SECRET (or ROTATING_CODE_SECRET)'].filter(Boolean));
   }
 
   const header = request.headers.get('authorization');

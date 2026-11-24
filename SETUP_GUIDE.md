@@ -32,6 +32,8 @@ That's on purpose: a missing password should lock the door, not leave it open.
    |---|---|
    | `REBORN_PASS` | your new master password (the first string, or one you'll remember) |
    | `REBORN_ROTATE_SECRET` | the second string. You never type this; it generates the guest codes |
+   (Older projects may already have these as `SITE_PASSWORD` and
+   `ROTATING_CODE_SECRET`. Those names work too, so there's nothing to add.)
 3. Merge the pull request into `main`. Vercel deploys it automatically.
 4. Open the site and sign in with username `reborn` and your new `REBORN_PASS`.
 

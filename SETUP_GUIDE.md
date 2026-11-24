@@ -64,7 +64,10 @@ local-only, exactly as before.
    | Vercel name | Supabase value |
    |---|---|
    | `VITE_SUPABASE_URL` | Project URL |
-   | `VITE_SUPABASE_ANON_KEY` | the **anon / public** key |
+   | `VITE_SUPABASE_ANON_KEY` | the **anon / public** (or **publishable**) key |
+
+   The names Supabase's **Connect** screen shows also work, so you can paste
+   them as-is: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 7. Redeploy. Open the app; the **Back up & sync** box appears under the
    profiles.
 8. **Test it:** create an account, confirm the email, make a profile and add a

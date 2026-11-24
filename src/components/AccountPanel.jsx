@@ -37,6 +37,36 @@ export default function AccountPanel() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  // After "Create account", Supabase emails a confirm link. People often tap
+  // it on their PHONE, which signs the phone in but leaves this device waiting.
+  // So while waiting, quietly retry signing in here — every 15s, and right away
+  // whenever you come back to this tab — until the account is confirmed.
+  const [waiting, setWaiting] = useState(false);
+  useEffect(() => {
+    if (!waiting || s.user) return undefined;
+    let stopped = false;
+    let inFlight = false;
+    const started = Date.now();
+    const tryNow = async () => {
+      if (stopped || inFlight) return;
+      inFlight = true;
+      try {
+        await cloud.signIn(email.trim(), password);
+        if (!stopped) setWaiting(false);
+      } catch (e) {
+        // "Email not confirmed" just means: keep waiting. Anything else is a real problem.
+        if (!/not confirmed/i.test((e && e.message) || '') && !stopped) { setErr(e.message || String(e)); setWaiting(false); }
+      } finally { inFlight = false; }
+    };
+    const iv = setInterval(() => {
+      if (Date.now() - started > 15 * 60000) { setWaiting(false); setMsg('Still not confirmed. Tap the link in the email, then sign in here.'); return; }
+      tryNow();
+    }, 15000);
+    const onBack = () => { if (document.visibilityState !== 'hidden') tryNow(); };
+    window.addEventListener('focus', onBack);
+    document.addEventListener('visibilitychange', onBack);
+    return () => { stopped = true; clearInterval(iv); window.removeEventListener('focus', onBack); document.removeEventListener('visibilitychange', onBack); };
+  }, [waiting, s.user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!s.configured) return null;
 
@@ -76,6 +106,28 @@ export default function AccountPanel() {
     );
   }
 
+  if (waiting) {
+    return (
+      <div className="mt-6 p-4" style={glassCard(18, '--panel')} data-testid="account-panel">
+        <div className="text-sm font-semibold mb-1">Check your email</div>
+        <p className="text-xs mb-3" style={dimText}>
+          We sent a confirmation link to <b style={{ color: 'var(--text)' }}>{email.trim()}</b>. Tap it on any device (your phone is fine).
+          This screen signs you in by itself once you've confirmed.
+        </p>
+        <BtnPrimary style={{ width: '100%', opacity: busy ? 0.6 : 1 }} onClick={() => run(async () => {
+          try { await cloud.signIn(email.trim(), password); setWaiting(false); }
+          catch (e) {
+            if (/not confirmed/i.test(e.message || '')) throw new Error("Not confirmed yet. Tap the link in the email first, then try again.");
+            throw e;
+          }
+        })}>{busy ? 'Checking…' : "I've confirmed, sign me in"}</BtnPrimary>
+        {err && <p className="text-xs mt-2" style={danger}>{err}</p>}
+        <button type="button" className="text-xs mt-3" style={dimText}
+          onClick={() => { setWaiting(false); setMode('signup'); setErr(''); setMsg(''); }}>Use a different email</button>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6 p-4" style={glassCard(18, '--panel')} data-testid="account-panel">
       <div className="text-sm font-medium mb-1">
@@ -91,7 +143,7 @@ export default function AccountPanel() {
         if (mode === 'signin') run(() => cloud.signIn(email.trim(), password));
         if (mode === 'signup') run(async () => {
           const r = await cloud.signUp(email.trim(), password);
-          if (r.needsConfirmation) setMsg('Check your email and tap the link to confirm, then sign in here.');
+          if (r.needsConfirmation) setWaiting(true);
         });
         if (mode === 'reset') run(async () => {
           await cloud.sendPasswordReset(email.trim());

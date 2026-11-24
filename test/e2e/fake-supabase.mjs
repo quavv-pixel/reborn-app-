@@ -16,7 +16,7 @@ export function startFakeSupabase(port) {
   const users = new Map();    // email -> { id, email, password }
   const tokens = new Map();   // access/refresh token -> user id
   const kv = new Map();       // `${userId}\n${key}` -> { key, value, updated_at_ms }
-  const config = { requirePayment: false, paid: new Set() };
+  const config = { requirePayment: false, paid: new Set(), requireConfirm: false };
 
   function session(user) {
     const exp = Math.floor(Date.now() / 1000) + 3600;
@@ -61,6 +61,8 @@ export function startFakeSupabase(port) {
     if (p === '/__test__/config') {
       if ('requirePayment' in body) config.requirePayment = body.requirePayment;
       if (body.markPaid) config.paid.add(users.get(body.markPaid).id);
+      if ('requireConfirm' in body) config.requireConfirm = body.requireConfirm;
+      if (body.confirm) users.get(body.confirm).confirmed = true;
       return send(200, { ok: true });
     }
     if (p === '/__test__/rows') {
@@ -71,9 +73,11 @@ export function startFakeSupabase(port) {
     // ---- auth (GoTrue) ----
     if (p === '/auth/v1/signup' && req.method === 'POST') {
       if (users.has(body.email)) return send(422, { code: 'user_already_exists', msg: 'User already registered' });
-      const u = { id: randomUUID(), email: body.email, password: body.password };
+      const u = { id: randomUUID(), email: body.email, password: body.password, confirmed: !config.requireConfirm };
       users.set(u.email, u);
-      return send(200, session(u)); // auto-confirm, like Supabase with "Confirm email" off
+      // "Confirm email" on (Supabase's default): no session until the link is tapped.
+      if (!u.confirmed) return send(200, publicUser(u));
+      return send(200, session(u));
     }
     if (p === '/auth/v1/token' && req.method === 'POST') {
       if (url.searchParams.get('grant_type') === 'password') {
@@ -81,6 +85,7 @@ export function startFakeSupabase(port) {
         if (!u || u.password !== body.password) {
           return send(400, { code: 'invalid_credentials', error: 'invalid_grant', error_description: 'Invalid login credentials', msg: 'Invalid login credentials' });
         }
+        if (!u.confirmed) return send(400, { code: 'email_not_confirmed', error: 'invalid_grant', error_description: 'Email not confirmed', msg: 'Email not confirmed' });
         return send(200, session(u));
       }
       if (url.searchParams.get('grant_type') === 'refresh_token') {

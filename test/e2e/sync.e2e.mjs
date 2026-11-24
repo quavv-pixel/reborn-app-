@@ -185,6 +185,8 @@ try {
     A.page.waitForEvent('load', { timeout: 8000 }),
     panel(A.page).getByRole('button', { name: 'Sign out & clear this device' }).click(),
   ]);
+  // The page reloads after clearing; wait for the sign-in box to be drawn.
+  await A.page.getByRole('button', { name: 'Sign in' }).waitFor({ timeout: 8000 }).catch(() => {});
   check('the device is empty afterwards', !(await A.page.getByRole('button', { name: 'Me' }).isVisible()));
   check('the account panel is back to "sign in"', await A.page.getByRole('button', { name: 'Sign in' }).isVisible());
   check('the data is still safe in the cloud', (await cloudRows(EMAIL)).some(r => r.key === 'p:Me:routine-data'));

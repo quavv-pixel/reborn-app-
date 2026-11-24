@@ -245,6 +245,19 @@ export async function setNewPassword(password) {
 
 export function dismissRecovery() { set({ recovery: false }); }
 
+// Permanently deletes the signed-in account and everything synced to it
+// (supabase/schema.sql: delete_my_account), then clears this device too.
+export async function deleteAccount() {
+  const sb = await client();
+  const { error } = await sb.rpc('delete_my_account');
+  if (error) throw error;
+  await sb.auth.signOut().catch(() => {});
+  localStorage.removeItem(META_KEY);
+  localStorage.removeItem(DATA_KEY);
+  set({ user: null, status: 'signed-out', paid: false, lastSyncedAt: null });
+  window.location.reload();
+}
+
 // Re-checks the signed-in user's ACCOUNT password (used before resetting a
 // forgotten profile password). Returns true/false; never throws for a
 // simple wrong password.

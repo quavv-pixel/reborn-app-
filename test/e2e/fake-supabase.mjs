@@ -123,6 +123,12 @@ export function startFakeSupabase(port) {
       }
       return send(200, n);
     }
+    if (p === '/rest/v1/rpc/delete_my_account' && req.method === 'POST') {
+      if (!u) return send(401, { code: '28000', message: 'not signed in', hint: null, details: null });
+      users.delete(u.email);
+      for (const [k, r] of kv) if (r.user_id === u.id) kv.delete(k);
+      return send(204);
+    }
     if (p === '/rest/v1/entitlements' && req.method === 'GET') {
       return send(200, u && config.paid.has(u.id) ? [{ active: true }] : []);
     }

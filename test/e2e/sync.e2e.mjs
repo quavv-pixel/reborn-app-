@@ -189,7 +189,26 @@ try {
   check('the account panel is back to "sign in"', await A.page.getByRole('button', { name: 'Sign in' }).isVisible());
   check('the data is still safe in the cloud', (await cloudRows(EMAIL)).some(r => r.key === 'p:Me:routine-data'));
 
-  const errs = [...A.errors, ...B.errors];
+  console.log('\n--- New account confirmed on ANOTHER device: this one signs itself in ---');
+  await control('/__test__/config', { requireConfirm: true, requirePayment: false });
+  const PC = await newDevice();
+  await panel(PC.page).waitFor({ timeout: 5000 });
+  await panel(PC.page).getByText('New here? Create an account').click();
+  await PC.page.getByPlaceholder('Email').fill('pc-user@example.com');
+  await PC.page.getByPlaceholder(/Account password/).fill('pc-pass-123');
+  await PC.page.getByRole('button', { name: 'Create account' }).click();
+  await panel(PC.page).getByText('Check your email').waitFor({ timeout: 5000 }).catch(() => {});
+  check('after creating an account, the PC shows "Check your email"', await panel(PC.page).getByText('Check your email').isVisible());
+  await panel(PC.page).getByRole('button', { name: /I've confirmed/ }).click();
+  await panel(PC.page).getByText(/Not confirmed yet/).waitFor({ timeout: 5000 }).catch(() => {});
+  check('"I\'ve confirmed" before tapping the link explains it isn\'t confirmed yet', await panel(PC.page).getByText(/Not confirmed yet/).isVisible());
+  await control('/__test__/config', { confirm: 'pc-user@example.com' }); // the link was tapped on the phone
+  await PC.page.evaluate(() => window.dispatchEvent(new Event('focus'))); // you switch back to the PC tab
+  await panel(PC.page).getByText('pc-user@example.com').waitFor({ timeout: 8000 }).catch(() => {});
+  check('the PC signs itself in once the email is confirmed anywhere', await panel(PC.page).getByRole('button', { name: 'Sign out', exact: true }).isVisible());
+  await control('/__test__/config', { requireConfirm: false });
+
+  const errs = [...A.errors, ...B.errors, ...PC.errors];
   check('no JavaScript errors on either phone', errs.length === 0);
   if (errs.length) console.log(errs);
 } catch (e) {

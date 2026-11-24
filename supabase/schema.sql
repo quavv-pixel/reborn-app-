@@ -109,3 +109,23 @@ revoke all on function public.push_kv(jsonb) from public, anon;
 grant execute on function public.push_kv(jsonb) to authenticated;
 revoke all on function public.can_sync() from public, anon;
 grant execute on function public.can_sync() to authenticated;
+
+-- ------------------------------------------------- delete my account -------
+-- "Delete my account" in the app calls this. It removes the signed-in user
+-- from auth.users; their kv rows and entitlements row go with it (on delete
+-- cascade above). Only ever acts on the caller's own account (auth.uid()).
+-- Apple requires apps with accounts to offer this, and the privacy policy
+-- promises it.
+create or replace function public.delete_my_account()
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not signed in' using errcode = '28000';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;

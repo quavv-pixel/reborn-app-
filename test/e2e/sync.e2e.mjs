@@ -185,6 +185,8 @@ try {
     A.page.waitForEvent('load', { timeout: 8000 }),
     panel(A.page).getByRole('button', { name: 'Sign out & clear this device' }).click(),
   ]);
+  // The page reloads after clearing; wait for the sign-in box to be drawn.
+  await A.page.getByRole('button', { name: 'Sign in' }).waitFor({ timeout: 8000 }).catch(() => {});
   check('the device is empty afterwards', !(await A.page.getByRole('button', { name: 'Me' }).isVisible()));
   check('the account panel is back to "sign in"', await A.page.getByRole('button', { name: 'Sign in' }).isVisible());
   check('the data is still safe in the cloud', (await cloudRows(EMAIL)).some(r => r.key === 'p:Me:routine-data'));
@@ -207,6 +209,26 @@ try {
   await panel(PC.page).getByText('pc-user@example.com').waitFor({ timeout: 8000 }).catch(() => {});
   check('the PC signs itself in once the email is confirmed anywhere', await panel(PC.page).getByRole('button', { name: 'Sign out', exact: true }).isVisible());
   await control('/__test__/config', { requireConfirm: false });
+
+  console.log('\n--- Delete my account ---');
+  await PC.page.getByRole('button', { name: 'Delete my account' }).waitFor({ timeout: 5000 });
+  PC.page.once('dialog', d => d.accept('nope'));
+  await PC.page.getByRole('button', { name: 'Delete my account' }).click();
+  await PC.page.waitForTimeout(500);
+  check('typing anything but DELETE does nothing', await panel(PC.page).getByText('pc-user@example.com').isVisible());
+  PC.page.once('dialog', d => d.accept('DELETE'));
+  await Promise.all([
+    PC.page.waitForEvent('load', { timeout: 8000 }),
+    PC.page.getByRole('button', { name: 'Delete my account' }).click(),
+  ]);
+  await PC.page.getByRole('button', { name: 'Sign in' }).waitFor({ timeout: 5000 }).catch(() => {});
+  check('after deleting, the device is signed out', await PC.page.getByRole('button', { name: 'Sign in' }).isVisible());
+  await PC.page.getByPlaceholder('Email').fill('pc-user@example.com');
+  await PC.page.getByPlaceholder(/Account password/).fill('pc-pass-123');
+  await PC.page.getByRole('button', { name: 'Sign in' }).click();
+  await panel(PC.page).getByText(/Invalid login credentials/).waitFor({ timeout: 5000 }).catch(() => {});
+  check('the deleted account can no longer sign in', await panel(PC.page).getByText(/Invalid login credentials/).isVisible());
+  check('other accounts\' data is untouched', (await cloudRows(EMAIL)).some(r => r.key === 'p:Me:routine-data'));
 
   const errs = [...A.errors, ...B.errors, ...PC.errors];
   check('no JavaScript errors on either phone', errs.length === 0);

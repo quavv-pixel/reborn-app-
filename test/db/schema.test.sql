@@ -111,4 +111,20 @@ delete from auth.users where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 select pg_temp.ok((select count(*) from kv where user_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 0, 'kv rows removed with the account');
 select pg_temp.ok((select count(*) from entitlements) = 0, 'plan row removed with the account');
 
+\qecho '--- delete my account (from inside the app) ---'
+\set QUIET on
+update app_config set require_payment = false;
+insert into auth.users values ('cccccccc-0000-0000-0000-000000000003', 'c@example.com');
+select pg_temp.as_user('cccccccc-0000-0000-0000-000000000003');
+select push_kv('[{"key":"p:Me:gym-data","value":"c-data","t":1}]');
+select pg_temp.as_anon();
+select pg_temp.refused($$select delete_my_account()$$, 'a visitor who is not signed in cannot delete anything');
+select pg_temp.as_user('bbbbbbbb-0000-0000-0000-000000000002');
+select delete_my_account();
+select pg_temp.reset();
+select pg_temp.ok((select count(*) from auth.users where id = 'bbbbbbbb-0000-0000-0000-000000000002') = 0, 'delete_my_account removes the caller''s account');
+select pg_temp.ok((select count(*) from kv where user_id = 'bbbbbbbb-0000-0000-0000-000000000002') = 0, '...and all their synced data');
+select pg_temp.ok((select count(*) from auth.users where id = 'cccccccc-0000-0000-0000-000000000003') = 1, 'other accounts are untouched');
+select pg_temp.ok((select count(*) from kv where user_id = 'cccccccc-0000-0000-0000-000000000003') = 1, '...and so is their data');
+
 \qecho 'all database checks passed'

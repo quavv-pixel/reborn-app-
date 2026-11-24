@@ -101,6 +101,13 @@ export default function AccountPanel() {
             }
           }} disabled={busy} style={danger}>Sign out & clear this device</button>
         </div>
+        <button className="text-xs mt-3" style={danger} disabled={busy} onClick={() => {
+          const typed = window.prompt(
+            'This permanently deletes your account and everything backed up to it, and clears this device. '
+            + (s.paid ? 'Cancel your subscription first under "Manage subscription". ' : '')
+            + 'It cannot be undone.\n\nType DELETE to confirm.');
+          if (typed && typed.trim().toUpperCase() === 'DELETE') run(cloud.deleteAccount);
+        }}>Delete my account</button>
         {err && <p className="text-xs mt-2" style={danger}>{err}</p>}
       </div>
     );

@@ -7,7 +7,7 @@ import {
   makeSessionCookie, verifySessionCookie, cookieFromHeader,
   makeFailCookie, verifyFailCookie, isStaticAsset, isPublicPage, LOCKOUT_LIMIT, LOCKOUT_WINDOW_MS,
 } from '../middleware.js';
-import middleware, { clock, TEMP_OPEN_UNTIL } from '../middleware.js';
+import middleware, { clock } from '../middleware.js';
 import discordPost from '../api/discord-post.js';
 
 let passed = 0, failed = 0;
@@ -196,25 +196,25 @@ async function withEnv(vars, fn) {
     for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
   }
 }
-// Every check below pins the clock either before or after the temporary
-// open window, so results never depend on today's date.
-const BEFORE = TEMP_OPEN_UNTIL - 86400000, AFTER = TEMP_OPEN_UNTIL + 1;
+// Keep the test clock helper explicit; missing secrets must fail closed at
+// every time, not only after a temporary-open deadline.
+const BEFORE = 1_000_000, AFTER = 2_000_000;
 async function at(t, fn) { const real = clock.now; clock.now = () => t; try { return await fn(); } finally { clock.now = real; } }
 
-await test('temporary open mode: no secrets yet -> app opens', () => withEnv({}, () => at(BEFORE, async () => {
-  assert.strictEqual(await middleware(req('/')), undefined);
+await test('missing secrets fail closed even before any deadline', () => withEnv({}, () => at(BEFORE, async () => {
+  assert.strictEqual((await middleware(req('/'))).status, 503);
 })));
-await test('temporary open mode: /code (guest codes) still never opens', () => withEnv({}, () => at(BEFORE, async () => {
+await test('missing secrets show setup on the code page too', () => withEnv({}, () => at(BEFORE, async () => {
   assert.strictEqual((await middleware(req('/code'))).status, 503);
 })));
-await test('after the deadline, no secrets -> "finish setup" page (503)', () => withEnv({}, () => at(AFTER, async () => {
+await test('setup page appears when no secrets are configured', () => withEnv({}, () => at(AFTER, async () => {
   assert.strictEqual((await middleware(req('/'))).status, 503);
 })));
 await test('the old default password never signs anyone in', () => withEnv({}, () => at(AFTER, async () => {
   const res = await middleware(req('/', { authorization: basic('reborn', 'reborn123') }));
   assert.strictEqual(res.status, 503);
 })));
-await test('only the password set (no rotate secret) -> fails closed after deadline', () => withEnv({ REBORN_PASS: 'p' }, () => at(AFTER, async () => {
+await test('only the password set (no rotate secret) -> fails closed', () => withEnv({ REBORN_PASS: 'p' }, () => at(AFTER, async () => {
   assert.strictEqual((await middleware(req('/'))).status, 503);
 })));
 await test('setup page names exactly which setting is missing, never a value', () => withEnv({ REBORN_PASS: 'hunter2-secret' }, () => at(AFTER, async () => {
@@ -224,7 +224,7 @@ await test('setup page names exactly which setting is missing, never a value', (
   assert.ok(!html.includes('hunter2-secret'), 'a value must never be shown');
 })));
 await test('older names SITE_PASSWORD + ROTATING_CODE_SECRET work too', () => withEnv({ SITE_PASSWORD: 'old-pw', ROTATING_CODE_SECRET: 'old-s' }, () => at(BEFORE, async () => {
-  assert.strictEqual((await middleware(req('/'))).status, 401, 'gate is on (not temporary open mode)');
+  assert.strictEqual((await middleware(req('/'))).status, 401, 'gate is on');
   const res = await middleware(req('/', { authorization: basic('reborn', 'old-pw') }));
   assert.strictEqual(res.status, 302, 'SITE_PASSWORD signs in');
 })));
@@ -232,7 +232,7 @@ await test('the new names win when both are set', () => withEnv({ REBORN_PASS: '
   assert.strictEqual((await middleware(req('/', { authorization: basic('reborn', 'new') }))).status, 302);
   assert.notStrictEqual((await middleware(req('/', { authorization: basic('reborn', 'old') }))).status, 302);
 })));
-await test('once both secrets are set, the gate is back on even inside the window', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, () => at(BEFORE, async () => {
+await test('once both secrets are set, the gate stays on', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, () => at(BEFORE, async () => {
   assert.strictEqual((await middleware(req('/'))).status, 401);
 })));
 await test('secrets set -> sign-in box (401)', () => withEnv({ REBORN_PASS: 'p', REBORN_ROTATE_SECRET: 's' }, async () => {

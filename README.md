@@ -9,17 +9,26 @@ This is your REBORN tracker pulled out of Claude into a real, ordinary
 website project. Once deployed it runs on a real server 24/7 — your phone
 and your computer are never involved in keeping it "on."
 
-## What's different from the Claude version
+## What's included
 
-- **Storage**: `src/storage.js` replaces Claude's `window.storage` with your
-  browser's own `localStorage`. Same API, so `LifeTracker.jsx` didn't need
-  to change. Data stays on whichever device/browser you use it in — no
-  cross-device sync yet (see "Later" below).
-- Everything else — themes, profiles, gym/routine/meals/budget — is exactly
-  what you had.
-- **Real push notifications**: optional, self-hosted, and off by default —
-  see "Real push notifications" below. The static Vercel deploy above is
-  unaffected either way.
+- **Local-first storage**: `src/storage.js` keeps data in the current browser and
+  works offline. Profiles, workouts, habits, challenges, budget, and notes remain
+  available without an account.
+- **Optional accounts and cross-device sync**: set the Supabase build variables
+  to show the account panel. Data is synced through the policies and RPC in
+  `supabase/schema.sql`; without those variables, the app stays local-only.
+- **Optional paid access**: Stripe Payment Links and the webhook can mark
+  accounts as Pro. Payment enforcement is controlled by the database
+  `app_config.require_payment` setting.
+- **Optional crash reports**: configure `VITE_SENTRY_DSN` to enable Sentry.
+- **Offline PWA**: the service worker caches the production app. Privacy and
+  terms pages are in `public/`.
+- **Optional background push**: the `server/` service is a separate
+  self-hosted deployment; Vercel's static hosting does not run its scheduler.
+
+See [SETUP_GUIDE.md](SETUP_GUIDE.md) before deploying. It lists the required
+password-gate variables, optional Supabase/Stripe/Sentry setup, and checks to
+run before making the app public.
 
 ## Deploy it (about 20–30 minutes, all free)
 
@@ -55,14 +64,11 @@ upload the changed files to the same GitHub repo (or push via `git` if
 you're comfortable with it), and Vercel automatically redeploys within
 about a minute. Nothing on your end needs to stay running.
 
-## Later, if you want real cross-device sync + real login
+## Accounts and cross-device sync
 
-Replace the internals of `src/storage.js` with a client for a
-backend-as-a-service like Firebase or Supabase (both have free tiers).
-Because `LifeTracker.jsx` only ever calls `window.storage.get/set/...`,
-none of the app code has to change — only what's inside that one file.
-That's also what would let the profile switcher become a real
-password-protected login instead of a name-only convenience.
+This is implemented, not a future step. To enable it, configure the Supabase
+project and build variables using [SETUP_GUIDE.md](SETUP_GUIDE.md). Without
+those variables the app remains local-only and no account panel is shown.
 
 ## Real push notifications (a different, self-hosted deploy)
 

@@ -77,13 +77,15 @@ export default async function handler(request) {
     return new Response('This is the Telegram webhook endpoint.', { status: 200 });
   }
 
-  // Telegram proves it's really Telegram with the secret_token we register
-  // at setWebhook time. If one is configured, enforce it.
+  // Telegram proves it's really Telegram with the secret_token registered at
+  // setWebhook time. Fail closed if the secret is missing; otherwise any
+  // caller could forge an admin update and receive the rotating guest code.
   const webhookSecret = env.TELEGRAM_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const got = request.headers.get('x-telegram-bot-api-secret-token') || '';
-    if (!timingSafeEqual(got, webhookSecret)) return new Response('forbidden', { status: 403 });
+  if (!webhookSecret) {
+    return new Response('Telegram webhook not configured (set TELEGRAM_WEBHOOK_SECRET).', { status: 503 });
   }
+  const got = request.headers.get('x-telegram-bot-api-secret-token') || '';
+  if (!timingSafeEqual(got, webhookSecret)) return new Response('forbidden', { status: 403 });
 
   let update;
   try { update = await request.json(); } catch { return new Response('ok', { status: 200 }); }

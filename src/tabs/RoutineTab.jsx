@@ -6,7 +6,8 @@ import { BtnPrimary, Panel, dimText, inputStyle } from '../components/ui.jsx';
 import { downloadICS } from '../lib/ics.js';
 import { CATEGORIES, MOODS, MOOD_LABELS } from '../lib/constants.js';
 import { Bell, Download, Plus, Trash2 } from 'lucide-react';
-import { streakFor } from '../lib/utils.js';
+import { bestStreak, currentStreak } from '../lib/progress.js';
+import ChallengeCard from '../components/ChallengeCard.jsx';
 
 // "18:30" -> "6:30 PM" (the phone's own clock style).
 function fmtTime(hhmm) {
@@ -31,11 +32,14 @@ function TimeField({ value, onChange, label }) {
   );
 }
 
-export default function RoutineTab({ deleteHabit, habitsToday, handleAddHabit, last7Days, newHabitCategory, newHabitName, newHabitTime, routine, setHabitTime, setMood, setNewHabitCategory, setNewHabitName, setNewHabitTime, today, toggleHabit }) {
+export default function RoutineTab({ challenge, skipHabit, toggleRestDay, startChallenge, endChallenge, deleteHabit, habitsToday, handleAddHabit, last7Days, newHabitCategory, newHabitName, newHabitTime, routine, setHabitTime, setMood, setNewHabitCategory, setNewHabitName, setNewHabitTime, today, toggleHabit }) {
   const timed = routine.habits.filter(h => h.time);
+  const restToday = (routine.restDays || []).includes(today);
+  const skippedToday = (routine.skips || {})[today] || [];
   return (
     <div className="md:grid md:grid-cols-2 md:gap-3 md:items-start">
       <div>
+        <ChallengeCard progress={challenge} startChallenge={startChallenge} endChallenge={endChallenge} />
         <Panel
           title="Habits & reminders"
           right={timed.length > 0 && (
@@ -44,8 +48,13 @@ export default function RoutineTab({ deleteHabit, habitsToday, handleAddHabit, l
               <Download size={12} /> Add to calendar
             </button>
           )}
-          hint="Tick a habit when it's done. Give it a time and you'll get a reminder (turn on the bell at the top)."
+          hint="Tick a habit when it's done, or Skip it today without losing your streak. Give it a time for a reminder (turn on the bell at the top)."
         >
+          <button onClick={() => toggleRestDay(today)} aria-pressed={restToday}
+            className="w-full text-sm px-3 py-2 mb-3 text-left"
+            style={{ background: restToday ? 'var(--accent-soft)' : 'transparent', border: `1px ${restToday ? 'solid' : 'dashed'} ${restToday ? 'var(--accent)' : 'var(--border)'}`, color: restToday ? 'var(--accent)' : 'var(--dim)' }}>
+            {restToday ? '😴 Rest day today. Every streak is safe. Tap to undo' : '😴 Need a break? Take a rest day (keeps every streak)'}
+          </button>
           {routine.habits.length === 0 ? (
             <p className="text-sm mb-3" style={dimText}>No habits yet. Add one below.</p>
           ) : (
@@ -61,7 +70,9 @@ export default function RoutineTab({ deleteHabit, habitsToday, handleAddHabit, l
                     <div className="space-y-1.5">
                       {inCat.map(h => {
                         const done = habitsToday.includes(h.id);
-                        const streak = streakFor(h.id, routine.logs);
+                        const streak = currentStreak(h.id, routine, today);
+                        const best = bestStreak(h.id, routine, today);
+                        const skipped = skippedToday.includes(h.id);
                         return (
                           <div key={h.id} className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'var(--field)', borderRadius: 12 }}>
                             <button onClick={() => toggleHabit(h.id, today)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left" aria-pressed={done}>
@@ -71,7 +82,14 @@ export default function RoutineTab({ deleteHabit, habitsToday, handleAddHabit, l
                               </span>
                               <span className="text-sm truncate" style={{ color: done ? 'var(--dim)' : 'var(--text)', textDecoration: done ? 'line-through' : 'none' }}>{h.name}</span>
                             </button>
-                            {streak > 0 && <span className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--accent)' }}>{streak}d</span>}
+                            {streak > 0 && <span className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--accent)' }} title={`Best: ${best} days`}>🔥{streak}</span>}
+                            {!done && !restToday && (
+                              <button onClick={() => skipHabit(h.id, today)} aria-pressed={skipped} aria-label={`${skipped ? 'Undo skip' : 'Skip today'}: ${h.name}`}
+                                className="text-[11px] px-2 py-1 flex-shrink-0"
+                                style={{ background: skipped ? 'var(--accent-soft)' : 'transparent', color: skipped ? 'var(--accent)' : 'var(--dim)', border: '1px solid var(--border)', borderRadius: 999 }}>
+                                {skipped ? 'Skipped' : 'Skip'}
+                              </button>
+                            )}
                             <TimeField value={h.time} onChange={v => setHabitTime(h.id, v)} label={`Reminder time for ${h.name}`} />
                             <button onClick={() => deleteHabit(h.id)} style={dimText} className="flex-shrink-0" aria-label={`Delete ${h.name}`}>
                               <Trash2 size={15} />

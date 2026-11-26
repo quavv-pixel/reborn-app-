@@ -206,7 +206,7 @@ try {
   check('"I\'ve confirmed" before tapping the link explains it isn\'t confirmed yet', await panel(PC.page).getByText(/Not confirmed yet/).isVisible());
   await control('/__test__/config', { confirm: 'pc-user@example.com' }); // the link was tapped on the phone
   await PC.page.evaluate(() => window.dispatchEvent(new Event('focus'))); // you switch back to the PC tab
-  await panel(PC.page).getByText('pc-user@example.com').waitFor({ timeout: 8000 }).catch(() => {});
+  await panel(PC.page).getByRole('button', { name: 'Sign out', exact: true }).waitFor({ timeout: 8000 }).catch(() => {});
   check('the PC signs itself in once the email is confirmed anywhere', await panel(PC.page).getByRole('button', { name: 'Sign out', exact: true }).isVisible());
   await control('/__test__/config', { requireConfirm: false });
 

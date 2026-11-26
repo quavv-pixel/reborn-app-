@@ -145,7 +145,7 @@ const NAV_ITEMS = [
 
 export function Header({ tab, setTab, profile, onSwitchProfile, notifsEnabled, onToggleNotifs, realPushArmed }) {
   return (
-    <header className="sticky top-0 z-10 px-4 pb-2" style={{ paddingTop: 'calc(0.6rem + env(safe-area-inset-top, 0px))', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+    <header className="flex-shrink-0 z-10 px-4 pb-2" style={{ paddingTop: 'calc(0.6rem + env(safe-area-inset-top, 0px))', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
       <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex items-center justify-between">
         <span className="text-lg font-bold" style={{ letterSpacing: 3, color: 'var(--accent)' }}>REBORN</span>
         <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export function Header({ tab, setTab, profile, onSwitchProfile, notifsEnabled, o
 
 export function BottomNav({ tab, setTab }) {
   return (
-    <nav className="md:hidden fixed left-0 right-0 bottom-0 z-10"
+    <nav className="md:hidden flex-shrink-0 z-10"
       style={{ background: 'var(--panel)', borderTop: '1px solid var(--border)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="grid grid-cols-5 max-w-md mx-auto">
         {NAV_ITEMS.map(({ id, label, Icon }) => (

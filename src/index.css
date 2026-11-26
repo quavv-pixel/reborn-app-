@@ -71,3 +71,21 @@ input::placeholder, textarea::placeholder { color: var(--dim); opacity: 0.8; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* App frame: header, a scrolling middle, and the bottom menu, exactly one screen tall.
+   The page itself never scrolls, so iPhone Safari can't leave the menu floating
+   mid-screen when its toolbar or keyboard changes size. */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;   /* older browsers */
+  height: 100dvh;  /* the screen's real visible height */
+  overflow: hidden;
+}
+.app-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}

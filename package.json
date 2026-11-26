@@ -10,9 +10,9 @@
     "build:pages": "VITE_BASE=/reborn-app-/ npm run build",
     "preview": "vite preview",
     "start": "node server/server.js",
-    "test": "node test/security.test.js && node test/middleware.test.js && node test/sync.test.js && node test/stripe-webhook.test.js && node test/habits.test.js && node test/progress.test.js",
+    "test": "node test/security.test.js && node test/middleware.test.js && node test/sync.test.js && node test/stripe-webhook.test.js && node test/telegram.test.js && node test/habits.test.js && node test/progress.test.js",
     "test:e2e": "npm run build && node test/e2e/app.e2e.mjs",
-    "test:e2e:sync": "VITE_SUPABASE_URL=http://127.0.0.1:54329 VITE_SUPABASE_ANON_KEY=fake-anon-key VITE_STRIPE_PAYMENT_LINK=https://buy.stripe.com/test_fake vite build --outDir .e2e-build --emptyOutDir && node scripts/build-sw.js .e2e-build && node test/e2e/sync.e2e.mjs",
+    "test:e2e:sync": "node scripts/test-e2e-sync.js",
     "test:db": "bash test/db/run.sh"
   },
   "dependencies": {

@@ -320,16 +320,6 @@ ul{color:#f0b25a;font-size:13px;padding-left:20px}ol{color:#8A857C;font-size:12p
   return new Response(html, { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
 }
 
-// TEMPORARY OPEN MODE. While REBORN_PASS / REBORN_ROTATE_SECRET are not set
-// yet, the app opens with no shared password instead of showing the setup
-// page, so the owner isn't locked out while finishing setup. Safe-ish
-// because no personal data lives on the site (it's all on each phone, and
-// each profile has its own password). It ends on its own:
-//   - as soon as both variables are set, the gate turns back on, or
-//   - on TEMP_OPEN_UNTIL, after which a still-unconfigured site fails
-//     closed again (setup page) so it can never stay open by accident.
-// The owner-only /code page never opens without the real secrets.
-export const TEMP_OPEN_UNTIL = Date.parse('2026-12-07T00:00:00Z');
 export const clock = { now: () => Date.now() }; // tests swap this
 
 export default async function middleware(request) {
@@ -354,8 +344,6 @@ export default async function middleware(request) {
   const pass = env.REBORN_PASS || env.SITE_PASSWORD;
   const rotateSecret = rotateSecretFrom(env);
   if (!pass || !rotateSecret) {
-    const isCodePage = pathname === '/code' || pathname === '/code/';
-    if (!isCodePage && nowMs < TEMP_OPEN_UNTIL) return undefined; // temporary open mode
     return setupRequiredPage([!pass && 'REBORN_PASS (or SITE_PASSWORD)', !rotateSecret && 'REBORN_ROTATE_SECRET (or ROTATING_CODE_SECRET)'].filter(Boolean));
   }
 

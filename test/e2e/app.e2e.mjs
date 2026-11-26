@@ -94,6 +94,12 @@ try {
   await page.getByPlaceholder('135').fill('225');
   await page.getByRole('button', { name: 'Add lift' }).click();
   check('the lift appears under Personal bests', await page.getByText('225 lb').first().isVisible());
+  check('"beat last time" hint suggests +5 lb', /Last time: 225 lb .* try 230 lb/.test(await page.getByTestId('beat-last-time').innerText()));
+  await page.getByPlaceholder('135').fill('235');
+  await page.getByRole('button', { name: 'Add lift' }).click();
+  await page.getByText(/New personal record/).waitFor({ timeout: 3000 }).catch(() => {});
+  check('beating your best shows a personal-record message', await page.getByText(/New personal record/).isVisible());
+  check('no "repeat last workout" before there is an earlier workout day', (await page.getByRole('button', { name: /Repeat last workout/ }).count()) === 0);
 
   console.log('\n--- Gym: muscle group picks the exercises ---');
   // The muscle chips appear twice (Exercises card + Log a set); they share one selection.
@@ -139,6 +145,34 @@ try {
   check('an existing habit can get a reminder time', (await page.getByLabel('Reminder time for Drink water').inputValue()) === '09:15');
   await page.getByLabel('Delete Take vitamins').click();
   check('no separate "Daily reminders" list any more', !(await page.getByText('Daily reminders').isVisible()) && !(await page.getByText('Daily schedule').isVisible()));
+
+  console.log('\n--- Streak protection ---');
+  await page.getByRole('button', { name: 'Skip today: Drink water' }).click();
+  check('a habit can be skipped for today', await page.getByRole('button', { name: 'Undo skip: Drink water' }).isVisible());
+  await page.getByRole('button', { name: 'Undo skip: Drink water' }).click();
+  await page.getByRole('button', { name: /Take a rest day/ }).click();
+  check('a rest day can be turned on', await page.getByRole('button', { name: /Rest day today/ }).isVisible());
+  check('on a rest day there is nothing to skip', (await page.getByRole('button', { name: /^Skip today/ }).count()) === 0);
+  await page.getByRole('button', { name: /Rest day today/ }).click();
+
+  console.log('\n--- Challenges ---');
+  await page.getByRole('button', { name: 'Start a challenge' }).click();
+  await page.getByRole('button', { name: 'Start Winter Arc' }).click();
+  check('starting Winter Arc shows Day 1 of 90', await page.getByText('Day 1 of 90').first().isVisible());
+  check("the challenge's habits were added", await page.getByText('Plan tomorrow tonight').first().isVisible());
+  await nav(page, 'Home');
+  check('Home shows the challenge too', /Winter Arc[\s\S]*Day 1 of 90/.test(await page.getByTestId('challenge-compact').innerText()));
+  check('Home shows "Your week"', await page.getByTestId('week-summary').isVisible());
+  await nav(page, 'Routine');
+  // Two questions pop up ("End Winter Arc?", "Also remove its habits?"): answer OK to both.
+  const okToAll = d => d.accept().catch(() => {});
+  page.on('dialog', okToAll);
+  await page.getByRole('button', { name: 'End challenge' }).click();
+  await page.waitForTimeout(300);
+  page.off('dialog', okToAll);
+  check('ending a challenge (and removing its habits) works',
+    (await page.getByRole('button', { name: 'Start a challenge' }).isVisible()) && (await page.getByText('Plan tomorrow tonight').count()) === 0);
+  check('your own habits are kept', await page.getByText('Drink water').first().isVisible());
 
   console.log('\n--- Budget: savings, and fixing a mistake ---');
   await nav(page, 'Budget');

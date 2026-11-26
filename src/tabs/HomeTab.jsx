@@ -1,11 +1,14 @@
 // The Home tab. Pure view: every value and handler it needs arrives as a prop from LifeTracker.jsx, which owns all state.
 import { Meter, NavCard, Panel, dimText, glassCard } from '../components/ui.jsx';
 import { HERO_WAVE_PATH, fmtDate, fmtMoney, greeting } from '../lib/utils.js';
-import { Dumbbell, ListChecks, Wallet } from 'lucide-react';
+import { Dumbbell, ListChecks, Share2, Wallet } from 'lucide-react';
+import ChallengeCard from '../components/ChallengeCard.jsx';
+import InstallPrompt from '../components/InstallPrompt.jsx';
 
-export default function HomeTab({ goal, gym, habitsToday, heroWaveDuration, isAllEmpty, profile, quote, routine, setTab, today, todayIdx, workoutsThisWeek }) {
+export default function HomeTab({ challenge, week, shareProgress, goal, gym, habitsToday, heroWaveDuration, isAllEmpty, profile, quote, routine, setTab, today, todayIdx, workoutsThisWeek }) {
   return (
     <div>
+      <InstallPrompt />
       <div className="mb-3 p-4 relative overflow-hidden" style={glassCard(16)}>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs" style={dimText}>{greeting()}</span>
@@ -33,6 +36,26 @@ export default function HomeTab({ goal, gym, habitsToday, heroWaveDuration, isAl
         <Meter label="Habits" value={habitsToday.length} max={routine.habits.length || 1} displayMax={routine.habits.length} />
         <Meter label="Workouts" value={workoutsThisWeek} max={7} />
       </div>
+
+      <ChallengeCard compact progress={challenge} onOpen={() => setTab('routine')} />
+
+      <Panel title="Your week" right={
+        <button onClick={shareProgress} className="flex items-center gap-1 text-xs px-2.5 py-1.5"
+          style={{ border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 999 }}>
+          <Share2 size={12} /> Share my progress
+        </button>
+      }>
+        <div className="grid grid-cols-3 gap-2 text-center" data-testid="week-summary">
+          <div><div className="text-lg font-bold">{week.habitPct}%</div><div className="text-[11px]" style={dimText}>habits done</div></div>
+          <div><div className="text-lg font-bold">{week.workouts}</div><div className="text-[11px]" style={dimText}>workout days</div></div>
+          <div><div className="text-lg font-bold">{fmtMoney(week.saved)}</div><div className="text-[11px]" style={dimText}>saved</div></div>
+        </div>
+        <p className="text-xs mt-3" style={dimText}>
+          {week.bestDay
+            ? `Best day: ${new Date(week.bestDay + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long' })}. Keep it going!`
+            : 'Tick a habit or log a workout and your week fills in here.'}
+        </p>
+      </Panel>
 
       <Panel title="Today's thought">
         <p className="text-sm italic leading-relaxed mb-1">“{quote.text}”</p>

@@ -4,11 +4,12 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useDebouncedStorage } from './lib/useDebouncedStorage.js';
 import { hashPassword, loadProfileList, pKey, saveProfileList } from './lib/profiles.js';
 import { getState as cloudState, verifyAccountPassword } from './sync/cloud.js';
-import { defaultTargetDate, getLast7Days, loadKey, todayStr, uid } from './lib/utils.js';
+import { defaultTargetDate, fmtDate, getLast7Days, loadKey, todayStr, uid } from './lib/utils.js';
 import { DEFAULT_BILLS, DEFAULT_HABITS, DEFAULT_SCHEDULE, DEFAULT_SPLIT, DEFAULT_WEEKLY_PLAN, EXERCISES_BY_MUSCLE, cheerFor, getDailyQuote, getExercisesForType, muscleForExercise } from './lib/constants.js';
 import { armRealPush, backendAvailable, bootstrapToken, syncSchedule } from './push';
 import { parseTimeLabel } from './lib/ics.js';
 import { mergeRemindersIntoHabits, scheduleFromHabits } from './lib/habits.js';
+import { CHALLENGES, challengeProgress, isPersonalRecord, lastWorkoutDay, weekSummary } from './lib/progress.js';
 import ProfilePicker from './components/ProfilePicker.jsx';
 import { BottomNav, Header } from './components/ui.jsx';
 const HomeTab = lazy(() => import('./tabs/HomeTab.jsx'));
@@ -452,6 +453,9 @@ export default function LifeTracker() {
       if (!g.split) g.split = DEFAULT_SPLIT;
       if (!r.schedule) r.schedule = DEFAULT_SCHEDULE;
       r = mergeRemindersIntoHabits(r);
+      if (!r.skips) r.skips = {};
+      if (!r.restDays) r.restDays = [];
+      if (r.challenge === undefined) r.challenge = null;
       if (!r.habits || r.habits.length === 0) r.habits = DEFAULT_HABITS;
       if (!r.moodLog) r.moodLog = {};
       if (!b.weeklyPlan) b.weeklyPlan = DEFAULT_WEEKLY_PLAN;
@@ -537,11 +541,25 @@ export default function LifeTracker() {
   function deleteWorkout(id) {
     updateGym({ ...gym, workouts: gym.workouts.filter(w => w.id !== id) });
   }
+  function celebrate(text) {
+    setCheer(text);
+    if (cheerTimer.current) clearTimeout(cheerTimer.current);
+    cheerTimer.current = setTimeout(() => setCheer(null), 5000);
+  }
   function handleAddWorkout() {
     if (!gExercise.trim()) return;
+    if (isPersonalRecord(gym.workouts, gExercise.trim(), gWeight)) celebrate(`🏆 New personal record: ${gExercise.trim()} ${gWeight} lb!`);
     addWorkout({ date: gDate, exercise: gExercise.trim(), muscle: gMuscle, sets: gSets, reps: gReps, weight: gWeight });
     // Deliberately not clearing exercise/sets/reps/weight — at the gym you're
     // usually logging several sets of the same lift back to back.
+  }
+  // Logs every set from your last workout day again, dated today.
+  function repeatLastWorkout() {
+    const last = lastWorkoutDay(gym.workouts, todayStr());
+    if (!last) return;
+    const added = last.sets.map(w => ({ id: uid(), date: todayStr(), exercise: w.exercise, muscle: w.muscle || '', sets: w.sets, reps: w.reps, weight: w.weight }));
+    updateGym({ ...gym, workouts: [...added.slice().reverse(), ...gym.workouts] });
+    celebrate(`💪 Logged ${added.length} set${added.length === 1 ? '' : 's'} from ${fmtDate(last.date)}`);
   }
   function updateSplitDay(idx, value) {
     const split = gym.split.map((s, i) => (i === idx ? { ...s, type: value } : s));
@@ -573,6 +591,38 @@ export default function LifeTracker() {
     Object.keys(logs).forEach(d => { logs[d] = logs[d].filter(h => h !== id); });
     // Spread the existing routine first so other fields (moodLog) survive.
     updateRoutine(withSchedule({ ...routine, habits: routine.habits.filter(h => h.id !== id), logs }));
+  }
+  // Streak protection: skip one habit for a day, or take a whole rest day.
+  // Either way the streak survives (see currentStreak in lib/progress.js).
+  function skipHabit(id, date) {
+    const cur = routine.skips[date] || [];
+    const next = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+    updateRoutine({ ...routine, skips: { ...routine.skips, [date]: next } });
+  }
+  function toggleRestDay(date) {
+    const on = routine.restDays.includes(date);
+    updateRoutine({ ...routine, restDays: on ? routine.restDays.filter(d => d !== date) : [...routine.restDays, date] });
+    if (!on) celebrate('😴 Rest day. Your streaks are safe.');
+  }
+  function startChallenge(templateId) {
+    const t = CHALLENGES.find(c => c.id === templateId);
+    if (!t) return;
+    const habits = [...routine.habits];
+    const habitIds = [], createdIds = [];
+    for (const [name, category] of t.habits) {
+      const existing = habits.find(h => h.name.trim().toLowerCase() === name.toLowerCase());
+      if (existing) { habitIds.push(existing.id); continue; }
+      const h = { id: uid(), name, category };
+      habits.push(h); habitIds.push(h.id); createdIds.push(h.id);
+    }
+    updateRoutine(withSchedule({ ...routine, habits, challenge: { id: t.id, name: t.name, emoji: t.emoji, days: t.days, start: todayStr(), habitIds, createdIds } }));
+    celebrate(`${t.emoji} ${t.name} starts today. Day 1 of ${t.days}!`);
+  }
+  function endChallenge(removeHabits) {
+    const ch = routine.challenge;
+    if (!ch) return;
+    const drop = new Set(removeHabits ? ch.createdIds || [] : []);
+    updateRoutine(withSchedule({ ...routine, challenge: null, habits: routine.habits.filter(h => !drop.has(h.id)) }));
   }
   function toggleHabit(id, date) {
     const current = routine.logs[date] || [];
@@ -689,7 +739,8 @@ export default function LifeTracker() {
   function addToSavings(amountStr) {
     const amount = Number(amountStr);
     if (!Number.isFinite(amount) || amount <= 0) return;
-    updateBudget({ ...budget, goal: { ...budget.goal, saved: (Number(budget.goal.saved) || 0) + amount } });
+    const history = [...(budget.goal.history || []), { date: todayStr(), amount }];
+    updateBudget({ ...budget, goal: { ...budget.goal, saved: (Number(budget.goal.saved) || 0) + amount, history } });
     setAddSavingsAmount('');
   }
   function toggleBillPaid(id, monthKey) {
@@ -790,6 +841,23 @@ export default function LifeTracker() {
   const isAllEmpty = gym.workouts.length === 0 && budget.transactions.length === 0 && Object.keys(routine.logs).length === 0;
 
   const quote = getDailyQuote(today);
+  const challenge = challengeProgress(routine, today);
+  const week = weekSummary({ routine, gym, budget }, today);
+  // Share your progress (text) with a friend or to social media.
+  async function shareProgress() {
+    const lines = [
+      challenge ? `${challenge.emoji} Day ${challenge.day} of ${challenge.name}` : '💪 My week on REBORN',
+      `✅ ${habitsToday.length}/${routine.habits.length} habits today · ${week.habitPct}% this week`,
+      `🏋️ ${week.workouts} workout${week.workouts === 1 ? '' : 's'} this week`,
+    ];
+    if (week.saved > 0) lines.push(`💰 +$${Math.round(week.saved)} saved this week`);
+    const text = lines.join('\n');
+    try {
+      if (navigator.share) { await navigator.share({ text }); return; }
+      await navigator.clipboard.writeText(text);
+      celebrate('📋 Copied. Paste it anywhere!');
+    } catch { /* share sheet closed */ }
+  }
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
@@ -817,15 +885,15 @@ export default function LifeTracker() {
         <Suspense fallback={<p className="text-sm py-8 text-center" style={{ color: 'var(--dim)' }}>Loading…</p>}>
 
         {tab === 'home' && (
-          <HomeTab goal={goal} gym={gym} habitsToday={habitsToday} heroWaveDuration={heroWaveDuration} isAllEmpty={isAllEmpty} profile={profile} quote={quote} routine={routine} setTab={setTab} today={today} todayIdx={todayIdx} workoutsThisWeek={workoutsThisWeek} />
+          <HomeTab challenge={challenge} week={week} shareProgress={shareProgress} goal={goal} gym={gym} habitsToday={habitsToday} heroWaveDuration={heroWaveDuration} isAllEmpty={isAllEmpty} profile={profile} quote={quote} routine={routine} setTab={setTab} today={today} todayIdx={todayIdx} workoutsThisWeek={workoutsThisWeek} />
         )}
 
         {tab === 'gym' && (
-          <GymTab deleteWorkout={deleteWorkout} gDate={gDate} gExercise={gExercise} gMuscle={gMuscle} gReps={gReps} gSets={gSets} gWeight={gWeight} gym={gym} handleAddWorkout={handleAddWorkout} handleExerciseChange={handleExerciseChange} personalBests={personalBests} setGDate={setGDate} selectMuscle={selectMuscle} setGReps={setGReps} setGSets={setGSets} setGWeight={setGWeight} splitStripRef={splitStripRef} todayIdx={todayIdx} updateSplitDay={updateSplitDay} workoutsByDate={workoutsByDate} />
+          <GymTab repeatLastWorkout={repeatLastWorkout} lastDay={lastWorkoutDay(gym.workouts, today)} deleteWorkout={deleteWorkout} gDate={gDate} gExercise={gExercise} gMuscle={gMuscle} gReps={gReps} gSets={gSets} gWeight={gWeight} gym={gym} handleAddWorkout={handleAddWorkout} handleExerciseChange={handleExerciseChange} personalBests={personalBests} setGDate={setGDate} selectMuscle={selectMuscle} setGReps={setGReps} setGSets={setGSets} setGWeight={setGWeight} splitStripRef={splitStripRef} todayIdx={todayIdx} updateSplitDay={updateSplitDay} workoutsByDate={workoutsByDate} />
         )}
 
         {tab === 'routine' && (
-          <RoutineTab deleteHabit={deleteHabit} habitsToday={habitsToday} handleAddHabit={handleAddHabit} last7Days={last7Days} newHabitCategory={newHabitCategory} newHabitName={newHabitName} newHabitTime={newHabitTime} routine={routine} setHabitTime={setHabitTime} setMood={setMood} setNewHabitCategory={setNewHabitCategory} setNewHabitName={setNewHabitName} setNewHabitTime={setNewHabitTime} today={today} toggleHabit={toggleHabit} />
+          <RoutineTab challenge={challenge} skipHabit={skipHabit} toggleRestDay={toggleRestDay} startChallenge={startChallenge} endChallenge={endChallenge} deleteHabit={deleteHabit} habitsToday={habitsToday} handleAddHabit={handleAddHabit} last7Days={last7Days} newHabitCategory={newHabitCategory} newHabitName={newHabitName} newHabitTime={newHabitTime} routine={routine} setHabitTime={setHabitTime} setMood={setMood} setNewHabitCategory={setNewHabitCategory} setNewHabitName={setNewHabitName} setNewHabitTime={setNewHabitTime} today={today} toggleHabit={toggleHabit} />
         )}
 
         {tab === 'budget' && (

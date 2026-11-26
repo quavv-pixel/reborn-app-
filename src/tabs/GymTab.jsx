@@ -2,9 +2,10 @@
 import { BtnPrimary, Panel, dimText, inputStyle } from '../components/ui.jsx';
 import { ALL_EXERCISES, EXERCISES_BY_MUSCLE, MONO, MUSCLE_GROUPS, RADIUS_SM, getExercisesForType } from '../lib/constants.js';
 import { fmtDate } from '../lib/utils.js';
+import { nextTarget } from '../lib/progress.js';
 import { Trash2 } from 'lucide-react';
 
-export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps, gSets, gWeight, gym, handleAddWorkout, handleExerciseChange, personalBests, selectMuscle, setGDate, setGReps, setGSets, setGWeight, splitStripRef, todayIdx, updateSplitDay, workoutsByDate }) {
+export default function GymTab({ repeatLastWorkout, lastDay, deleteWorkout, gDate, gExercise, gMuscle, gReps, gSets, gWeight, gym, handleAddWorkout, handleExerciseChange, personalBests, selectMuscle, setGDate, setGReps, setGSets, setGWeight, splitStripRef, todayIdx, updateSplitDay, workoutsByDate }) {
   return (
         <div className="md:grid md:grid-cols-2 md:gap-2 md:items-start">
           <div>
@@ -122,7 +123,13 @@ export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps
               })()}
             </Panel>
 
-            <Panel title="Log a set">
+            <Panel title="Log a set" right={lastDay && (
+              <button onClick={repeatLastWorkout} className="text-xs px-2.5 py-1.5"
+                style={{ border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 999 }}
+                title={`Logs the ${lastDay.sets.length} sets from ${fmtDate(lastDay.date)} again, for today`}>
+                ↻ Repeat last workout
+              </button>
+            )}>
               <div className="mb-2">
                 <label className="text-xs uppercase tracking-widest mb-1 block" style={dimText}>Muscle group — tap to see its exercises</label>
                 <div className="flex flex-wrap gap-1.5">
@@ -179,8 +186,19 @@ export default function GymTab({ deleteWorkout, gDate, gExercise, gMuscle, gReps
                   <input type="date" className="w-full text-sm px-3 py-2 focus:outline-none" style={inputStyle} value={gDate} onChange={e => setGDate(e.target.value)} />
                 </div>
               </div>
+              {(() => {
+                const t = gExercise && nextTarget(gym.workouts, gExercise);
+                if (!t) return null;
+                const s = t.suggestion;
+                return (
+                  <p className="text-xs mb-2 px-3 py-2" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderRadius: 10 }} data-testid="beat-last-time">
+                    Last time: {t.last.weight ? `${t.last.weight} lb × ${t.last.reps || '–'}` : `${t.last.reps || '–'} reps`}.
+                    {' '}Beat it: try {s.weight ? `${s.weight} lb × ${s.reps}` : `${s.reps} reps`} 💪
+                  </p>
+                );
+              })()}
               <BtnPrimary onClick={handleAddWorkout}>Add lift</BtnPrimary>
-              <p className="text-xs mt-2" style={dimText}>Sets/reps/weight auto-fill from your last log of the selected exercise — tweak and log again for each set.</p>
+              <p className="text-xs mt-2" style={dimText}>Your last numbers fill in automatically. Beat your best and you'll see a 🏆.</p>
             </Panel>
           </div>
           </div>

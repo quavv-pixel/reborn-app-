@@ -33,6 +33,9 @@ export default function LifeTracker() {
   const [pickerMode, setPickerMode] = useState('list'); // list | new | unlock | rename | delete | export
   const [pickerTarget, setPickerTarget] = useState(null); // profile name being unlocked
   const importFileRef = useRef(null);
+  // The scrolling middle of the app; a new tab opens at its top.
+  const scrollRef = useRef(null);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; }, [tab]);
   const [pickerPassword, setPickerPassword] = useState('');
   const [pickerPassword2, setPickerPassword2] = useState('');
   const [pickerError, setPickerError] = useState('');
@@ -860,7 +863,7 @@ export default function LifeTracker() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="app-shell" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <style>{`
         /* Home wave: the SVG is two tiles wide; scrolling it by half its width loops seamlessly. */
         @keyframes heroWaveScroll { to { transform: translateX(-50%); } }
@@ -880,7 +883,9 @@ export default function LifeTracker() {
         </div>
       )}
       <Header tab={tab} setTab={setTab} profile={profile} onSwitchProfile={() => { setProfile(null); setPickerMode('list'); window.storage.delete('device:last-profile').catch(() => {}); }} notifsEnabled={notifsEnabled} onToggleNotifs={toggleNotifications} realPushArmed={realPushArmed} />
-      <main className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 pt-3 pb-28 md:pb-8">
+      {/* Only this middle part scrolls; the header and the bottom menu are fixed parts of the frame. */}
+      <div className="app-scroll" ref={scrollRef}>
+      <main className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto px-4 pt-3 pb-8">
         {/* Each tab's code downloads the first time you open it (faster start). */}
         <Suspense fallback={<p className="text-sm py-8 text-center" style={{ color: 'var(--dim)' }}>Loading…</p>}>
 
@@ -906,6 +911,7 @@ export default function LifeTracker() {
 
         </Suspense>
       </main>
+      </div>
       <BottomNav tab={tab} setTab={setTab} />
     </div>
   );
